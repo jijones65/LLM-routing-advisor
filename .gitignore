@@ -1,0 +1,6 @@
+dist/
+site.tar.gz
+work/
+outputs/
+.DS_Store
+*.tar.gz
