@@ -9,7 +9,8 @@ Live site: [llm-routing-advisor.ji-jones.chatgpt.site](https://llm-routing-advis
 ## What is included
 
 - 107 distinct model variants supported by official provider pages
-- Quality-first, Balanced and Cost-first model teams, plus eight additional plan styles
+- Six top-level team styles: Quality, Balanced, Cost, Proven in use, Broad capability range and Focused specialist, plus eight additional plan styles
+- Separate ecosystem-maturity, real-world-exposure and capability-range signals with dated source attribution
 - Computer vision, geospatial, voice, coding, research, automation, privacy and safety capabilities
 - Industry, business-goal, knowledge-area and risk context
 - Provider website and Ollama links where available
@@ -17,7 +18,7 @@ Live site: [llm-routing-advisor.ji-jones.chatgpt.site](https://llm-routing-advis
 - Official-source evidence, catalogue coverage and update layers
 - D1 storage for source snapshots, evidence checks and saved application plans
 
-The recommendations are rule-based shortlists. They do not claim independently tested performance, and complete model teams should be tested on real application work before launch.
+The recommendations are rule-based shortlists. Every catalogue variant is scored for every job; a usual job label adds evidence but does not gate a model out. Public adoption signals are not user counts or quality tests. Complete model teams should be tested on real application work before launch.
 
 ## Project structure
 
@@ -33,6 +34,7 @@ npm run build
 npm run validate
 npm run test:registry
 npm run test:planning
+npm run test:recommendations
 ```
 
 The build writes the deployable Worker to `dist/`. Edit `worker/index.js`, not the generated file in `dist/`.

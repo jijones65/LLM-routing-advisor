@@ -6,6 +6,7 @@
     "build": "bash scripts/build.sh",
     "validate": "node scripts/validate-artifact.mjs",
     "test:registry": "node scripts/test-registry.mjs",
-    "test:planning": "node scripts/test-planning.mjs"
+    "test:planning": "node scripts/test-planning.mjs",
+    "test:recommendations": "node scripts/test-recommendations.mjs"
   }
 }

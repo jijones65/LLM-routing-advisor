@@ -14,6 +14,12 @@ for (const phrase of [
   "Quality first",
   "Balanced",
   "Cost first",
+  "Proven in use",
+  "Ecosystem maturity",
+  "real-world exposure",
+  "Broad capability range",
+  "Focused specialist",
+  "any of the 107 variants can rank first",
   "Primary model",
   "Tools outside the model team",
   "UN ISIC",
@@ -38,7 +44,7 @@ assert.ok(catalog.models.every((model) => model.sourceUrl), "each model needs an
 console.log(JSON.stringify({
   status: "planning-interface-valid",
   distinctModelVariants: catalog.models.length,
-  planStyles: 11,
+  planStyles: 14,
   capabilityChoices: 18,
   contextAxes: 4,
 }));
