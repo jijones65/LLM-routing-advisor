@@ -2202,6 +2202,14 @@ p {
   color: var(--muted);
   font-size: 8px;
 }
+.team-option .team-trial-state {
+  width: max-content;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #f1eee5;
+  color: #6d6250;
+  font-weight: 850;
+}
 .team-option.active {
   border-color: var(--lime2);
   background: #f3f7e7;
@@ -2285,6 +2293,216 @@ p {
   color: var(--ink);
   font-size: 7px;
   font-weight: 750;
+}
+.decision-card {
+  display: grid;
+  gap: 7px;
+  margin: 8px 0;
+  padding: 10px 11px;
+  border: 1px solid #cdd9d7;
+  border-radius: 9px;
+  background: #f5f9f8;
+}
+.decision-card > div:first-child {
+  display: grid;
+  gap: 1px;
+}
+.decision-card span {
+  color: #60737a;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.decision-card strong {
+  color: var(--navy);
+  font-size: 11px;
+}
+.decision-card small,
+.decision-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.45;
+}
+.decision-card.close-call {
+  border-color: #dcaa63;
+  background: #fff7e8;
+}
+.decision-card.policy-choice {
+  border-color: #aebbd0;
+  background: #f1f5fa;
+}
+.decision-card.tested-lead {
+  border-color: #9cbc70;
+  background: #f2f8e9;
+}
+.close-candidates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+.close-candidates span {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 7px;
+  border: 1px solid #ead4ad;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 65%);
+  text-transform: none;
+}
+.close-candidates b,
+.close-candidates small {
+  font-size: 8px;
+}
+.team-evaluation {
+  display: grid;
+  gap: 12px;
+  margin: 10px 0 17px;
+  padding: 16px;
+  border: 1px solid #a9c9c5;
+  border-radius: 13px;
+  background: #f5faf9;
+}
+.team-evaluation-head {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.65fr) minmax(0, 1.35fr);
+  gap: 18px;
+  align-items: end;
+}
+.team-evaluation-head span {
+  color: #587177;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.team-evaluation-head h3 {
+  margin: 3px 0 0;
+  color: var(--navy);
+  font-size: 18px;
+}
+.team-evaluation-head p,
+.trial-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.55;
+}
+.team-evaluation details {
+  border-top: 1px solid #d7e4e2;
+  padding-top: 10px;
+}
+.team-evaluation summary {
+  cursor: pointer;
+  color: var(--navy);
+  font-size: 10px;
+  font-weight: 900;
+}
+.team-check-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 9px;
+}
+.team-check {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-height: 88px;
+  padding: 9px;
+  border: 1px solid #d9e2df;
+  border-radius: 8px;
+  background: var(--panel);
+}
+.team-check > span {
+  width: max-content;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #e8f2db;
+  color: #486226;
+  font-size: 7px;
+  font-weight: 900;
+}
+.team-check.caution > span {
+  background: #fff0d2;
+  color: #7b5418;
+}
+.team-check.trial-required > span {
+  background: #e7edf3;
+  color: #456273;
+}
+.team-check strong {
+  color: var(--navy);
+  font-size: 9px;
+}
+.team-check p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.45;
+}
+.team-trial-grid {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+}
+.team-trial {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.55fr) minmax(0, 1.5fr) minmax(160px, 0.85fr);
+  gap: 10px;
+  align-items: start;
+  padding: 10px;
+  border: 1px solid #d7e1df;
+  border-radius: 8px;
+  background: var(--panel);
+}
+.team-trial.recorded.pass {
+  border-color: #9cbc70;
+}
+.team-trial.recorded.fail {
+  border-color: #d38b75;
+}
+.team-trial > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+.team-trial span {
+  color: #63777d;
+  font-size: 7px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.team-trial strong {
+  color: var(--navy);
+  font-size: 9px;
+}
+.team-trial p,
+.team-trial small {
+  margin: 0;
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.45;
+}
+.trial-outcomes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.trial-outcomes button {
+  padding: 3px 7px;
+  border: 1px solid #c9d6d3;
+  border-radius: 999px;
+  background: #fff;
+  color: #52676e;
+  font-size: 7px;
+  font-weight: 850;
+}
+.trial-outcomes button[aria-pressed="true"] {
+  border-color: var(--navy);
+  background: var(--navy);
+  color: #fff;
 }
 .team-intro {
   display: flex;
@@ -2443,6 +2661,14 @@ p {
     grid-template-columns: 1fr;
   }
   .result-readings {
+    grid-template-columns: 1fr;
+  }
+  .team-evaluation-head,
+  .team-trial {
+    grid-template-columns: 1fr;
+  }
+  .team-check-grid,
+  .close-candidates {
     grid-template-columns: 1fr;
   }
   .layer-map {

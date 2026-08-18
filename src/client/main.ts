@@ -1,14 +1,18 @@
 import { completeBrief, DIVERSITY_FIT_THRESHOLD, planFor } from "../engine/planning.js";
 import { jobRequirements } from "../engine/scoring.js";
 import { withSignals } from "../engine/signals.js";
+import { evaluateTeam } from "../engine/team-evaluation.js";
 import { byId, esc, fillSelect, setHtml, toast } from "./dom.js";
 import {
   expandedBreakdowns,
   initialBrief,
   initialRegistryQuery,
   readBootstrap,
+  trialOutcomes,
+  trialScopeKey,
   type BriefInput,
   type RegistryQuery,
+  type TrialOutcome,
 } from "./state.js";
 import { renderAudit, type AuditResponse } from "./views/audit.js";
 import { renderDesign, type DesignContext } from "./views/design.js";
@@ -141,6 +145,15 @@ byId("route-list").addEventListener("click", (event) => {
   refresh();
 });
 
+byId("team-evaluation").addEventListener("click", (event) => {
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-trial-key]");
+  const key = button?.dataset.trialKey;
+  if (!key) return;
+  if (button.dataset.trialClear === "true") trialOutcomes.delete(key);
+  else if (button.dataset.trialOutcome) trialOutcomes.set(key, button.dataset.trialOutcome as TrialOutcome);
+  refresh();
+});
+
 for (const [elementId, key] of [
   ["business-goal", "businessGoal"],
   ["industry", "industry"],
@@ -260,6 +273,8 @@ byId("refresh-registry").addEventListener("click", () => void loadAudit({ regist
 byId("save-blueprint").addEventListener("click", async () => {
   const complete = completeBrief(brief);
   const plan = planFor(catalog, complete, complete.planStyle);
+  const evaluation = evaluateTeam(plan.entries, complete);
+  const trialScope = trialScopeKey(brief, plan.strategy.id);
   const strategy = boot.strategies[complete.planStyle] ?? boot.strategies.balanced;
 
   try {
@@ -279,7 +294,15 @@ byId("save-blueprint").addEventListener("click", async () => {
           rank: entry.rank,
           fit: entry.fit,
           readings: entry.readings,
+          decision: entry.decision,
         })),
+        teamEvaluation: {
+          checks: evaluation.checks,
+          trials: evaluation.trials.map((trial) => ({
+            ...trial,
+            outcome: trialOutcomes.get(`${trialScope}::${trial.id}`) ?? "not-tested",
+          })),
+        },
         catalogVersion: boot.catalogVersion,
         scoringVersion: boot.scoringVersion,
         taxonomyVersion: boot.taxonomyVersion,

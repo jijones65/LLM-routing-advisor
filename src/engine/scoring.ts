@@ -64,11 +64,16 @@ export function qualityForJob(
   if (tests.length === 0) {
     return { value: model.quality, tested: 0, total: requirements.length, basis: "versioned catalogue estimate" };
   }
+  const testedTotal = tests.reduce((total, test) => total + test.score, 0);
+  const estimatedTotal = model.quality * Math.max(0, requirements.length - tests.length);
   return {
-    value: tests.reduce((total, test) => total + test.score, 0) / tests.length,
+    value: (testedTotal + estimatedTotal) / requirements.length,
     tested: tests.length,
     total: requirements.length,
-    basis: "capability-specific test results",
+    basis:
+      tests.length === requirements.length
+        ? "capability-specific test results"
+        : `${tests.length}/${requirements.length} capability-specific tests, with the untested requirements estimated`,
   };
 }
 
@@ -133,17 +138,20 @@ export function scoreModel(model: Model, role: RoleId, brief: Brief, strategy: S
   const roleMatch = model.roles.includes(role);
   push(
     "Provider job label",
-    roleMatch ? 8 : 0,
+    roleMatch ? 2 : 0,
     roleMatch
-      ? `the provider positions this model for the ${role} job`
+      ? `the provider positions this model for the ${role} job; this is supporting context, not performance evidence`
       : `the provider does not list ${role} among this model's usual jobs, so it is judged on capabilities alone`,
   );
 
   const quality = qualityForJob(model, role, brief);
+  // A general catalogue estimate is useful for sorting candidates, but it is
+  // not allowed to carry the same weight as a relevant application test.
+  const qualityConfidence = quality.tested === 0 ? 0.6 : quality.tested < quality.total ? 0.8 : 1;
   push(
     "Expected quality",
-    quality.value * strategy.quality,
-    `${quality.basis} ${quality.value.toFixed(1)}/5 × weight ${strategy.quality}`,
+    quality.value * strategy.quality * qualityConfidence,
+    `${quality.basis} ${quality.value.toFixed(1)}/5 × weight ${strategy.quality} × evidence factor ${qualityConfidence}`,
   );
 
   // Operating cost and speed are scored *relative to the middle of the range*, so
@@ -261,6 +269,7 @@ export function scoreModel(model: Model, role: RoleId, brief: Brief, strategy: S
       ecosystemVisibility: adoption,
       measuredPerformance: {
         measured: quality.tested > 0,
+        evidenceLevel: quality.tested === 0 ? "estimated" : quality.tested < quality.total ? "partly-tested" : "tested",
         score: Math.round(quality.value * 100) / 100,
         testedCapabilities: quality.tested,
         relevantCapabilities: quality.total,

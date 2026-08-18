@@ -13,6 +13,7 @@ import {
   scoreModel,
 } from "../build/engine/scoring.js";
 import { explainEntry, explainPlan, tradeOffs } from "../build/engine/explain.js";
+import { evaluateTeam } from "../build/engine/team-evaluation.js";
 
 const catalog = withSignals(CATALOG);
 
@@ -167,6 +168,20 @@ test("a provider job label adds evidence but does not gate a model out", () => {
     STRATEGIES.balanced,
   );
   assert.equal(reason, null, "a missing role label should not disqualify a model");
+  const labelled = catalog.find((model) => model.roles.includes("primary"));
+  const roleTerm = scoreModel(labelled, "primary", brief(), STRATEGIES.balanced).terms.find(
+    (term) => term.label === "Provider job label",
+  );
+  assert.equal(roleTerm.value, 2, "a provider role label must remain smaller than one capability match");
+});
+
+test("an untested quality estimate receives the reduced evidence factor", () => {
+  const model = catalog.find((candidate) => !candidate.capabilityTests);
+  const term = scoreModel(model, "primary", brief(), STRATEGIES.quality).terms.find(
+    (candidate) => candidate.label === "Expected quality",
+  );
+  assert.equal(term.value, model.quality * STRATEGIES.quality.quality * 0.6);
+  assert.match(term.detail, /evidence factor 0.6/);
 });
 
 test("current variants receive a finite score for every job", () => {
@@ -196,7 +211,7 @@ test("specialists use only the selected requirements relevant to their job", () 
   assert.ok(jobRequirements("primary", software).includes("voice"));
 });
 
-test("capability-specific tests replace the general quality estimate for that job", () => {
+test("partial capability tests are combined with estimates for the untested requirements", () => {
   const base = catalog.find((model) => model.cases.includes("coding"));
   assert.ok(base);
   const tested = {
@@ -213,9 +228,10 @@ test("capability-specific tests replace the general quality estimate for that jo
     },
   };
   const evidence = qualityForJob(tested, "coder", brief({ needs: ["code-build"] }));
-  assert.equal(evidence.value, 4.7);
+  assert.equal(evidence.value, 3.35);
   assert.equal(evidence.tested, 1);
-  assert.match(evidence.basis, /capability-specific/);
+  assert.equal(evidence.total, 2);
+  assert.match(evidence.basis, /1\/2 capability-specific tests/);
 });
 
 test("the four recommendation readings remain separate", () => {
@@ -224,6 +240,46 @@ test("the four recommendation readings remain separate", () => {
   assert.match(entry.readings.sourceConfidence, /confirmed|unconfirmed|drifted/);
   assert.ok(entry.readings.ecosystemVisibility >= 0 && entry.readings.ecosystemVisibility <= 100);
   assert.equal(typeof entry.readings.measuredPerformance.measured, "boolean");
+  assert.match(entry.readings.measuredPerformance.evidenceLevel, /estimated|partly-tested|tested/);
+});
+
+test("small numerical differences are labelled too close to call", () => {
+  const comparison = brief({
+    archetype: "product-comparison",
+    needs: ["documents", "current-research", "complex-decisions", "write-explain", "validate"],
+    planStyle: "quality",
+  });
+  const primary = planFor(catalog, comparison, "quality").entries[0];
+  assert.equal(primary.decision.state, "too-close");
+  assert.ok(primary.decision.closeCandidates.length >= 2);
+  assert.ok(primary.decision.scoreGap <= primary.decision.closeCallThreshold);
+  assert.match(primary.decision.reason, /provisional lead|within 1 point/i);
+  assert.match(primary.decision.recommendedTest, /same 10 representative/i);
+});
+
+test("team evaluation separates structural checks from trials that must be run", () => {
+  const application = brief({
+    archetype: "software-agent",
+    needs: ["code-build", "coordinate-work", "current-research", "validate"],
+  });
+  const plan = planFor(catalog, application, "balanced");
+  const evaluation = evaluateTeam(plan.entries, application);
+  assert.equal(evaluation.totalCapabilities, application.cases.length);
+  assert.equal(evaluation.trials.length, 5);
+  assert.ok(evaluation.checks.some((check) => check.id === "coverage"));
+  assert.ok(evaluation.checks.some((check) => check.id === "coordination" && check.status === "trial-required"));
+  assert.ok(evaluation.trials.some((trial) => trial.id === "failure-recovery"));
+  assert.ok(evaluation.trials.some((trial) => trial.id === "load-cost-latency"));
+});
+
+test("reusing one model across jobs is not described as independent validation", () => {
+  const application = brief({ needs: ["internal-knowledge", "validate"] });
+  const plan = planFor(catalog, application, "balanced");
+  const primary = plan.entries[0];
+  const repeated = plan.entries.map((entry) => ({ ...entry, model: primary.model }));
+  const evaluation = evaluateTeam(repeated, application);
+  assert.equal(evaluation.checks.find((check) => check.id === "redundancy").status, "caution");
+  assert.equal(evaluation.checks.find((check) => check.id === "independent-check").status, "caution");
 });
 
 test("software ecosystem ranking rewards complete fit before visibility", () => {
@@ -347,7 +403,7 @@ test("explanations name real factors and stay readable", () => {
   assert.ok(text.length > 80 && text.length < 900, `explanation was ${text.length} characters`);
 
   const summary = explainPlan(plan.entries, "balanced", true, false);
-  assert.match(summary, /primary model/);
+  assert.match(summary, /primary candidate/);
   assert.match(summary, /Test the complete team/, "the summary must not drop the caveat");
 });
 

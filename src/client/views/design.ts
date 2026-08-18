@@ -1,8 +1,16 @@
 import type { Capability, Model, PlanEntry } from "../../shared/types.js";
 import { completeBrief, planFor, recommendedTools, type Plan } from "../../engine/planning.js";
+import { evaluateTeam, type TeamTrial } from "../../engine/team-evaluation.js";
 import { explainPlan } from "../../engine/explain.js";
 import { byId, esc, num, setHtml, setText } from "../dom.js";
-import { expandedBreakdowns, type Bootstrap, type BriefInput } from "../state.js";
+import {
+  expandedBreakdowns,
+  trialOutcomes,
+  trialScopeKey,
+  type Bootstrap,
+  type BriefInput,
+  type TrialOutcome,
+} from "../state.js";
 import { breakdownTable, modelLinks, priceTag, resultReadings, tradeOffChips, verificationBadge } from "./shared.js";
 
 /** State the registry view also needs, so the flow diagram can show real counts. */
@@ -76,9 +84,122 @@ function robustnessNote(context: DesignContext, entry: PlanEntry, plansByStyle: 
   if (agreeing.length < 3) return "";
   const label =
     agreeing.length === context.boot.primaryStrategyIds.length
-      ? "Chosen by every plan style — a robust pick"
-      : `Chosen by ${agreeing.length} of ${context.boot.primaryStrategyIds.length} plan styles`;
-  return `<span class="robust" title="${esc(agreeing.map((id) => context.boot.strategies[id].name).join(", "))}">✓ ${esc(label)}</span>`;
+      ? "The same rules select this model in every plan style"
+      : `The same rules select this model in ${agreeing.length} of ${context.boot.primaryStrategyIds.length} plan styles`;
+  return `<span class="robust" title="Rule stability is not measured proof. Styles: ${esc(agreeing.map((id) => context.boot.strategies[id].name).join(", "))}">↔ ${esc(label)} · still requires testing</span>`;
+}
+
+function decisionCard(entry: PlanEntry): string {
+  const decision = entry.decision;
+  const gap = decision.scoreGap === null ? "No second candidate" : `${decision.scoreGap.toFixed(2)} points`;
+  const candidates = decision.closeCandidates
+    .map(
+      (candidate) =>
+        `<span><b>#${candidate.rank} ${esc(candidate.model.name)}</b><small>${candidate.score.toFixed(2)}</small></span>`,
+    )
+    .join("");
+
+  if (decision.state === "too-close") {
+    return `<section class="decision-card close-call">
+      <div><span>Decision status</span><strong>Too close to call</strong><small>${esc(gap)} apart · differences under ${decision.closeCallThreshold} point are not treated as meaningful</small></div>
+      <div class="close-candidates">${candidates}</div>
+      <p>${esc(decision.reason)}</p>
+      <p><b>Good tie-breaker:</b> ${esc(decision.recommendedTest)}</p>
+    </section>`;
+  }
+
+  if (decision.state === "policy-choice") {
+    return `<section class="decision-card policy-choice">
+      <div><span>Decision status</span><strong>Selected by a team policy</strong><small>${esc(gap)} from the raw score leader</small></div>
+      <div class="close-candidates">${candidates}</div>
+      <p>${esc(decision.reason)}</p>
+      <p><b>Good tie-breaker:</b> ${esc(decision.recommendedTest)}</p>
+    </section>`;
+  }
+
+  const tested = decision.state === "tested-lead";
+  return `<section class="decision-card ${tested ? "tested-lead" : "estimated-lead"}">
+    <div><span>Decision status</span><strong>${tested ? "Test-supported lead" : "Estimated lead"}</strong><small>${esc(gap)} ahead</small></div>
+    <p>${esc(decision.reason)} ${esc(decision.recommendedTest)}</p>
+  </section>`;
+}
+
+const OUTCOME_LABELS: Readonly<Record<TrialOutcome, string>> = {
+  pass: "Pass",
+  partial: "Needs work",
+  fail: "Fail",
+};
+
+function outcomeSummary(brief: BriefInput, styleId: string, trials: readonly TeamTrial[]): string {
+  const scope = trialScopeKey(brief, styleId);
+  const outcomes = trials.map((trial) => trialOutcomes.get(`${scope}::${trial.id}`));
+  if (outcomes.some((outcome) => outcome === "fail")) return "Trial found a failure";
+  if (outcomes.length > 0 && outcomes.every((outcome) => outcome === "pass")) return "All recorded trials passed";
+  const recorded = outcomes.filter(Boolean).length;
+  return recorded > 0 ? `${recorded}/${trials.length} trials recorded` : "Not trial-tested";
+}
+
+function teamEvaluationPanel(brief: BriefInput, plan: Plan): string {
+  const completed = completeBrief(brief);
+  const evaluation = evaluateTeam(plan.entries, completed);
+  const scope = trialScopeKey(brief, plan.strategy.id);
+  const recorded = evaluation.trials
+    .map((trial) => trialOutcomes.get(`${scope}::${trial.id}`))
+    .filter((outcome): outcome is TrialOutcome => Boolean(outcome));
+  const failed = recorded.filter((outcome) => outcome === "fail").length;
+  const passed = recorded.filter((outcome) => outcome === "pass").length;
+  const status = failed
+    ? "Needs revision"
+    : passed === evaluation.trials.length
+      ? "All recorded trials passed"
+      : recorded.length
+        ? "Partly tested"
+        : "Not yet validated";
+
+  const checks = evaluation.checks
+    .map(
+      (check) => `<article class="team-check ${esc(check.status)}">
+        <span>${check.status === "pass" ? "Pass" : check.status === "caution" ? "Check" : "Trial needed"}</span>
+        <strong>${esc(check.label)}</strong>
+        <p>${esc(check.summary)}</p>
+      </article>`,
+    )
+    .join("");
+
+  const trials = evaluation.trials
+    .map((trial) => {
+      const key = `${scope}::${trial.id}`;
+      const outcome = trialOutcomes.get(key);
+      return `<article class="team-trial ${outcome ? `recorded ${esc(outcome)}` : ""}">
+        <div><span>Real-task trial</span><strong>${esc(trial.label)}</strong></div>
+        <p>${esc(trial.task)}</p>
+        <small><b>Pass when:</b> ${esc(trial.success)}</small>
+        <div class="trial-outcomes" aria-label="Record the ${esc(trial.label)} result">
+          ${(Object.keys(OUTCOME_LABELS) as TrialOutcome[])
+            .map(
+              (value) =>
+                `<button type="button" data-trial-key="${esc(key)}" data-trial-outcome="${value}" aria-pressed="${outcome === value}">${OUTCOME_LABELS[value]}</button>`,
+            )
+            .join("")}
+          ${outcome ? `<button type="button" data-trial-key="${esc(key)}" data-trial-clear="true">Clear</button>` : ""}
+        </div>
+      </article>`;
+    })
+    .join("");
+
+  return `<div class="team-evaluation-head">
+      <div><span>Team validation · ${esc(plan.strategy.name)}</span><h3>${esc(status)}</h3></div>
+      <p>Catalogue checks can assess the roster’s structure. Only the same real tasks run through the complete teams can show which team works best.</p>
+    </div>
+    <details open>
+      <summary>Structural team checks</summary>
+      <div class="team-check-grid">${checks}</div>
+    </details>
+    <details>
+      <summary>Run and record the same five trials for every plan style</summary>
+      <p class="trial-note">The advisor does not call model APIs. Run these tests in the intended environment, then record the observed result here. Saved plans keep the results.</p>
+      <div class="team-trial-grid">${trials}</div>
+    </details>`;
 }
 
 /**
@@ -138,6 +259,7 @@ function roleCard(
       <small>${esc(entry.model.provider)} · ${esc(entry.model.tier)} · ${esc(entry.model.contextLabel)} context</small>
       <div class="sourcing-row">${verificationBadge(entry.model)}${priceTag(entry.model)}</div>
       ${resultReadings(entry)}
+      ${decisionCard(entry)}
       ${modelLinks(entry.model, true)}
       <p>${esc(entry.role.purpose)}</p>
       ${policy}
@@ -209,6 +331,7 @@ export function renderDesign(context: DesignContext): void {
     entries.length ? `${entries.length} jobs, led by ${entries[0].model.name}` : "No team could be built",
   );
   setText("team-description", strategy.description);
+  setHtml("team-evaluation", teamEvaluationPanel(context.brief, plan));
   setText("rank-range", `#1–#${catalog.length} = relative position among model variants for that job`);
 
   const providers = new Set(entries.map((entry) => entry.model.provider));
@@ -239,6 +362,8 @@ export function renderDesign(context: DesignContext): void {
         if (!primary) return "";
         const teamProviders = new Set(team.entries.map((entry) => entry.model.provider));
         const summary = teamSummary(team.entries, brief.cases);
+        const teamEvaluation = evaluateTeam(team.entries, brief);
+        const trialState = outcomeSummary(context.brief, styleId, teamEvaluation.trials);
         const roster = team.entries
           .map((entry) => `<span><b>${esc(entry.role.label)}</b><em>${esc(entry.model.name)}</em></span>`)
           .join("");
@@ -246,6 +371,7 @@ export function renderDesign(context: DesignContext): void {
           <span>${esc(option.name)}</span>
           <strong>${esc(primary.model.name)}</strong>
           <small>Primary · ${summary.covered}/${summary.total} team coverage · ${summary.lowerCost}/${team.entries.length} lower-cost jobs · ${teamProviders.size} providers</small>
+          <small class="team-trial-state">${esc(trialState)}</small>
           <div class="team-preview">${roster}</div>
         </button>`;
       })

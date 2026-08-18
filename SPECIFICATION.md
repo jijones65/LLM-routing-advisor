@@ -319,8 +319,10 @@ Capability fit:
 
 Usual-job evidence:
 
-- Provider-stated usual job matches the team job: +8
+- Provider-stated usual job matches the team job: +2
 - No usual-job label: +0; the model remains in the ranking
+
+The provider job label is supporting context, not performance evidence. Its contribution is deliberately smaller than one matched capability.
 
 Status:
 
@@ -368,7 +370,13 @@ The data model must support capability-specific test results:
 }
 ```
 
-When relevant capability tests exist, their average replaces the general quality estimate for that job. When they do not exist, the UI shows “Not measured yet” and the versioned estimate remains in use.
+Evidence factors limit the influence of untested quality values:
+
+- General catalogue estimate only: 0.6
+- Some relevant capabilities tested: 0.8
+- Every relevant capability tested: 1.0
+
+When only some relevant capability tests exist, tested scores are combined with the general estimate for the untested requirements. A partial test must not be presented as complete measured performance. When no relevant test exists, the UI shows “Estimated only.”
 
 ### 8.5 Capability evolution
 
@@ -407,6 +415,21 @@ Correlated signals should be identified and reduced over time. Platform-specific
 - Rank #1 means the highest score for this job, brief, plan style, catalogue version, and scoring version.
 - The displayed percentage is the model's relative position from the lowest to the highest score in the current ranked set. The top position is 100%; the lowest is 0%.
 - It is not a probability, confidence interval, or claim that the model will succeed.
+
+### 8.8 Close calls and decision guidance
+
+A difference of one score point or less is inside the close-call band. Candidates in that band are joint leaders; the numerical order is not treated as meaningful evidence.
+
+The interface must:
+
+- Label the result **Too close to call**
+- Show up to four close candidates with raw ranks and scores
+- Call the displayed model a provisional lead rather than a winner
+- State whether any candidate has complete relevant capability-test evidence
+- Recommend the same minimum ten representative tasks for every close candidate
+- Break an observed tie by task completion and corrections first, then measured total cost, response time, deployment fit and failure recovery
+
+When a provider-diversity or one-provider policy selects a model other than the raw leader, label it **Selected by a team policy** and show both models and the score gap.
 
 ## 9. Provider-diversity rule
 
@@ -459,6 +482,30 @@ Do not add model scores together. Run both teams on the same versioned applicati
 - Operational complexity
 
 Only add a specialist job when its intermediate result is used or validated. Avoid unnecessary fragmentation that increases latency and compounds errors.
+
+### Team validation contract
+
+The application must keep structural facts separate from behavioural claims.
+
+Structural checks can immediately report:
+
+- Requirement coverage
+- Whether each member states a capability needed for its assigned job
+- Unique capability contributions and duplicated coverage
+- Reuse of the same model across several jobs
+- Independence of the primary and checker
+- Number of jobs, providers and routing hand-offs
+- Availability of a fallback from another provider
+
+The interface must not claim that members work well together from catalogue facts. It must provide the same five recordable trials for every plan style:
+
+1. Ten representative application tasks
+2. Routing and multi-member hand-offs
+3. Conflicting, uncertain and escalation cases
+4. Member, provider and primary-model failures
+5. End-to-end cost, latency and peak-load behaviour
+
+Trial outcomes are user-recorded observations: Pass, Needs work or Fail. The advisor does not claim it ran model APIs. A saved plan retains structural checks, trial instructions, outcomes, catalogue version, scoring version and brief.
 
 ## 11. Catalogue contract
 
@@ -565,6 +612,9 @@ Saved plans include:
 - Model selections and fallbacks
 - Relative ranks
 - Separate evidence readings
+- Close-call or policy-choice decision guidance
+- Structural team checks
+- Real-task trial instructions and recorded outcomes
 - Catalogue version
 - Scoring version
 - Taxonomy version
@@ -616,6 +666,19 @@ Interface requirements:
 - Full team membership is visible before a user selects a plan.
 - Diversity-adjusted choices retain their raw rank and explanation.
 - Relative percentages are labelled as relative, not absolute.
+- Score gaps of one point or less are labelled too close to call.
+- A close-call result shows the joint leaders and a real-task tie-breaker.
+- Untested quality estimates receive less weight than complete relevant capability tests.
+- Provider job labels contribute less than one matched capability.
+- A provider-policy override is distinguished from the raw score leader.
+
+### Team validation
+
+- Structural checks cover requirement coverage, assigned-job fit, complementarity, duplication, checker independence, routing complexity and fallback independence.
+- Coordination quality and end-to-end operation always require a real trial until an outcome is recorded.
+- The same five trial definitions are available for every plan style.
+- Recording Pass, Needs work or Fail updates the selected team's validation state.
+- Saved plans retain the recorded trial outcomes without claiming the advisor ran the models.
 
 ### Regression example
 
@@ -673,7 +736,7 @@ The deployed source and the GitHub repository must be kept aligned after each pu
 
 ## 18. Open refinements
 
-1. Replace general quality estimates with capability-specific evaluations.
+1. Populate the capability-test schema with representative independent and application-owned evaluations.
 2. Develop representative evaluation sets for each application type and job.
 3. Measure complete specialist teams against broad-model teams.
 4. Refine binary capability records into stated, reviewed, and tested evidence states.
@@ -695,6 +758,8 @@ A rebuild is complete only when:
 - A custom application label can produce a complete team after the user confirms or adjusts what it must do.
 - Every current catalogue model remains visible in every job ranking; missing capabilities and technical preferences change fit rather than silently excluding it.
 - Each recommendation separates fit, source confidence, ecosystem visibility, and measured performance.
+- Near-equal numerical results are shown as joint leaders with an explicit real-task tie-breaker.
+- Proposed teams expose structural cautions and cannot become validated until the complete roster is trialled.
 - Public visibility is never described as users, reliability, market share, or proof of quality.
 - Plan cards show complete teams.
 - Broad-model and specialist-team hypotheses can be compared on the same evaluation set.

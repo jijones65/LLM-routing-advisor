@@ -10,6 +10,30 @@ import type { Model } from "../../shared/types.js";
  */
 const CHANGES: readonly { state: string; title: string; scope: string; date: string; detail: string }[] = [
   {
+    state: "Added",
+    title: "Close calls now replace false numerical certainty",
+    scope: "Recommendations · decisions",
+    date: "18 Aug 2026",
+    detail:
+      "Candidates within one score point are labelled Too close to call and shown together. The displayed model is only a provisional lead until the candidates are tested on the same ten real tasks; task success, corrections, cost, response time, deployment fit and failure recovery provide the tie-breaker.",
+  },
+  {
+    state: "Added",
+    title: "Complete-team checks and a five-part trial worksheet",
+    scope: "Teams · evaluation",
+    date: "18 Aug 2026",
+    detail:
+      "Every proposed team now receives structural checks for coverage, assigned-job fit, complementarity, role duplication, independent checking, routing complexity and fallback independence. Users can record the same representative, hand-off, conflict, failure-recovery and load trials for every plan style; saved plans retain the results.",
+  },
+  {
+    state: "Refined",
+    title: "Untested quality and provider role labels carry less weight",
+    scope: "Recommendations · evidence",
+    date: "18 Aug 2026",
+    detail:
+      "A general quality estimate now receives a 0.6 evidence factor, partial capability tests receive 0.8 and complete relevant tests receive full weight. A provider's usual-job label contributes two points rather than eight and is described as context, not performance evidence.",
+  },
+  {
     state: "Corrected",
     title: "D1 catalogue and evidence rows aligned with this release",
     scope: "Data · migrations",

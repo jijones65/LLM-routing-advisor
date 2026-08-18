@@ -46,14 +46,17 @@ export function resultReadings(entry: PlanEntry): string {
       : readings.sourceConfidence === "drifted"
         ? "Provider source changed · review needed"
         : "Official source carried over · recheck pending";
-  const performance = readings.measuredPerformance.measured
-    ? `${readings.measuredPerformance.testedCapabilities}/${readings.measuredPerformance.relevantCapabilities} capability tests · ${readings.measuredPerformance.score.toFixed(1)}/5`
-    : `Not measured yet · estimate ${readings.measuredPerformance.score.toFixed(1)}/5`;
+  const performance =
+    readings.measuredPerformance.evidenceLevel === "tested"
+      ? `Tested for all ${readings.measuredPerformance.relevantCapabilities} relevant capabilities · ${readings.measuredPerformance.score.toFixed(1)}/5`
+      : readings.measuredPerformance.evidenceLevel === "partly-tested"
+        ? `${readings.measuredPerformance.testedCapabilities}/${readings.measuredPerformance.relevantCapabilities} capabilities tested · remaining result estimated`
+        : `Estimated only · no relevant application test yet`;
   return `<div class="result-readings">
     <div class="result-reading"><b>Model fit</b><span>${readings.modelFit.matched}/${readings.modelFit.total} stated job capabilities</span></div>
     <div class="result-reading"><b>Source confidence</b><span>${esc(source)}</span></div>
     <div class="result-reading"><b>Ecosystem visibility</b><span>${readings.ecosystemVisibility}/100 public proxy</span></div>
-    <div class="result-reading"><b>Measured performance</b><span>${esc(performance)}</span></div>
+    <div class="result-reading"><b>Performance evidence</b><span>${esc(performance)}</span></div>
   </div>`;
 }
 

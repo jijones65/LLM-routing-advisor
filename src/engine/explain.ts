@@ -21,7 +21,13 @@ export function explainEntry(entry: PlanEntry, limit = 4): string {
 
   const opening = `Ranked #${entry.rank} among the current catalogue variants for this job under ${strategy.name.toLowerCase()}.`;
   const policy = entry.policyReason ? ` This choice was ${entry.policyReason}.` : "";
-  return `${opening} ${clauses.join("; ")}.${policy}`;
+  const decision =
+    entry.decision.state === "too-close"
+      ? ` Its ${entry.decision.scoreGap?.toFixed(2)}-point lead is inside the close-call band and is not treated as a meaningful win.`
+      : entry.decision.state === "policy-choice"
+        ? " It was selected by a team policy rather than as the raw score leader."
+        : "";
+  return `${opening} ${clauses.join("; ")}.${decision}${policy}`;
 }
 
 /** The strongest reasons for a pick, for compact display. */
@@ -57,9 +63,14 @@ export function explainPlan(
   const supporting = entries.length - 1;
   const providers = new Set(entries.map((entry) => entry.model.provider)).size;
   const priced = entries.filter((entry) => entry.model.pricing.input !== null).length;
+  const primary = entries[0];
+  const primarySentence =
+    primary.decision.state === "too-close"
+      ? `${primary.model.name} is the provisional primary, but ${primary.decision.closeCandidates.map((candidate) => candidate.model.name).join(", ")} are inside the close-call band and must be compared on the same real tasks.`
+      : `${primary.model.name} is the leading primary candidate.`;
 
   return [
-    `This ${strategy.name.toLowerCase()} plan uses ${entries[0].model.name} as the primary model and ${supporting} supporting job${supporting === 1 ? "" : "s"} across ${providers} provider${providers === 1 ? "" : "s"}.`,
+    `This ${strategy.name.toLowerCase()} plan has ${supporting} supporting job${supporting === 1 ? "" : "s"} across ${providers} provider${providers === 1 ? "" : "s"}. ${primarySentence}`,
     multiVendor
       ? "It prefers a different provider for each job when another provider remains within the provisional 82% near-match range."
       : "It does not force provider diversity.",

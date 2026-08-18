@@ -2,7 +2,7 @@
 
 Plan the application first. Choose models second.
 
-The advisor turns an application brief into alternative model teams. It separates what the application must do from its business goal, industry, knowledge area, risk and operating limits, then recommends a primary model, supporting models, checkers, fallback choices and the non-model tools the application will also need.
+The advisor turns an application brief into alternative model teams. It separates what the application must do from its business goal, industry, knowledge area, risk and operating limits, then proposes leading candidates for the primary model, supporting jobs, checkers, fallbacks and the non-model tools the application will also need.
 
 Live site: [llm-routing-advisor.ji-jones.chatgpt.site](https://llm-routing-advisor.ji-jones.chatgpt.site)
 
@@ -15,6 +15,8 @@ Live site: [llm-routing-advisor.ji-jones.chatgpt.site](https://llm-routing-advis
 - **Full scoring breakdown** on every recommendation: each term, its value and its reasoning
 - **No hidden exclusions** — missing capabilities and deployment preferences lower fit and remain visible; only withdrawn models leave current rankings
 - **Four separate readings** for model fit, source confidence, ecosystem visibility and measured performance
+- **Close-call decisions** — score gaps of one point or less show joint leaders and a real-task tie-breaker instead of a false winner
+- **Complete-team validation** — structural checks plus recordable trials for hand-offs, conflicts, provider failure, cost, latency and peak load
 - **Six independent model lists** cross-referenced, with overlap between them reported and kept separate from provider confirmation
 - **A coverage check** that polls official provider pages and raises a review item when one changes
 
@@ -41,6 +43,7 @@ src/
     signals.ts             ecosystem-visibility and capability-range signals
     scoring.ts             job-specific requirements and the explainable score
     planning.ts            team composition and plan rules
+    team-evaluation.ts     structural team checks and shared real-task trials
     explain.ts             turning a breakdown into readable prose
   server/
     index.ts               worker entry and route table
@@ -124,6 +127,7 @@ That writes `site.tar.gz` containing exactly what the Sites project expects:
 server/index.js
 .openai/hosting.json          # d1: DB, project_id: appgprj_6a826bc4cb…
 .openai/drizzle/0001_initial.sql
+.openai/drizzle/0002_align_catalog_and_evidence.sql
 ```
 
 Upload that archive to the existing project the same way you did before — the

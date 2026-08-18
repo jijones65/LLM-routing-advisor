@@ -101,6 +101,7 @@ test("GET / renders a complete page", async () => {
     "primary-styles",
     "other-style",
     "route-list",
+    "team-evaluation",
     "route-stats",
     "team-compare",
     "tool-list",

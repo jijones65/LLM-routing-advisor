@@ -2,9 +2,11 @@ import type {
   Alternative,
   Brief,
   Capability,
+  DecisionGuide,
   Model,
   PlanEntry,
   Role,
+  ScoredModel,
   Strategy,
   ToolRecommendation,
 } from "../shared/types.js";
@@ -84,6 +86,61 @@ export interface Plan {
 /** Provisional near-match threshold for choosing a different provider. */
 export const DIVERSITY_FIT_THRESHOLD = 82;
 
+/** A smaller numerical gap is not treated as evidence of a real difference. */
+export const CLOSE_CALL_SCORE_GAP = 1;
+
+function decisionGuide(
+  ranked: readonly ScoredModel[],
+  decorate: (candidate: ScoredModel) => Alternative,
+  role: Role,
+  chosen: ScoredModel,
+): DecisionGuide {
+  const top = ranked[0];
+  const second = ranked[1];
+  if (chosen !== top) {
+    const policyGap = Math.round((top.score - chosen.score) * 100) / 100;
+    return {
+      state: "policy-choice",
+      scoreGap: policyGap,
+      closeCallThreshold: CLOSE_CALL_SCORE_GAP,
+      closeCandidates: [decorate(top), decorate(chosen)],
+      reason: `${chosen.model.name} is not the raw score leader. It is ${policyGap.toFixed(2)} points behind ${top.model.name} and was selected by the team’s provider policy.`,
+      recommendedTest: `Run both choices through the same 10 representative ${role.label.toLowerCase()} tasks and keep the policy choice only if the operational benefit outweighs any measured result gap.`,
+    };
+  }
+  const scoreGap = second ? Math.round((top.score - second.score) * 100) / 100 : null;
+  const close = ranked.filter((candidate) => top.score - candidate.score <= CLOSE_CALL_SCORE_GAP).slice(0, 4);
+  const topEvidence = top.readings.measuredPerformance;
+  const secondEvidence = second?.readings.measuredPerformance;
+  const testedLead =
+    close.length > 1 && topEvidence.evidenceLevel === "tested" && secondEvidence?.evidenceLevel !== "tested";
+
+  if (close.length === 1) {
+    return {
+      state: topEvidence.evidenceLevel === "tested" ? "tested-lead" : "clear-lead",
+      scoreGap,
+      closeCallThreshold: CLOSE_CALL_SCORE_GAP,
+      closeCandidates: close.map(decorate),
+      reason:
+        topEvidence.evidenceLevel === "tested"
+          ? `${top.model.name} has relevant capability-test evidence and is more than ${CLOSE_CALL_SCORE_GAP} point ahead.`
+          : `${top.model.name} is more than ${CLOSE_CALL_SCORE_GAP} point ahead under the selected assumptions, but its lead remains estimated until it is tested on this application.`,
+      recommendedTest: `Run at least 10 representative ${role.label.toLowerCase()} tasks and compare task success, corrections, cost and response time.`,
+    };
+  }
+
+  return {
+    state: testedLead ? "tested-lead" : "too-close",
+    scoreGap,
+    closeCallThreshold: CLOSE_CALL_SCORE_GAP,
+    closeCandidates: close.map(decorate),
+    reason: testedLead
+      ? `${top.model.name} leads because it has complete relevant capability-test evidence; the numerical scores alone are too close to decide.`
+      : `${close.map((candidate) => candidate.model.name).join(", ")} are within ${CLOSE_CALL_SCORE_GAP} point. No complete relevant application test separates them, so the displayed model is a provisional lead rather than a proven winner.`,
+    recommendedTest: `Give the close candidates the same 10 representative ${role.label.toLowerCase()} tasks. Prefer the one with better task completion and fewer corrections; if those tie, use measured total cost, response time, deployment fit and failure recovery—in that order.`,
+  };
+}
+
 /**
  * Build a plan for one plan style.
  *
@@ -154,6 +211,8 @@ export function planFor(catalog: readonly Model[], brief: Brief, styleId: string
       score: candidate.score,
     });
 
+    const decision = decisionGuide(ranked, decorate, role, chosen);
+
     entries.push({
       role,
       model: chosen.model,
@@ -163,6 +222,7 @@ export function planFor(catalog: readonly Model[], brief: Brief, styleId: string
       policyReason,
       terms: chosen.terms,
       readings: chosen.readings,
+      decision,
       alternatives: ranked
         .filter((candidate) => candidate.model.id !== chosen.model.id)
         .slice(0, 3)

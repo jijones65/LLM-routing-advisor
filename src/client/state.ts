@@ -82,3 +82,22 @@ export const initialRegistryQuery: RegistryQuery = {
 
 /** Which score breakdowns the user has expanded, by role id. */
 export const expandedBreakdowns = new Set<string>();
+
+export type TrialOutcome = "pass" | "partial" | "fail";
+
+/** User-recorded results. They are not model runs and are saved with the plan. */
+export const trialOutcomes = new Map<string, TrialOutcome>();
+
+/** Keep results separate when the application brief or plan style changes. */
+export function trialScopeKey(brief: BriefInput, styleId: string): string {
+  return [
+    brief.archetype,
+    brief.customApplicationType?.trim().toLowerCase() ?? "",
+    [...brief.needs].sort().join(","),
+    brief.businessGoal,
+    brief.industry,
+    brief.domain,
+    brief.risk,
+    styleId,
+  ].join("::");
+}

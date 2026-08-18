@@ -218,6 +218,7 @@ export interface RecommendationReadings {
   readonly ecosystemVisibility: number;
   readonly measuredPerformance: {
     readonly measured: boolean;
+    readonly evidenceLevel: "estimated" | "partly-tested" | "tested";
     readonly score: number;
     readonly testedCapabilities: number;
     readonly relevantCapabilities: number;
@@ -233,6 +234,19 @@ export interface Alternative {
   readonly score: number;
 }
 
+/** Whether the numerical order is meaningful enough to name one leader. */
+export interface DecisionGuide {
+  readonly state: "clear-lead" | "too-close" | "tested-lead" | "policy-choice";
+  /** Difference between first and second before any team policy is applied. */
+  readonly scoreGap: number | null;
+  readonly closeCallThreshold: number;
+  readonly closeCandidates: readonly Alternative[];
+  /** Plain-language explanation of what did, or did not, separate the candidates. */
+  readonly reason: string;
+  /** The most useful real task to run when estimates cannot decide. */
+  readonly recommendedTest: string;
+}
+
 /** One job in a finished plan, with its chosen model and the reasoning. */
 export interface PlanEntry {
   readonly role: Role;
@@ -244,6 +258,7 @@ export interface PlanEntry {
   readonly policyReason: string | null;
   readonly terms: readonly ScoreTerm[];
   readonly readings: RecommendationReadings;
+  readonly decision: DecisionGuide;
   readonly alternatives: readonly Alternative[];
   readonly styleId: string;
 }

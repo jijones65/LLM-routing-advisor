@@ -109,6 +109,9 @@ try {
   expect("each choice shows a price or cost class", (await page.locator(".role-card .price").count()) >= 3);
   expect("each choice separates four readings", (await page.locator(".role-card .result-reading").count()) >= 12);
   expect("plan cards show complete team previews", (await page.locator(".team-option .team-preview").count()) === 6);
+  expect("every choice shows a decision status", (await page.locator(".role-card .decision-card").count()) >= 3);
+  expect("structural team checks render", (await page.locator(".team-check").count()) >= 7);
+  expect("the shared team trial worksheet has five trials", (await page.locator(".team-trial").count()) === 5);
   await page.fill("#custom-application", "Supplier comparison for a school");
   await page.waitForTimeout(150);
   expect(
@@ -133,6 +136,14 @@ try {
   await page.locator('[data-style="quality"]').click();
   await page.waitForTimeout(150);
   const quality = await primaryName();
+  expect(
+    "near-equal primary scores are labelled too close to call",
+    (await page.locator(".role-card").first().locator(".close-call").count()) === 1,
+  );
+  expect(
+    "a close call shows joint leaders",
+    (await page.locator(".role-card").first().locator(".close-candidates span").count()) >= 2,
+  );
   await page.locator('[data-style="cost"]').click();
   await page.waitForTimeout(150);
   const cost = await primaryName();
@@ -209,6 +220,12 @@ try {
   // --- saving a plan -------------------------------------------------------
   await page.locator('[data-tab="design"]').click();
   await page.waitForTimeout(250);
+  await page.locator(".team-trial").first().locator('[data-trial-outcome="pass"]').click();
+  await page.waitForTimeout(150);
+  expect(
+    "a real-task trial result can be recorded",
+    /partly tested/i.test((await page.textContent("#team-evaluation")) ?? ""),
+  );
   await page.locator("#save-blueprint").click();
   await page.waitForTimeout(600);
   expect("a plan saves", (await page.textContent("#toast")) === "Plan saved");
@@ -217,6 +234,11 @@ try {
   const payload = JSON.parse(saved.blueprints[0].payload_json);
   expect("the saved plan records the scoring version", Boolean(payload.scoringVersion));
   expect("the saved plan records separate readings", Boolean(payload.routing[0]?.readings));
+  expect("the saved plan records close-call guidance", Boolean(payload.routing[0]?.decision));
+  expect(
+    "the saved plan records team trial outcomes",
+    payload.teamEvaluation?.trials?.some((trial) => trial.outcome === "pass"),
+  );
 
   expect("no console errors", consoleErrors.length === 0, consoleErrors.join(" | "));
 } finally {

@@ -143,7 +143,7 @@ export const BODY_MARKUP = `<header class="topbar">
 <section class="route">
 <div class="route-head">
 <div>
-<div class="eyebrow">02 · Recommended model teams</div>
+<div class="eyebrow">02 · Leading candidate model teams</div>
 <h2 id="route-title">
 </h2>
 </div>
@@ -151,7 +151,7 @@ export const BODY_MARKUP = `<header class="topbar">
 </div>
 <div class="team-compare" id="team-compare">
 </div>
-<div class="team-hypothesis"><strong>Compare a broad model with a specialist team.</strong> A group of focused, lower-cost or locally run models may cover the same application as one large model. Their scores do not simply add up: routing, coordination, cost, latency and failure handling must be tested on the same real examples.</div>
+<div class="team-hypothesis"><strong>These are candidates to test, not proven winners.</strong> A group of focused, lower-cost or locally run models may cover the same application as one large model. Their scores do not simply add up: routing, coordination, cost, latency and failure handling must be tested on the same real examples.</div>
 <div id="design-denominators">
 </div>
 <div class="stats" id="route-stats">
@@ -165,11 +165,13 @@ export const BODY_MARKUP = `<header class="topbar">
 </p>
 </div>
 </div>
+<section class="team-evaluation" id="team-evaluation" aria-live="polite">
+</section>
 <div class="ranking-key">
 <strong>How to read this:</strong>
-<span>Primary = the main model users meet</span>
+<span>Primary = the candidate main model that users meet</span>
 <span id="rank-range">Each job has its own model order</span>
-<span>Score % = relative position in this ranking, not certainty</span>
+<span>Scores inside the 1-point close-call band are joint leaders, not meaningful winners</span>
 </div>
 <div class="node">
 <span class="index">APPLICATION BRIEF</span>
