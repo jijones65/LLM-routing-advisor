@@ -87,7 +87,14 @@ byId<HTMLSelectElement>("archetype").addEventListener("change", (event) => {
   const id = (event.target as HTMLSelectElement).value;
   const archetype = boot.archetypes.find((item) => item.id === id) ?? boot.archetypes[0];
   brief.archetype = archetype.id;
+  brief.customApplicationType = "";
+  byId<HTMLInputElement>("custom-application").value = "";
   brief.needs = [...archetype.needs];
+  refresh();
+});
+
+byId<HTMLInputElement>("custom-application").addEventListener("input", (event) => {
+  brief.customApplicationType = (event.target as HTMLInputElement).value.slice(0, 100);
   refresh();
 });
 
@@ -260,7 +267,7 @@ byId("save-blueprint").addEventListener("click", async () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        name: `${strategy.name} team · ${boot.archetypes.find((item) => item.id === complete.archetype)?.name ?? complete.archetype}`,
+        name: `${strategy.name} team · ${complete.customApplicationType?.trim() || boot.archetypes.find((item) => item.id === complete.archetype)?.name || complete.archetype}`,
         brief: complete,
         features: complete.cases,
         routing: plan.entries.map((entry) => ({
@@ -275,6 +282,7 @@ byId("save-blueprint").addEventListener("click", async () => {
         })),
         catalogVersion: boot.catalogVersion,
         scoringVersion: boot.scoringVersion,
+        taxonomyVersion: boot.taxonomyVersion,
         diversityFitThreshold: DIVERSITY_FIT_THRESHOLD,
         savedAt: new Date().toISOString(),
       }),

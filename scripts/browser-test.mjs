@@ -109,6 +109,13 @@ try {
   expect("each choice shows a price or cost class", (await page.locator(".role-card .price").count()) >= 3);
   expect("each choice separates four readings", (await page.locator(".role-card .result-reading").count()) >= 12);
   expect("plan cards show complete team previews", (await page.locator(".team-option .team-preview").count()) === 6);
+  await page.fill("#custom-application", "Supplier comparison for a school");
+  await page.waitForTimeout(150);
+  expect(
+    "a custom application type still builds a team",
+    /supplier comparison for a school/i.test((await page.textContent("#route-title")) ?? "") &&
+      (await page.locator(".role-card").count()) >= 3,
+  );
 
   // --- score breakdown -----------------------------------------------------
   await page.locator(".why").first().click();

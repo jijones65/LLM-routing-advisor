@@ -210,6 +210,20 @@ p {
   color: var(--muted);
   font-size: 11px;
 }
+.custom-type {
+  margin-top: 14px;
+  padding: 12px 14px 2px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.58);
+}
+.custom-type .label {
+  margin-top: 0;
+}
+.custom-type .help {
+  margin-bottom: 8px;
+  line-height: 1.55;
+}
 .between {
   display: flex;
   justify-content: space-between;

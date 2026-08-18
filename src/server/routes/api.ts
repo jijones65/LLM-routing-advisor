@@ -2,6 +2,7 @@ import { CATALOG_VERSION, VERIFIED_AT } from "../../data/providers.js";
 import { OPENROUTER_USAGE } from "../../data/usage-snapshot.js";
 import { RETIRED } from "../../data/catalog.js";
 import { SCORING_VERSION } from "../../data/strategies.js";
+import { TAXONOMY_VERSION } from "../../data/taxonomy.js";
 import { SIGNAL_METHOD } from "../../engine/signals.js";
 import type { D1Database } from "../db/index.js";
 import {
@@ -37,6 +38,7 @@ export async function catalogRoute(db: D1Database | undefined): Promise<Response
     verifiedAt: VERIFIED_AT,
     catalogVersion: CATALOG_VERSION,
     scoringVersion: SCORING_VERSION,
+    taxonomyVersion: TAXONOMY_VERSION,
     retired: RETIRED,
     usageSnapshot: OPENROUTER_USAGE,
     signalMethod: SIGNAL_METHOD,

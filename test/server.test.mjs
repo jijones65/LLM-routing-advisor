@@ -68,6 +68,7 @@ test("GET / renders a complete page", async () => {
   // Every element the client looks up must exist in the shell.
   for (const id of [
     "archetype",
+    "custom-application",
     "capabilities",
     "primary-styles",
     "other-style",
@@ -128,6 +129,7 @@ test("the bootstrap payload is valid JSON and carries what the client needs", as
     "retired",
     "verification",
     "scoringVersion",
+    "taxonomyVersion",
   ]) {
     assert.ok(data[key], `bootstrap is missing ${key}`);
   }
@@ -147,6 +149,7 @@ test("GET /api/catalog returns models and provenance", async () => {
   assert.ok(body.verifiedAt);
   assert.ok(body.catalogVersion);
   assert.ok(body.scoringVersion);
+  assert.ok(body.taxonomyVersion);
   assert.ok(Array.isArray(body.retired));
   assert.ok(body.signalMethod.includes("Not a user count"), "the method note must state what it is not");
   db.close();

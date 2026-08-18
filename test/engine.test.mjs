@@ -42,6 +42,13 @@ test("capabilities are derived from needs, goal and risk", () => {
   assert.ok(deriveCases({ ...baseBrief, businessGoal: "innovation" }).includes("research"));
 });
 
+test("a custom application label keeps the starter needs and builds a team", () => {
+  const custom = brief({ customApplicationType: "Supplier comparison for a school" });
+  assert.equal(custom.customApplicationType, "Supplier comparison for a school");
+  assert.ok(custom.cases.includes("knowledge"));
+  assert.ok(planFor(catalog, custom, "balanced").entries.length >= 2);
+});
+
 test("every plan style produces a complete team", () => {
   for (const styleId of [...PRIMARY_STRATEGY_IDS, ...OTHER_STRATEGY_IDS]) {
     const plan = planFor(catalog, brief({ planStyle: styleId }), styleId);

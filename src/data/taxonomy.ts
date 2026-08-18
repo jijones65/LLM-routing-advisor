@@ -1,5 +1,8 @@
 import type { Capability } from "../shared/types.js";
 
+/** Bumped when application types, needs or context categories change. */
+export const TAXONOMY_VERSION = "2026.08.18-2";
+
 /** One thing the application must be able to do, and what it implies. */
 export interface Need {
   readonly id: string;
@@ -128,9 +131,63 @@ export const ARCHETYPES: readonly Archetype[] = [
   },
   {
     id: "operations-excellence",
-    name: "Operations improvement",
+    name: "Business process improvement",
     description: "Finds delays, improves processes and supports reliable day-to-day work.",
     needs: ["high-volume", "forecast-scenarios", "software-tools", "validate"],
+  },
+  {
+    id: "product-comparison",
+    name: "Product comparison tool",
+    description: "Collects product facts, compares options against clear criteria and explains the trade-offs.",
+    needs: ["documents", "current-research", "complex-decisions", "write-explain", "validate"],
+  },
+  {
+    id: "procurement-analyst",
+    name: "Procurement and supplier analyst",
+    description: "Compares suppliers, contracts, risks, costs and evidence for purchasing decisions.",
+    needs: ["documents", "forecast-scenarios", "current-research", "sensitive-data", "validate"],
+  },
+  {
+    id: "meeting-actions",
+    name: "Meeting and action assistant",
+    description: "Captures discussions, creates clear actions and helps coordinate follow-up work.",
+    needs: ["listen-speak", "write-explain", "coordinate-work", "software-tools"],
+  },
+  {
+    id: "learning-tutor",
+    name: "Learning and tutoring assistant",
+    description: "Explains ideas, adapts practice activities and checks understanding with responsible review.",
+    needs: ["internal-knowledge", "write-explain", "many-languages", "validate"],
+  },
+  {
+    id: "sales-proposals",
+    name: "Sales and proposal assistant",
+    description: "Researches needs, drafts tailored proposals and helps teams complete sales follow-up.",
+    needs: ["internal-knowledge", "current-research", "write-explain", "software-tools", "validate"],
+  },
+  {
+    id: "compliance-review",
+    name: "Compliance and policy review assistant",
+    description: "Compares documents with rules, records evidence and sends important decisions for human review.",
+    needs: ["documents", "internal-knowledge", "sensitive-data", "validate"],
+  },
+  {
+    id: "data-insight",
+    name: "Data insight and reporting assistant",
+    description: "Explains trusted data, compares scenarios and prepares clear reports for decisions.",
+    needs: ["documents", "forecast-scenarios", "write-explain", "validate"],
+  },
+  {
+    id: "content-localization",
+    name: "Content and localisation assistant",
+    description: "Creates and adapts content for different languages, formats and audiences.",
+    needs: ["write-explain", "many-languages", "high-volume", "creative-design", "validate"],
+  },
+  {
+    id: "cybersecurity-triage",
+    name: "Cybersecurity triage assistant",
+    description: "Reviews technical evidence, helps investigate events and checks proposed actions before use.",
+    needs: ["code-build", "current-research", "complex-decisions", "sensitive-data", "validate"],
   },
   {
     id: "retail-experience",

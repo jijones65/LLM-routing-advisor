@@ -9,6 +9,7 @@ Live site: [llm-routing-advisor.ji-jones.chatgpt.site](https://llm-routing-advis
 ## What it does
 
 - **109 model variants** across 27 providers, each carrying its source URL, review date and sourcing state
+- **22 starting application types plus a custom type field**, with user-editable needs that determine the model-team jobs
 - **14 plan styles** — Quality, Balanced, Cost, Visible ecosystem reach, Broad capability range and Focused specialist team as headline choices, plus eight more
 - **Published pricing** where providers publish it, driving the cost score instead of an estimate
 - **Full scoring breakdown** on every recommendation: each term, its value and its reasoning

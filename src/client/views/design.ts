@@ -165,9 +165,16 @@ export function renderDesign(context: DesignContext): void {
   const { boot, catalog } = context;
   const brief = completeBrief(context.brief);
   const archetype = boot.archetypes.find((item) => item.id === brief.archetype) ?? boot.archetypes[0];
+  const customType = brief.customApplicationType?.trim() ?? "";
+  const applicationName = customType || archetype.name;
   const strategy = boot.strategies[brief.planStyle] ?? boot.strategies.balanced;
 
-  setText("archetype-help", archetype.description);
+  setText(
+    "archetype-help",
+    customType
+      ? `Using ${archetype.name.toLowerCase()} as the starting set of common needs. Adjust the choices below for ${customType}.`
+      : archetype.description,
+  );
   setText("case-count", `${brief.needs.length} selected`);
 
   for (const button of document.querySelectorAll<HTMLElement>(".cap")) {
@@ -195,7 +202,7 @@ export function renderDesign(context: DesignContext): void {
   const plan = plansByStyle.get(brief.planStyle) ?? planFor(catalog, brief, brief.planStyle);
   const entries = plan.entries;
 
-  setText("route-title", `${strategy.name} team for ${archetype.name.toLowerCase()}`);
+  setText("route-title", `${strategy.name} team for ${applicationName.toLowerCase()}`);
   setText("selected-style-label", `Selected plan · ${strategy.name}`);
   setText(
     "team-title",
@@ -253,7 +260,7 @@ export function renderDesign(context: DesignContext): void {
     "Every current variant is scored separately for each job in the plan",
   );
 
-  setText("brief-summary", archetype.name);
+  setText("brief-summary", applicationName);
   const contextLabel = [
     boot.businessGoals.find((item) => item.id === brief.businessGoal)?.name,
     boot.industries.find((item) => item.id === brief.industry)?.name,

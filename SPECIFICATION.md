@@ -1,7 +1,7 @@
 # LLM Application Routing Advisor — Product and Implementation Specification
 
 **Specification version:** 1.1
-**Current implementation baseline:** 18 August 2026 · catalogue `2026.08.18-2` · scoring `2026.08.18-2`
+**Current implementation baseline:** 18 August 2026 · catalogue `2026.08.18-2` · scoring `2026.08.18-2` · taxonomy `2026.08.18-2`
 **Status:** Living specification for refinement, maintenance, and future rebuilds
 
 ## 1. Purpose
@@ -167,8 +167,25 @@ The baseline application types include:
 - Research and evidence system
 - Field operations assistant
 - High-stakes decision support
+- Business process improvement
+- Product comparison tool
+- Procurement and supplier analyst
+- Meeting and action assistant
+- Learning and tutoring assistant
+- Sales and proposal assistant
+- Compliance and policy review assistant
+- Data insight and reporting assistant
+- Content and localisation assistant
+- Cybersecurity triage assistant
+- Retail and commerce assistant
+- Financial analysis assistant
+- Scientific research assistant
+- Art and design studio assistant
+- Geospatial planning assistant
 
 The taxonomy is extensible. Each application type provides a starting set of requirements that the user can modify.
+
+The UI also accepts a plain-language custom application type of up to 100 characters. A custom name is a label, not an inferred capability claim. The selected suggested type continues to provide the starting needs, and the user adjusts **What it must do** before the model team is built. The custom label, starter type, selected needs, derived requirements, and taxonomy version are saved together.
 
 ### 5.2 “What it must do” categories
 
@@ -536,6 +553,7 @@ HTTP interfaces:
 Saved plans include:
 
 - Application inputs
+- Custom application label and selected starting type
 - Derived requirements
 - Context and risk
 - Selected plan style
@@ -547,6 +565,7 @@ Saved plans include:
 - Separate evidence readings
 - Catalogue version
 - Scoring version
+- Taxonomy version
 
 ## 14. Branding and interface
 
@@ -665,6 +684,7 @@ A rebuild is complete only when:
 
 - A non-specialist user can understand every major term.
 - The application brief determines the team jobs and job-specific requirements.
+- A custom application label can produce a complete team after the user confirms or adjusts what it must do.
 - Every current catalogue model remains visible in every job ranking; missing capabilities and technical preferences change fit rather than silently excluding it.
 - Each recommendation separates fit, source confidence, ecosystem visibility, and measured performance.
 - Public visibility is never described as users, reliability, market share, or proof of quality.

@@ -8,6 +8,7 @@ export interface Bootstrap {
   readonly capabilityLabels: Record<Capability, string>;
   readonly needGroups: NeedGroup[];
   readonly archetypes: Archetype[];
+  readonly taxonomyVersion: string;
   readonly businessGoals: ContextOption[];
   readonly industries: ContextOption[];
   readonly domains: ContextOption[];
@@ -48,6 +49,7 @@ export type BriefInput = {
 
 export const initialBrief: BriefInput = {
   archetype: "knowledge-assistant",
+  customApplicationType: "",
   needs: ["internal-knowledge", "write-explain", "validate"],
   businessGoal: "service",
   industry: "general",

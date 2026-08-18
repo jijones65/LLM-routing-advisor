@@ -1,7 +1,15 @@
 import type { Model } from "../../shared/types.js";
 import { RETIRED } from "../../data/catalog.js";
 import { CATALOG_VERSION, PROVIDER_SOURCES, VERIFIED_AT } from "../../data/providers.js";
-import { ARCHETYPES, BUSINESS_GOALS, DOMAINS, INDUSTRIES, NEED_GROUPS, RISK_LEVELS } from "../../data/taxonomy.js";
+import {
+  ARCHETYPES,
+  BUSINESS_GOALS,
+  DOMAINS,
+  INDUSTRIES,
+  NEED_GROUPS,
+  RISK_LEVELS,
+  TAXONOMY_VERSION,
+} from "../../data/taxonomy.js";
 import { BASE_ROLES, SPECIALIST_ROLES } from "../../data/roles.js";
 import { OTHER_STRATEGY_IDS, PRIMARY_STRATEGY_IDS, SCORING_VERSION, STRATEGIES } from "../../data/strategies.js";
 import { CAPABILITY_LABELS } from "../../data/catalog.js";
@@ -30,6 +38,7 @@ function bootstrapData(models: readonly Model[]): Record<string, unknown> {
     capabilityLabels: CAPABILITY_LABELS,
     needGroups: NEED_GROUPS,
     archetypes: ARCHETYPES,
+    taxonomyVersion: TAXONOMY_VERSION,
     businessGoals: BUSINESS_GOALS,
     industries: INDUSTRIES,
     domains: DOMAINS,

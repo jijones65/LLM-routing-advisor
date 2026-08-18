@@ -34,13 +34,18 @@ export const BODY_MARKUP = `<header class="topbar">
 <aside class="brief">
 <div class="eyebrow">01 · Describe the application</div>
 <h1>Plan the application first. Choose models second.</h1>
-<p class="lede">Describe the application, its work and its context. The advisor will then build different model teams for quality, balance, cost, proven use and capability range.</p>
+<p class="lede">Describe the application, its work and its context. The advisor will then build different model teams for quality, balance, cost, ecosystem reach and capability range.</p>
 <section class="brief-section">
 <label class="label" for="archetype">Starting application type</label>
 <select class="select" id="archetype">
 </select>
 <p class="help" id="archetype-help">
 </p>
+<div class="custom-type">
+<label class="label" for="custom-application">Or name your own application type</label>
+<input class="search" id="custom-application" maxlength="100" autocomplete="off" aria-describedby="custom-application-help" placeholder="For example: supplier comparison for a school">
+<p class="help" id="custom-application-help">This name appears in the plan. The starting type above supplies common needs; adjust <strong>What it must do</strong> below to build the AI model team.</p>
+</div>
 </section>
 <section class="brief-section">
 <div class="brief-section-head">

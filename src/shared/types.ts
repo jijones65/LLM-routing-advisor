@@ -178,6 +178,8 @@ export interface Strategy {
 /** The user's description of the application being planned. */
 export interface Brief {
   readonly archetype: string;
+  /** User's own plain-language name; the selected archetype still supplies starter needs. */
+  readonly customApplicationType?: string;
   readonly needs: readonly string[];
   readonly cases: readonly Capability[];
   readonly businessGoal: string;
