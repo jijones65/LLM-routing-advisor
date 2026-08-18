@@ -289,6 +289,22 @@ try {
   await page.waitForTimeout(180);
   expect("two plans can be compared side by side", (await page.locator("#saved-plan-compare table").count()) === 1);
 
+  let deletePrompt = "";
+  page.once("dialog", async (dialog) => {
+    deletePrompt = dialog.message();
+    await dialog.dismiss();
+  });
+  await page.locator("[data-plan-delete]").first().click();
+  await page.waitForTimeout(120);
+  expect("deletion names the plan and warns that it is permanent", /Delete .+permanently removes/i.test(deletePrompt));
+  expect("cancelling deletion keeps the plan", (await page.locator(".saved-plan-card").count()) === 2);
+
+  page.once("dialog", async (dialog) => dialog.accept());
+  await page.locator("[data-plan-delete]").first().click();
+  await page.waitForTimeout(450);
+  expect("a confirmed deletion removes the plan", (await page.locator(".saved-plan-card").count()) === 1);
+  expect("a deleted plan leaves the comparison", (await page.locator("#saved-plan-compare table").count()) === 0);
+
   expect("no console errors", consoleErrors.length === 0, consoleErrors.join(" | "));
 } finally {
   await browser.close();

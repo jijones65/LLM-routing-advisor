@@ -11,6 +11,14 @@ import type { Model } from "../../shared/types.js";
 const CHANGES: readonly { state: string; title: string; scope: string; date: string; detail: string }[] = [
   {
     state: "Added",
+    title: "Saved plans can be deleted",
+    scope: "Plans · control",
+    date: "18 Aug 2026",
+    detail:
+      "Each saved-plan card now has a Delete action. The advisor names the plan and warns that deletion is permanent before removing the saved team, its draft specification and its place in any comparison.",
+  },
+  {
+    state: "Added",
     title: "Saved plans can be reopened, compared, edited and exported",
     scope: "Plans · specifications",
     date: "18 Aug 2026",

@@ -1329,6 +1329,11 @@ p {
   font-weight: 850;
   text-decoration: none;
 }
+.saved-plan-actions .delete-plan {
+  margin-left: auto;
+  border-color: #d8a09b;
+  color: #8a3932;
+}
 .saved-plan-detail {
   min-height: 260px;
   padding: 20px;

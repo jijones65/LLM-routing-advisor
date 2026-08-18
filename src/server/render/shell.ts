@@ -217,7 +217,7 @@ export const BODY_MARKUP = `<header class="topbar">
 <div class="page-head saved-page-head">
 <div>
 <div class="eyebrow">Saved team plans and draft specifications</div>
-<h1>Reopen, compare, edit or export your plans.</h1>
+<h1>Reopen, compare, edit, export or delete your plans.</h1>
 <p class="lede">Every saved team includes the application brief, model choices, evidence readings, trial results and an editable Markdown specification. The draft fills in known facts and leaves decisions for you to complete.</p>
 </div>
 <div class="registry-stat">
@@ -643,7 +643,7 @@ export const BODY_MARKUP = `<header class="topbar">
 <span class="about-number">02</span>
 <div>
 <h2>Saved plans</h2>
-<p>Reopen or compare saved teams, edit the plan name and draft application specification, and export the specification as a Markdown file.</p>
+<p>Reopen or compare saved teams, edit the plan name and draft application specification, export the specification as a Markdown file, or permanently delete a plan you no longer need.</p>
 <small><strong>It cannot do:</strong> complete the fill-in decisions or prove that the saved team works. The draft keeps the advisor's facts separate from choices and trial results you must supply.</small>
 </div>
 </article>

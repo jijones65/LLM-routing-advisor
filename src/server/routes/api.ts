@@ -6,6 +6,7 @@ import { TAXONOMY_VERSION } from "../../data/taxonomy.js";
 import { SIGNAL_METHOD } from "../../engine/signals.js";
 import type { D1Database } from "../db/index.js";
 import {
+  deleteBlueprint,
   getAudit,
   getBlueprint,
   getCatalog,
@@ -128,7 +129,7 @@ export async function blueprintsRoute(request: Request, db: D1Database | undefin
   return json({ id, saved: true, markdownUrl: `/api/blueprints/${encodeURIComponent(id)}/markdown` }, 201);
 }
 
-/** GET/PATCH one saved plan, or GET its generated Markdown file. */
+/** GET/PATCH/DELETE one saved plan, or GET its generated Markdown file. */
 export async function blueprintRoute(
   request: Request,
   db: D1Database | undefined,
@@ -138,12 +139,17 @@ export async function blueprintRoute(
   if (!db) return json({ error: "Saved plans need persistent storage, which is unavailable here." }, 503);
   if (!id || id.length > 100) return json({ error: "The saved plan id is invalid." }, 400);
   if (markdown && request.method !== "GET") return new Response("Method not allowed", { status: 405 });
-  if (!markdown && request.method !== "GET" && request.method !== "PATCH") {
+  if (!markdown && request.method !== "GET" && request.method !== "PATCH" && request.method !== "DELETE") {
     return new Response("Method not allowed", { status: 405 });
   }
 
   const existing = await getBlueprint(db, id);
   if (!existing) return json({ error: "Saved plan not found." }, 404);
+
+  if (request.method === "DELETE") {
+    await deleteBlueprint(db, id);
+    return json({ deleted: true, id });
+  }
 
   if (markdown) {
     const specification =

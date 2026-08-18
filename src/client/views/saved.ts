@@ -91,6 +91,7 @@ function renderList(): void {
                 <button type="button" data-plan-reopen="${esc(plan.id)}">Reopen in design</button>
                 <button type="button" data-plan-open="${esc(plan.id)}">Edit draft</button>
                 <a href="/api/blueprints/${encodeURIComponent(plan.id)}/markdown" download>Export Markdown</a>
+                <button class="delete-plan" type="button" data-plan-delete="${esc(plan.id)}">Delete</button>
               </div>
             </article>`;
           })
@@ -177,6 +178,25 @@ async function loadDetail(id: string): Promise<void> {
   }
 }
 
+async function deletePlan(plan: SavedPlan): Promise<void> {
+  try {
+    const response = await fetch(`/api/blueprints/${encodeURIComponent(plan.id)}`, { method: "DELETE" });
+    const data = (await response.json()) as { deleted?: boolean; error?: string };
+    if (!response.ok || !data.deleted) throw new Error(data.error ?? "The saved plan could not be deleted");
+
+    plans = plans.filter((item) => item.id !== plan.id);
+    comparedIds.delete(plan.id);
+    const deletedActivePlan = activeId === plan.id;
+    if (deletedActivePlan) activeId = null;
+    renderList();
+    if (deletedActivePlan && plans[0]) await loadDetail(plans[0].id);
+    else if (deletedActivePlan) setHtml("saved-plan-detail", "");
+    toast(`“${plan.name}” was deleted`);
+  } catch (error) {
+    toast(error instanceof Error ? error.message : "The saved plan could not be deleted");
+  }
+}
+
 export async function loadSavedPlans(): Promise<void> {
   if (loading) return;
   loading = true;
@@ -224,6 +244,19 @@ export function initSavedPlans(context: Bootstrap, reopen: (plan: SavedPlan) => 
     if (reopen) {
       const plan = plans.find((item) => item.id === reopen);
       if (plan) onReopen(plan);
+      return;
+    }
+    const deleteId = target.closest<HTMLElement>("[data-plan-delete]")?.dataset.planDelete;
+    if (deleteId) {
+      const plan = plans.find((item) => item.id === deleteId);
+      if (
+        plan &&
+        window.confirm(
+          `Delete “${plan.name}”? This permanently removes the saved team plan and its draft specification.`,
+        )
+      ) {
+        void deletePlan(plan);
+      }
       return;
     }
     const open = target.closest<HTMLElement>("[data-plan-open]")?.dataset.planOpen;

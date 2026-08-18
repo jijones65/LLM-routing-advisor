@@ -1,6 +1,6 @@
 # LLM Application Routing Advisor — Product and Implementation Specification
 
-**Specification version:** 1.2
+**Specification version:** 1.3
 **Current implementation baseline:** 18 August 2026 · catalogue `2026.08.18-2` · scoring `2026.08.18-3` · taxonomy `2026.08.18-2`
 **Status:** Living specification for refinement, maintenance, and future rebuilds
 
@@ -600,6 +600,7 @@ HTTP interfaces:
 - `POST /api/blueprints` — validate and save an application plan
 - `GET /api/blueprints/:id` — one saved plan and its editable draft specification
 - `PATCH /api/blueprints/:id` — edit the plan name and draft specification without changing the saved team facts
+- `DELETE /api/blueprints/:id` — permanently delete one saved plan
 - `GET /api/blueprints/:id/markdown` — download the draft as a Markdown file
 
 Saved plans include:
@@ -653,6 +654,7 @@ The Saved plans tab must allow a user to:
 - Compare application type, plan style, team membership, trial state and version stamps
 - Edit and persist the plan name and Markdown draft
 - Export the current draft as a `.md` file
+- Delete a saved plan only after confirming its name and that the action is permanent
 
 Reopening a plan copies its inputs into the active Application design. It does not rewrite the stored plan. Saving the reopened design creates another version that can be compared with the earlier record.
 
@@ -731,6 +733,8 @@ Interface requirements:
 - Two or three plans can be compared side by side.
 - Editing persists the new name and Markdown content without replacing the saved team facts.
 - Export returns the latest edited Markdown with a safe `.md` filename.
+- Deletion requires an explicit interface confirmation that names the plan and says the action is permanent.
+- Successful deletion removes the plan, its draft and its place in any comparison; deleting an unknown plan returns a not-found response.
 
 ### Regression example
 
@@ -817,6 +821,6 @@ A rebuild is complete only when:
 - Broad-model and specialist-team hypotheses can be compared on the same evaluation set.
 - Data sources, aliases, overlap, official evidence, and catalogue membership remain distinct.
 - Saved plans are versioned and reproducible.
-- Saved plans can be reopened, compared, edited and exported without losing their original model-team and scoring-version context.
+- Saved plans can be reopened, compared, edited, exported and deliberately deleted without losing the context of plans that remain.
 - Tests cover the ranking rules and known failure cases.
 - The build, migrations, deployment, live site, and GitHub source all correspond to the same release.

@@ -494,3 +494,12 @@ export async function updateBlueprint(
     .run();
   return getBlueprint(db, id);
 }
+
+/** Permanently delete one saved plan. */
+export async function deleteBlueprint(db: D1Database, id: string): Promise<boolean> {
+  const existing = await getBlueprint(db, id);
+  if (!existing) return false;
+
+  await db.prepare("DELETE FROM application_blueprints WHERE id = ?").bind(id).run();
+  return true;
+}

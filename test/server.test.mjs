@@ -336,6 +336,14 @@ test("saving a plan validates the payload", async () => {
     400,
   );
   assert.equal((await worker.fetch(request("/api/blueprints/does-not-exist"), { DB: db })).status, 404);
+
+  const deleted = await worker.fetch(request(`/api/blueprints/${id}`, { method: "DELETE" }), { DB: db });
+  assert.equal(deleted.status, 200);
+  assert.deepEqual(await deleted.json(), { deleted: true, id });
+  assert.equal((await worker.fetch(request(`/api/blueprints/${id}`), { DB: db })).status, 404);
+  assert.equal((await worker.fetch(request(`/api/blueprints/${id}`, { method: "DELETE" }), { DB: db })).status, 404);
+  const afterDelete = await (await worker.fetch(request("/api/blueprints"), { DB: db })).json();
+  assert.equal(afterDelete.blueprints.length, 0);
   db.close();
 });
 

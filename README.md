@@ -17,7 +17,7 @@ Live site: [llm-routing-advisor.ji-jones.chatgpt.site](https://llm-routing-advis
 - **Four separate readings** for model fit, source confidence, ecosystem visibility and measured performance
 - **Close-call decisions** — score gaps of one point or less show joint leaders and a real-task tie-breaker instead of a false winner
 - **Complete-team validation** — structural checks plus recordable trials for hand-offs, conflicts, provider failure, cost, latency and peak load
-- **Durable Saved plans** — reopen a brief, compare up to three teams, edit the plan name and draft specification, or export it as Markdown
+- **Durable Saved plans** — reopen a brief, compare up to three teams, edit the plan name and draft specification, export it as Markdown, or delete it after confirmation
 - **Fill-in application specifications** — every save creates a draft covering objective, context, inputs, output contract, constraints, evaluation, edge cases and verification
 - **Six independent model lists** cross-referenced, with overlap between them reported and kept separate from provider confirmation
 - **A coverage check** that polls official provider pages and raises a review item when one changes
