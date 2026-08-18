@@ -1,7 +1,7 @@
 # LLM Application Routing Advisor — Product and Implementation Specification
 
 **Specification version:** 1.1
-**Current implementation baseline:** 18 August 2026 · catalogue `2026.08.18-2` · scoring `2026.08.18-2` · taxonomy `2026.08.18-2`
+**Current implementation baseline:** 18 August 2026 · catalogue `2026.08.18-2` · scoring `2026.08.18-3` · taxonomy `2026.08.18-2`
 **Status:** Living specification for refinement, maintenance, and future rebuilds
 
 ## 1. Purpose
@@ -635,6 +635,10 @@ Interface requirements:
 - Plain-language explanations near scores
 - External links open safely in a new tab
 - Provider and Ollama links available wherever models are shown
+- An About tab that explains Application design, Model explorer, Live registry, Coverage check, and Update centre in plain language
+- A clear statement of what each tab can help with and what it cannot prove
+- A five-step workflow from describing an application to testing, recording, and revisiting a model-team plan
+- Definitions that distinguish candidates from proven winners, source confirmation from performance testing, and user-recorded trials from tests run by the application
 
 ## 15. Reliability, safety, and privacy
 

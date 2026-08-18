@@ -23,6 +23,7 @@ export const BODY_MARKUP = `<header class="topbar">
 <button class="tab" data-tab="registry">Live registry</button>
 <button class="tab" data-tab="audit-layer">Coverage check</button>
 <button class="tab" data-tab="updates">Update centre</button>
+<button class="tab" data-tab="about">About</button>
 </nav>
 <div class="live" id="live-state">
 <i>
@@ -585,6 +586,81 @@ export const BODY_MARKUP = `<header class="topbar">
 <div class="truth">
 <strong>How updates work</strong>
 <p>Model sources are checked frequently. Industry, business-process and knowledge categories are reviewed when their source frameworks change and at least once each quarter. A model-team rule is reviewed when model availability, cost, capabilities or test results change. Updates create visible review items; they do not silently rewrite saved plans.</p>
+</div>
+</section>
+<section class="page inner" id="about-page">
+<div class="page-head about-head">
+<div>
+<div class="eyebrow">A guide to the advisor</div>
+<h1>What each tab does—and what it cannot prove.</h1>
+<p class="lede">Use the advisor to form a clear, testable model-team plan. Its source checks and scores help create a shortlist. They do not replace trials using real work from your application.</p>
+</div>
+<div class="about-start">
+<strong>Start here</strong>
+<span>Application design</span>
+<small>Describe the work before comparing models.</small>
+</div>
+</div>
+<div class="about-grid">
+<article class="about-card">
+<span class="about-number">01</span>
+<div>
+<h2>Application design</h2>
+<p>Describe the application, choose what it must do, add its context and compare six main plan styles. This tab builds candidate teams, explains close calls and gives you team checks and trials to complete.</p>
+<small><strong>It cannot prove:</strong> that a candidate team is the best one before you test the whole team on your own tasks.</small>
+</div>
+</article>
+<article class="about-card">
+<span class="about-number">02</span>
+<div>
+<h2>Model explorer</h2>
+<p>Browse every distinct model variant in the main catalogue. Filter the list and open the provider or Ollama page where available.</p>
+<small><strong>It cannot prove:</strong> that a model will be a good fit simply because it has many capabilities or appears in several places.</small>
+</div>
+</article>
+<article class="about-card">
+<span class="about-number">03</span>
+<div>
+<h2>Live registry</h2>
+<p>Compare model names found across six outside discovery sources. See where lists overlap, where a name may match the main catalogue and where more checking is needed.</p>
+<small><strong>It cannot prove:</strong> that an outside listing is official, current or high quality. Source overlap is a discovery clue, not confirmation.</small>
+</div>
+</article>
+<article class="about-card">
+<span class="about-number">04</span>
+<div>
+<h2>Coverage check</h2>
+<p>See official provider pages, review dates, sourcing state and the four application layers: ranking, source evidence, registry snapshots and coverage audit.</p>
+<small><strong>It cannot prove:</strong> measured quality, speed or reliability. It confirms what is listed, what was checked and where the information came from.</small>
+</div>
+</article>
+<article class="about-card">
+<span class="about-number">05</span>
+<div>
+<h2>Update centre</h2>
+<p>Read what changed, why it changed, which models were removed and how the catalogue and planning categories are kept current.</p>
+<small><strong>It cannot do:</strong> silently change a saved plan. A saved plan keeps the catalogue, scoring and category versions used to create it.</small>
+</div>
+</article>
+</div>
+<section class="about-workflow" aria-labelledby="about-workflow-title">
+<div>
+<div class="eyebrow">A useful workflow</div>
+<h2 id="about-workflow-title">From idea to a tested model team</h2>
+</div>
+<ol>
+<li><strong>Describe</strong><span>Start with the application, the work it must do and its operating limits.</span></li>
+<li><strong>Compare</strong><span>Review the candidate teams and inspect any models that are too close to call.</span></li>
+<li><strong>Check</strong><span>Use the explorer, registry and coverage tabs to inspect sources, links and gaps.</span></li>
+<li><strong>Trial</strong><span>Run the same five team trials for every serious candidate, including hand-offs and failures.</span></li>
+<li><strong>Decide</strong><span>Record results, save the plan and revisit it when the Update centre reports a relevant change.</span></li>
+</ol>
+</section>
+<div class="about-terms">
+<article><strong>Candidate does not mean proven winner.</strong><span>It is a model or team worth testing next.</span></article>
+<article><strong>Source confirmed does not mean performance tested.</strong><span>It means the official provider page supported the recorded facts when checked.</span></article>
+<article><strong>Too close to call means one point or less.</strong><span>The numerical order is too small to treat as a meaningful result.</span></article>
+<article><strong>Trials are recorded by the user.</strong><span>The advisor does not call model APIs or run the application tests for you.</span></article>
 </div>
 </section>
 </main>

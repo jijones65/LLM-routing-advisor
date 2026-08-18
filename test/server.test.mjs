@@ -85,6 +85,12 @@ test("GET / renders a complete page", async () => {
   assert.match(html, /<\/html>\s*$/);
   assert.match(html, /id="bootstrap-data"/);
   assert.match(html, /LLM Application Routing Advisor/);
+  assert.match(html, /data-tab="about"/);
+  assert.match(html, /id="about-page"/);
+  for (const tab of ["Application design", "Model explorer", "Live registry", "Coverage check", "Update centre"]) {
+    assert.match(html, new RegExp(`<h2>${tab}</h2>`), `the About guide is missing ${tab}`);
+  }
+  assert.match(html, /What each tab does—and what it cannot prove/);
   for (const label of [
     "Recommendation ranking",
     "Source-evidence layer",

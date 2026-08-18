@@ -19,6 +19,7 @@ Live site: [llm-routing-advisor.ji-jones.chatgpt.site](https://llm-routing-advis
 - **Complete-team validation** — structural checks plus recordable trials for hand-offs, conflicts, provider failure, cost, latency and peak load
 - **Six independent model lists** cross-referenced, with overlap between them reported and kept separate from provider confirmation
 - **A coverage check** that polls official provider pages and raises a review item when one changes
+- **A plain-language About tab** explaining every working tab, its limits and a five-step path from an application idea to a tested team
 
 ### What it is not
 
@@ -77,7 +78,7 @@ npm run dev
 
 Then open <http://localhost:8787>. That builds the worker and serves it over plain
 Node HTTP with an in-memory SQLite stand-in for D1, so every part of the app
-works — page render, all five tabs, the API routes, saving a plan.
+works — page render, all six tabs, the API routes, saving a plan.
 
 `npm run dev` uses canned source payloads from `test/fixtures/registry.mjs`, so
 the Live registry tab works offline and no third-party gateway is contacted while

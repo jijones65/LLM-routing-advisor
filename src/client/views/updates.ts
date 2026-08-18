@@ -11,6 +11,14 @@ import type { Model } from "../../shared/types.js";
 const CHANGES: readonly { state: string; title: string; scope: string; date: string; detail: string }[] = [
   {
     state: "Added",
+    title: "A plain-language About tab",
+    scope: "Guidance · interface",
+    date: "18 Aug 2026",
+    detail:
+      "The new guide explains what every working tab does, what its evidence cannot prove and a five-step path from an application idea to a tested model team. It also distinguishes a candidate from a proven winner and source confirmation from performance testing.",
+  },
+  {
+    state: "Added",
     title: "Close calls now replace false numerical certainty",
     scope: "Recommendations · decisions",
     date: "18 Aug 2026",

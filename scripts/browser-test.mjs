@@ -217,6 +217,16 @@ try {
   expect("the change log is populated", (await page.locator("#events .event").count()) > 0);
   expect("withdrawn models are listed", (await page.locator(".retired-item").count()) > 0);
 
+  // --- about ---------------------------------------------------------------
+  await page.locator('[data-tab="about"]').click();
+  await page.waitForTimeout(150);
+  expect("the About guide explains all five working tabs", (await page.locator(".about-card").count()) === 5);
+  expect("the About guide gives a five-step workflow", (await page.locator(".about-workflow li").count()) === 5);
+  expect(
+    "the About guide explains evidence limits",
+    /what it cannot prove/i.test((await page.textContent("#about-page")) ?? ""),
+  );
+
   // --- saving a plan -------------------------------------------------------
   await page.locator('[data-tab="design"]').click();
   await page.waitForTimeout(250);
