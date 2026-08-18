@@ -19,6 +19,7 @@ export const BODY_MARKUP = `<header class="topbar">
 </div>
 <nav class="tabs" aria-label="Dashboard sections">
 <button class="tab active" data-tab="design">Application design</button>
+<button class="tab" data-tab="saved">Saved plans</button>
 <button class="tab" data-tab="explore">Model explorer</button>
 <button class="tab" data-tab="registry">Live registry</button>
 <button class="tab" data-tab="audit-layer">Coverage check</button>
@@ -148,7 +149,10 @@ export const BODY_MARKUP = `<header class="topbar">
 <h2 id="route-title">
 </h2>
 </div>
-<button class="save" id="save-blueprint">Save plan</button>
+<div class="save-plan-actions">
+<button class="save" id="save-blueprint">Save this team plan</button>
+<a id="saved-markdown-link" href="#" download hidden>Download draft specification (.md)</a>
+</div>
 </div>
 <div class="team-compare" id="team-compare">
 </div>
@@ -206,6 +210,31 @@ export const BODY_MARKUP = `<header class="topbar">
 <p id="readout">
 </p>
 </div>
+</section>
+</div>
+</section>
+<section class="page inner" id="saved-page">
+<div class="page-head saved-page-head">
+<div>
+<div class="eyebrow">Saved team plans and draft specifications</div>
+<h1>Reopen, compare, edit or export your plans.</h1>
+<p class="lede">Every saved team includes the application brief, model choices, evidence readings, trial results and an editable Markdown specification. The draft fills in known facts and leaves decisions for you to complete.</p>
+</div>
+<div class="registry-stat">
+<strong id="saved-plan-count">0</strong>
+<span>saved team plans</span>
+</div>
+</div>
+<div class="saved-toolbar">
+<span id="saved-plan-status">Open this tab to load saved plans.</span>
+<button type="button" id="refresh-saved-plans">Refresh</button>
+</div>
+<section class="saved-plan-compare" id="saved-plan-compare">
+</section>
+<div class="saved-plans-layout">
+<div class="saved-plan-list" id="saved-plan-list">
+</div>
+<section class="saved-plan-detail" id="saved-plan-detail">
 </section>
 </div>
 </section>
@@ -613,13 +642,21 @@ export const BODY_MARKUP = `<header class="topbar">
 <article class="about-card">
 <span class="about-number">02</span>
 <div>
+<h2>Saved plans</h2>
+<p>Reopen or compare saved teams, edit the plan name and draft application specification, and export the specification as a Markdown file.</p>
+<small><strong>It cannot do:</strong> complete the fill-in decisions or prove that the saved team works. The draft keeps the advisor's facts separate from choices and trial results you must supply.</small>
+</div>
+</article>
+<article class="about-card">
+<span class="about-number">03</span>
+<div>
 <h2>Model explorer</h2>
 <p>Browse every distinct model variant in the main catalogue. Filter the list and open the provider or Ollama page where available.</p>
 <small><strong>It cannot prove:</strong> that a model will be a good fit simply because it has many capabilities or appears in several places.</small>
 </div>
 </article>
 <article class="about-card">
-<span class="about-number">03</span>
+<span class="about-number">04</span>
 <div>
 <h2>Live registry</h2>
 <p>Compare model names found across six outside discovery sources. See where lists overlap, where a name may match the main catalogue and where more checking is needed.</p>
@@ -627,7 +664,7 @@ export const BODY_MARKUP = `<header class="topbar">
 </div>
 </article>
 <article class="about-card">
-<span class="about-number">04</span>
+<span class="about-number">05</span>
 <div>
 <h2>Coverage check</h2>
 <p>See official provider pages, review dates, sourcing state and the four application layers: ranking, source evidence, registry snapshots and coverage audit.</p>
@@ -635,7 +672,7 @@ export const BODY_MARKUP = `<header class="topbar">
 </div>
 </article>
 <article class="about-card">
-<span class="about-number">05</span>
+<span class="about-number">06</span>
 <div>
 <h2>Update centre</h2>
 <p>Read what changed, why it changed, which models were removed and how the catalogue and planning categories are kept current.</p>
@@ -653,7 +690,7 @@ export const BODY_MARKUP = `<header class="topbar">
 <li><strong>Compare</strong><span>Review the candidate teams and inspect any models that are too close to call.</span></li>
 <li><strong>Check</strong><span>Use the explorer, registry and coverage tabs to inspect sources, links and gaps.</span></li>
 <li><strong>Trial</strong><span>Run the same five team trials for every serious candidate, including hand-offs and failures.</span></li>
-<li><strong>Decide</strong><span>Record results, save the plan and revisit it when the Update centre reports a relevant change.</span></li>
+<li><strong>Decide</strong><span>Record results, save the team, complete its draft specification and revisit it when a relevant update appears.</span></li>
 </ol>
 </section>
 <div class="about-terms">

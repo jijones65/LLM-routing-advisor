@@ -11,6 +11,14 @@ import type { Model } from "../../shared/types.js";
 const CHANGES: readonly { state: string; title: string; scope: string; date: string; detail: string }[] = [
   {
     state: "Added",
+    title: "Saved plans can be reopened, compared, edited and exported",
+    scope: "Plans · specifications",
+    date: "18 Aug 2026",
+    detail:
+      "Save this team plan now creates an editable Markdown application specification. The Saved plans tab can restore a brief and its recorded trials, compare up to three teams, edit the plan name or draft, and export the current specification as a Markdown file.",
+  },
+  {
+    state: "Added",
     title: "A plain-language About tab",
     scope: "Guidance · interface",
     date: "18 Aug 2026",

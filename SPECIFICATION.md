@@ -1,6 +1,6 @@
 # LLM Application Routing Advisor — Product and Implementation Specification
 
-**Specification version:** 1.1
+**Specification version:** 1.2
 **Current implementation baseline:** 18 August 2026 · catalogue `2026.08.18-2` · scoring `2026.08.18-3` · taxonomy `2026.08.18-2`
 **Status:** Living specification for refinement, maintenance, and future rebuilds
 
@@ -598,6 +598,9 @@ HTTP interfaces:
 - `GET /api/registry-candidates` — paginated source records and possible matches
 - `GET /api/blueprints` — saved application plans
 - `POST /api/blueprints` — validate and save an application plan
+- `GET /api/blueprints/:id` — one saved plan and its editable draft specification
+- `PATCH /api/blueprints/:id` — edit the plan name and draft specification without changing the saved team facts
+- `GET /api/blueprints/:id/markdown` — download the draft as a Markdown file
 
 Saved plans include:
 
@@ -618,6 +621,40 @@ Saved plans include:
 - Catalogue version
 - Scoring version
 - Taxonomy version
+- Editable draft application specification
+- Draft-specification format version and last-edited time
+
+The draft specification is stored inside the plan's `payload_json`; a separate file is generated on request. This avoids browser-only state and avoids storing duplicate file blobs. A saved record created before draft specifications were introduced receives a generated draft when it is opened or exported.
+
+### 13.1 Draft application specification contract
+
+Choosing **Save this team plan** must create a fill-in Markdown draft that includes the application type and every selected model. The structure follows the project owner's referenced specification-engineering article and contains:
+
+1. Objective
+2. Context
+3. Inputs
+4. Output format
+5. Candidate model team and routing responsibilities
+6. Constraints
+7. Evaluation criteria
+8. Edge cases and failure handling
+9. Verification steps
+10. Open decisions and ownership
+11. Version record
+
+The generator must fill known facts from the brief, model team, close-call guidance, structural checks and recorded trial outcomes. Unknown decisions must remain visibly marked as `[Fill in: …]`; the application must not invent budgets, service targets, policies, schemas or acceptance thresholds.
+
+### 13.2 Saved plans workspace
+
+The Saved plans tab must allow a user to:
+
+- Reopen the saved brief and recorded trial outcomes in Application design
+- Select two or three plans for a side-by-side comparison
+- Compare application type, plan style, team membership, trial state and version stamps
+- Edit and persist the plan name and Markdown draft
+- Export the current draft as a `.md` file
+
+Reopening a plan copies its inputs into the active Application design. It does not rewrite the stored plan. Saving the reopened design creates another version that can be compared with the earlier record.
 
 ## 14. Branding and interface
 
@@ -635,7 +672,7 @@ Interface requirements:
 - Plain-language explanations near scores
 - External links open safely in a new tab
 - Provider and Ollama links available wherever models are shown
-- An About tab that explains Application design, Model explorer, Live registry, Coverage check, and Update centre in plain language
+- An About tab that explains Application design, Saved plans, Model explorer, Live registry, Coverage check, and Update centre in plain language
 - A clear statement of what each tab can help with and what it cannot prove
 - A five-step workflow from describing an application to testing, recording, and revisiting a model-team plan
 - Definitions that distinguish candidates from proven winners, source confirmation from performance testing, and user-recorded trials from tests run by the application
@@ -683,6 +720,17 @@ Interface requirements:
 - The same five trial definitions are available for every plan style.
 - Recording Pass, Needs work or Fail updates the selected team's validation state.
 - Saved plans retain the recorded trial outcomes without claiming the advisor ran the models.
+
+### Saved plans and specifications
+
+- A saved plan contains its brief, model team, evidence readings, close-call guidance, team checks, trial outcomes and version stamps.
+- Saving returns a direct Markdown download link.
+- The generated Markdown contains the application type, every selected model and all required specification sections.
+- Unknown application decisions remain explicit fill-in fields rather than generated claims.
+- Reopening restores the saved brief and recorded trial outcomes to Application design.
+- Two or three plans can be compared side by side.
+- Editing persists the new name and Markdown content without replacing the saved team facts.
+- Export returns the latest edited Markdown with a safe `.md` filename.
 
 ### Regression example
 
@@ -769,5 +817,6 @@ A rebuild is complete only when:
 - Broad-model and specialist-team hypotheses can be compared on the same evaluation set.
 - Data sources, aliases, overlap, official evidence, and catalogue membership remain distinct.
 - Saved plans are versioned and reproducible.
+- Saved plans can be reopened, compared, edited and exported without losing their original model-team and scoring-version context.
 - Tests cover the ranking rules and known failure cases.
 - The build, migrations, deployment, live site, and GitHub source all correspond to the same release.

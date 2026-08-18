@@ -13,6 +13,7 @@ import {
 } from "../registry/reconcile.js";
 import { loadSnapshots } from "../registry/refresh.js";
 import { ensureSchema, fingerprint, type D1Database } from "./index.js";
+import { generateBlueprintSpecification } from "../blueprints/specification.js";
 
 const MATCHER = new CatalogMatcher(CATALOG);
 const SYNCED_CATALOG_DBS = new WeakSet<object>();
@@ -407,22 +408,89 @@ export interface BlueprintPayload {
   readonly [key: string]: unknown;
 }
 
+interface BlueprintRow {
+  readonly id: string;
+  readonly name: string;
+  readonly payload_json: string;
+  readonly created_at: string;
+}
+
+export interface SavedBlueprint extends BlueprintRow {
+  readonly payload: BlueprintPayload;
+  readonly updated_at: string;
+}
+
+function parseBlueprintRow(row: BlueprintRow, includeSpecification = true): SavedBlueprint {
+  const parsed = JSON.parse(row.payload_json) as BlueprintPayload;
+  const payload = includeSpecification ? parsed : { ...parsed, specificationMarkdown: undefined };
+  return {
+    ...row,
+    payload,
+    updated_at: typeof parsed.lastEditedAt === "string" ? parsed.lastEditedAt : row.created_at,
+  };
+}
+
 /** List the most recent saved plans. */
-export async function listBlueprints(db: D1Database): Promise<unknown[]> {
+export async function listBlueprints(db: D1Database): Promise<SavedBlueprint[]> {
   await ensureSchema(db);
   const rows = await db
     .prepare("SELECT id, name, payload_json, created_at FROM application_blueprints ORDER BY created_at DESC LIMIT 50")
-    .all();
-  return rows.results ?? [];
+    .all<BlueprintRow>();
+  return (rows.results ?? []).map((row) => parseBlueprintRow(row, false));
+}
+
+/** Read one saved plan. */
+export async function getBlueprint(db: D1Database, id: string): Promise<SavedBlueprint | null> {
+  await ensureSchema(db);
+  const row = await db
+    .prepare("SELECT id, name, payload_json, created_at FROM application_blueprints WHERE id = ?")
+    .bind(id)
+    .first<BlueprintRow>();
+  return row ? parseBlueprintRow(row) : null;
 }
 
 /** Save a plan, returning its new id. */
 export async function saveBlueprint(db: D1Database, payload: BlueprintPayload): Promise<string> {
   await ensureSchema(db);
   const id = crypto.randomUUID();
+  const savedAt = typeof payload.savedAt === "string" ? payload.savedAt : new Date().toISOString();
+  const completePayload: BlueprintPayload = {
+    ...payload,
+    savedAt,
+    lastEditedAt: savedAt,
+    specificationVersion: "1.0",
+    specificationMarkdown:
+      typeof payload.specificationMarkdown === "string"
+        ? payload.specificationMarkdown
+        : generateBlueprintSpecification({ ...payload, savedAt, lastEditedAt: savedAt }),
+  };
   await db
     .prepare("INSERT INTO application_blueprints (id, name, payload_json, created_at) VALUES (?, ?, ?, ?)")
-    .bind(id, String(payload.name).slice(0, 160), JSON.stringify(payload), new Date().toISOString())
+    .bind(id, String(payload.name).trim().slice(0, 160), JSON.stringify(completePayload), savedAt)
     .run();
   return id;
+}
+
+/** Edit the human-facing name and draft specification without changing the saved team. */
+export async function updateBlueprint(
+  db: D1Database,
+  id: string,
+  change: { name: string; specificationMarkdown: string },
+): Promise<SavedBlueprint | null> {
+  const existing = await getBlueprint(db, id);
+  if (!existing) return null;
+
+  const lastEditedAt = new Date().toISOString();
+  const payload: BlueprintPayload = {
+    ...existing.payload,
+    name: change.name.trim().slice(0, 160),
+    specificationMarkdown: change.specificationMarkdown,
+    specificationVersion: "1.0",
+    lastEditedAt,
+  };
+  await db
+    .prepare("UPDATE application_blueprints SET name = ?, payload_json = ? WHERE id = ?")
+    .bind(payload.name, JSON.stringify(payload), id)
+    .run();
+  return getBlueprint(db, id);
 }

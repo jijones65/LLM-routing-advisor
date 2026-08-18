@@ -7,13 +7,16 @@ import { SIGNAL_METHOD } from "../../engine/signals.js";
 import type { D1Database } from "../db/index.js";
 import {
   getAudit,
+  getBlueprint,
   getCatalog,
   getRegistries,
   getRegistryCandidates,
   listBlueprints,
   saveBlueprint,
+  updateBlueprint,
   type BlueprintPayload,
 } from "../db/repo.js";
+import { generateBlueprintSpecification, specificationFilename } from "../blueprints/specification.js";
 
 /** No caching anywhere: every response depends on live source state. */
 const NO_STORE = { "cache-control": "no-store" } as const;
@@ -121,5 +124,67 @@ export async function blueprintsRoute(request: Request, db: D1Database | undefin
   const validated = validateBlueprint(body);
   if (typeof validated === "string") return json({ error: validated }, 400);
 
-  return json({ id: await saveBlueprint(db, validated), saved: true }, 201);
+  const id = await saveBlueprint(db, validated);
+  return json({ id, saved: true, markdownUrl: `/api/blueprints/${encodeURIComponent(id)}/markdown` }, 201);
+}
+
+/** GET/PATCH one saved plan, or GET its generated Markdown file. */
+export async function blueprintRoute(
+  request: Request,
+  db: D1Database | undefined,
+  id: string,
+  markdown = false,
+): Promise<Response> {
+  if (!db) return json({ error: "Saved plans need persistent storage, which is unavailable here." }, 503);
+  if (!id || id.length > 100) return json({ error: "The saved plan id is invalid." }, 400);
+  if (markdown && request.method !== "GET") return new Response("Method not allowed", { status: 405 });
+  if (!markdown && request.method !== "GET" && request.method !== "PATCH") {
+    return new Response("Method not allowed", { status: 405 });
+  }
+
+  const existing = await getBlueprint(db, id);
+  if (!existing) return json({ error: "Saved plan not found." }, 404);
+
+  if (markdown) {
+    const specification =
+      typeof existing.payload.specificationMarkdown === "string"
+        ? existing.payload.specificationMarkdown
+        : generateBlueprintSpecification(existing.payload as Record<string, unknown>);
+    return new Response(specification, {
+      headers: {
+        "content-type": "text/markdown; charset=utf-8",
+        "content-disposition": `attachment; filename="${specificationFilename(existing.payload as Record<string, unknown>)}"`,
+        ...NO_STORE,
+      },
+    });
+  }
+
+  if (request.method === "GET") {
+    const specificationMarkdown =
+      typeof existing.payload.specificationMarkdown === "string"
+        ? existing.payload.specificationMarkdown
+        : generateBlueprintSpecification(existing.payload as Record<string, unknown>);
+    return json({ blueprint: { ...existing, specificationMarkdown } });
+  }
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "The request body was not valid JSON." }, 400);
+  }
+  const change = body as Record<string, unknown>;
+  if (typeof change.name !== "string" || change.name.trim().length === 0) {
+    return json({ error: "A saved plan needs a name." }, 400);
+  }
+  if (typeof change.specificationMarkdown !== "string" || change.specificationMarkdown.trim().length === 0) {
+    return json({ error: "The draft specification cannot be empty." }, 400);
+  }
+  if (change.specificationMarkdown.length > 200_000) {
+    return json({ error: "The draft specification is too large to save." }, 413);
+  }
+
+  const updated = await updateBlueprint(db, id, change as { name: string; specificationMarkdown: string });
+  return json({
+    blueprint: updated ? { ...updated, specificationMarkdown: updated.payload.specificationMarkdown as string } : null,
+  });
 }

@@ -17,6 +17,8 @@ Live site: [llm-routing-advisor.ji-jones.chatgpt.site](https://llm-routing-advis
 - **Four separate readings** for model fit, source confidence, ecosystem visibility and measured performance
 - **Close-call decisions** — score gaps of one point or less show joint leaders and a real-task tie-breaker instead of a false winner
 - **Complete-team validation** — structural checks plus recordable trials for hand-offs, conflicts, provider failure, cost, latency and peak load
+- **Durable Saved plans** — reopen a brief, compare up to three teams, edit the plan name and draft specification, or export it as Markdown
+- **Fill-in application specifications** — every save creates a draft covering objective, context, inputs, output contract, constraints, evaluation, edge cases and verification
 - **Six independent model lists** cross-referenced, with overlap between them reported and kept separate from provider confirmation
 - **A coverage check** that polls official provider pages and raises a review item when one changes
 - **A plain-language About tab** explaining every working tab, its limits and a five-step path from an application idea to a tested team
@@ -49,6 +51,7 @@ src/
   server/
     index.ts               worker entry and route table
     routes/api.ts          JSON endpoints
+    blueprints/            Markdown application-specification generator
     db/                    D1 schema, access and repository
     registry/              fetch, parse, normalise and reconcile the six lists
     render/                page shell and HTML rendering
@@ -78,7 +81,7 @@ npm run dev
 
 Then open <http://localhost:8787>. That builds the worker and serves it over plain
 Node HTTP with an in-memory SQLite stand-in for D1, so every part of the app
-works — page render, all six tabs, the API routes, saving a plan.
+works — page render, all seven tabs, the API routes, saved-plan editing and Markdown export.
 
 `npm run dev` uses canned source payloads from `test/fixtures/registry.mjs`, so
 the Live registry tab works offline and no third-party gateway is contacted while

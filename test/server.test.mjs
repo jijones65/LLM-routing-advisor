@@ -87,10 +87,22 @@ test("GET / renders a complete page", async () => {
   assert.match(html, /LLM Application Routing Advisor/);
   assert.match(html, /data-tab="about"/);
   assert.match(html, /id="about-page"/);
-  for (const tab of ["Application design", "Model explorer", "Live registry", "Coverage check", "Update centre"]) {
+  assert.match(html, /data-tab="saved"/);
+  assert.match(html, /id="saved-page"/);
+  assert.match(html, /Save this team plan/);
+  for (const tab of [
+    "Application design",
+    "Saved plans",
+    "Model explorer",
+    "Live registry",
+    "Coverage check",
+    "Update centre",
+  ]) {
     assert.match(html, new RegExp(`<h2>${tab}</h2>`), `the About guide is missing ${tab}`);
   }
   assert.match(html, /What each tab does—and what it cannot prove/);
+  assert.equal((html.match(/class="about-card"/g) ?? []).length, 6);
+  assert.equal((html.match(/class="tab(?: active)?" data-tab=/g) ?? []).length, 7);
   for (const label of [
     "Recommendation ranking",
     "Source-evidence layer",
@@ -127,6 +139,13 @@ test("GET / renders a complete page", async () => {
     "watchlist-grid",
     "retired-list",
     "events",
+    "saved-plan-count",
+    "saved-plan-status",
+    "saved-plan-compare",
+    "saved-plan-list",
+    "saved-plan-detail",
+    "refresh-saved-plans",
+    "saved-markdown-link",
     "toast",
     "save-blueprint",
     "check-source",
@@ -221,15 +240,102 @@ test("saving a plan validates the payload", async () => {
   assert.equal((await post({ name: "x", features: [], routing: ["b"] })).status, 400);
   assert.equal((await post({ name: "x", features: ["a"], routing: [] })).status, 400);
 
-  const ok = await post({ name: "Balanced team", features: ["knowledge"], routing: [{ role: "primary" }] });
+  const ok = await post({
+    name: "Balanced team",
+    brief: {
+      archetype: "product-comparison",
+      customApplicationType: "Supplier comparison for a school",
+      needs: ["documents", "current-research", "validate"],
+      businessGoal: "operations",
+      industry: "education",
+      domain: "business",
+      risk: "medium",
+      planStyle: "balanced",
+      dataControl: false,
+      openPreferred: false,
+      multiVendor: true,
+    },
+    features: ["knowledge", "research", "safety"],
+    routing: [
+      {
+        role: "primary",
+        modelName: "Claude Fable 5",
+        provider: "Anthropic",
+        rank: 1,
+        fit: 100,
+        readings: { measuredPerformance: { evidenceLevel: "estimated" } },
+        decision: { state: "too-close", reason: "Two candidates are close.", recommendedTest: "Run ten tasks." },
+      },
+    ],
+    teamEvaluation: {
+      checks: [{ label: "Requirement coverage", status: "pass", summary: "The team covers the selected work." }],
+      trials: [
+        {
+          id: "representative-task",
+          label: "Representative result",
+          task: "Run ten real examples.",
+          success: "The agreed rubric passes.",
+          outcome: "not-tested",
+        },
+      ],
+    },
+    catalogVersion: "catalog-test",
+    scoringVersion: "scoring-test",
+    taxonomyVersion: "taxonomy-test",
+    savedAt: "2026-08-18T12:00:00.000Z",
+  });
   assert.equal(ok.status, 201);
-  const { id, saved } = await ok.json();
+  const { id, saved, markdownUrl } = await ok.json();
   assert.ok(id);
   assert.equal(saved, true);
+  assert.equal(markdownUrl, `/api/blueprints/${id}/markdown`);
 
   const listed = await (await worker.fetch(request("/api/blueprints"), { DB: db })).json();
   assert.equal(listed.blueprints.length, 1);
   assert.equal(listed.blueprints[0].name, "Balanced team");
+  const stored = JSON.parse(listed.blueprints[0].payload_json);
+  assert.match(stored.specificationMarkdown, /# Draft Application Specification/);
+  assert.match(stored.specificationMarkdown, /Supplier comparison for a school/);
+  assert.match(stored.specificationMarkdown, /Claude Fable 5/);
+  assert.match(stored.specificationMarkdown, /\[Fill in:/);
+
+  const detail = await (await worker.fetch(request(`/api/blueprints/${id}`), { DB: db })).json();
+  assert.equal(detail.blueprint.name, "Balanced team");
+  assert.match(detail.blueprint.specificationMarkdown, /## 9\. Verification steps/);
+
+  const markdown = await worker.fetch(request(markdownUrl), { DB: db });
+  assert.equal(markdown.status, 200);
+  assert.match(markdown.headers.get("content-type"), /text\/markdown/);
+  assert.match(markdown.headers.get("content-disposition"), /supplier-comparison-for-a-school-draft-specification\.md/);
+  assert.match(await markdown.text(), /## 8\. Edge cases and failure handling/);
+
+  const patch = await worker.fetch(
+    request(`/api/blueprints/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Edited supplier plan", specificationMarkdown: "# Edited draft\n\nComplete me." }),
+    }),
+    { DB: db },
+  );
+  assert.equal(patch.status, 200);
+  assert.equal((await patch.json()).blueprint.name, "Edited supplier plan");
+  const editedMarkdown = await worker.fetch(request(markdownUrl), { DB: db });
+  assert.equal(await editedMarkdown.text(), "# Edited draft\n\nComplete me.");
+
+  assert.equal(
+    (
+      await worker.fetch(
+        request(`/api/blueprints/${id}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ name: "", specificationMarkdown: "" }),
+        }),
+        { DB: db },
+      )
+    ).status,
+    400,
+  );
+  assert.equal((await worker.fetch(request("/api/blueprints/does-not-exist"), { DB: db })).status, 404);
   db.close();
 });
 

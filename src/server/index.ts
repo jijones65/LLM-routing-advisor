@@ -1,6 +1,13 @@
 import { getCatalog } from "./db/repo.js";
 import type { D1Database } from "./db/index.js";
-import { auditRoute, blueprintsRoute, candidatesRoute, catalogRoute, registriesRoute } from "./routes/api.js";
+import {
+  auditRoute,
+  blueprintRoute,
+  blueprintsRoute,
+  candidatesRoute,
+  catalogRoute,
+  registriesRoute,
+} from "./routes/api.js";
 import { renderPage } from "./render/page.js";
 
 /** Bindings the worker expects. `DB` matches `.openai/hosting.json`. */
@@ -52,6 +59,20 @@ export default {
           status: 500,
           headers: { "content-type": "application/json", "cache-control": "no-store" },
         });
+      }
+    }
+
+    if (url.pathname.startsWith("/api/blueprints/")) {
+      const parts = url.pathname.split("/").filter(Boolean);
+      if (parts.length === 3 || (parts.length === 4 && parts[3] === "markdown")) {
+        try {
+          return await blueprintRoute(request, env.DB, decodeURIComponent(parts[2]), parts[3] === "markdown");
+        } catch (error) {
+          return new Response(JSON.stringify({ error: String(error) }), {
+            status: 500,
+            headers: { "content-type": "application/json", "cache-control": "no-store" },
+          });
+        }
       }
     }
 

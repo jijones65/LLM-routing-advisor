@@ -298,6 +298,11 @@ export function renderDesign(context: DesignContext): void {
       : archetype.description,
   );
   setText("case-count", `${brief.needs.length} selected`);
+  byId<HTMLSelectElement>("archetype").value = brief.archetype;
+  byId<HTMLInputElement>("custom-application").value = brief.customApplicationType ?? "";
+  byId<HTMLInputElement>("data-control").checked = brief.dataControl;
+  byId<HTMLInputElement>("open-preferred").checked = brief.openPreferred;
+  byId<HTMLInputElement>("multi-vendor").checked = brief.multiVendor;
 
   for (const button of document.querySelectorAll<HTMLElement>(".cap")) {
     const active = brief.needs.includes(button.dataset.need ?? "");

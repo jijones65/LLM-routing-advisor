@@ -18,6 +18,7 @@ import { renderAudit, type AuditResponse } from "./views/audit.js";
 import { renderDesign, type DesignContext } from "./views/design.js";
 import { initExploreFilters, renderModels } from "./views/explore.js";
 import { loadRegistry } from "./views/registry.js";
+import { initSavedPlans, loadSavedPlans, type SavedPlan } from "./views/saved.js";
 import { renderUpdates } from "./views/updates.js";
 
 const boot = readBootstrap();
@@ -29,6 +30,7 @@ const brief: BriefInput = { ...initialBrief };
 const registryQuery: RegistryQuery = { ...initialRegistryQuery };
 
 const context: DesignContext = { boot, catalog, brief, registrySummary: null };
+let savedPlansLoaded = false;
 
 /** Re-render the design view. Every brief control funnels through here. */
 function refresh(): void {
@@ -271,6 +273,11 @@ byId("refresh-registry").addEventListener("click", () => void loadAudit({ regist
 // ---------------------------------------------------------------------------
 
 byId("save-blueprint").addEventListener("click", async () => {
+  const saveButton = byId<HTMLButtonElement>("save-blueprint");
+  if (saveButton.disabled) return;
+  saveButton.disabled = true;
+  const originalLabel = saveButton.textContent;
+  saveButton.textContent = "Saving…";
   const complete = completeBrief(brief);
   const plan = planFor(catalog, complete, complete.planStyle);
   const evaluation = evaluateTeam(plan.entries, complete);
@@ -287,6 +294,7 @@ byId("save-blueprint").addEventListener("click", async () => {
         features: complete.cases,
         routing: plan.entries.map((entry) => ({
           role: entry.role.id,
+          roleLabel: entry.role.label,
           jobRequirements: jobRequirements(entry.role.role, complete),
           modelId: entry.model.id,
           modelName: entry.model.name,
@@ -310,10 +318,21 @@ byId("save-blueprint").addEventListener("click", async () => {
         savedAt: new Date().toISOString(),
       }),
     });
-    const data = (await response.json()) as { error?: string };
-    toast(response.ok ? "Plan saved" : (data.error ?? "The plan could not be saved"));
+    const data = (await response.json()) as { error?: string; markdownUrl?: string };
+    if (!response.ok || !data.markdownUrl) {
+      toast(data.error ?? "The plan could not be saved");
+      return;
+    }
+    const link = byId<HTMLAnchorElement>("saved-markdown-link");
+    link.href = data.markdownUrl;
+    link.hidden = false;
+    toast("Team plan saved — draft specification ready");
+    if (savedPlansLoaded) void loadSavedPlans();
   } catch {
     toast("The plan could not be saved");
+  } finally {
+    saveButton.disabled = false;
+    saveButton.textContent = originalLabel;
   }
 });
 
@@ -324,28 +343,70 @@ byId("save-blueprint").addEventListener("click", async () => {
 let auditLoaded = false;
 let registryLoaded = false;
 
+function activateTab(target: string, selectedTab?: HTMLElement): void {
+  for (const other of document.querySelectorAll<HTMLElement>(".tab")) {
+    other.classList.toggle("active", selectedTab ? other === selectedTab : other.dataset.tab === target);
+  }
+  for (const page of document.querySelectorAll<HTMLElement>(".page")) page.classList.remove("active");
+  document.getElementById(`${target}-page`)?.classList.add("active");
+
+  if (target === "saved") {
+    savedPlansLoaded = true;
+    void loadSavedPlans();
+  }
+  if (target === "explore") renderModels(boot, catalog);
+  if (target === "registry" && !registryLoaded) {
+    registryLoaded = true;
+    void loadRegistry(registryQuery, { refresh: true }, onRegistrySummary);
+  }
+  if (target === "audit-layer" && !auditLoaded) {
+    auditLoaded = true;
+    void loadAudit();
+  }
+  if (target === "updates") renderUpdates(boot, catalog);
+}
+
+initSavedPlans(boot, (plan: SavedPlan) => {
+  const saved = plan.payload.brief as Partial<BriefInput> | undefined;
+  if (!saved) {
+    toast("This older saved plan has no brief to reopen; its draft can still be edited or exported");
+    return;
+  }
+  brief.archetype = boot.archetypes.some((item) => item.id === saved.archetype)
+    ? (saved.archetype as string)
+    : initialBrief.archetype;
+  brief.customApplicationType = typeof saved.customApplicationType === "string" ? saved.customApplicationType : "";
+  brief.needs = Array.isArray(saved.needs) && saved.needs.length ? [...saved.needs] : [...initialBrief.needs];
+  brief.businessGoal = saved.businessGoal ?? initialBrief.businessGoal;
+  brief.industry = saved.industry ?? initialBrief.industry;
+  brief.domain = saved.domain ?? initialBrief.domain;
+  brief.risk = saved.risk ?? initialBrief.risk;
+  brief.planStyle = saved.planStyle ?? initialBrief.planStyle;
+  brief.dataControl = Boolean(saved.dataControl);
+  brief.openPreferred = Boolean(saved.openPreferred);
+  brief.multiVendor = saved.multiVendor !== false;
+
+  const scope = trialScopeKey(brief, brief.planStyle);
+  const evaluation = plan.payload.teamEvaluation as {
+    trials?: { id?: string; outcome?: TrialOutcome | "not-tested" }[];
+  };
+  for (const trial of evaluation?.trials ?? []) {
+    if (!trial.id) continue;
+    const key = `${scope}::${trial.id}`;
+    trialOutcomes.delete(key);
+    if (trial.outcome === "pass" || trial.outcome === "partial" || trial.outcome === "fail")
+      trialOutcomes.set(key, trial.outcome);
+  }
+  refresh();
+  activateTab("design");
+  toast("Saved plan reopened in Application design");
+});
+
 for (const tab of document.querySelectorAll<HTMLElement>(".tab")) {
   tab.addEventListener("click", () => {
-    for (const other of document.querySelectorAll<HTMLElement>(".tab")) {
-      other.classList.toggle("active", other === tab);
-    }
-    for (const page of document.querySelectorAll<HTMLElement>(".page")) page.classList.remove("active");
     const target = tab.dataset.tab;
     if (!target) return;
-    document.getElementById(`${target}-page`)?.classList.add("active");
-
-    // Each heavy view loads on first visit only, so switching tabs stays instant
-    // and no third-party source is polled until someone actually looks at it.
-    if (target === "explore") renderModels(boot, catalog);
-    if (target === "registry" && !registryLoaded) {
-      registryLoaded = true;
-      void loadRegistry(registryQuery, { refresh: true }, onRegistrySummary);
-    }
-    if (target === "audit-layer" && !auditLoaded) {
-      auditLoaded = true;
-      void loadAudit();
-    }
-    if (target === "updates") renderUpdates(boot, catalog);
+    activateTab(target, tab);
   });
 }
 

@@ -5,7 +5,8 @@
  * Boots the built worker against an in-memory database with registry fixtures,
  * then drives the actual interface: every tab renders, the brief controls change
  * the plan, score breakdowns expand, preferences are explained visibly, and
- * a plan saves to the database. This is the layer the unit tests cannot reach —
+ * saved plans can be reopened, compared, edited and exported. This is the layer
+ * the unit tests cannot reach —
  * the prototype's entire interface lived in template strings where a renamed id
  * failed only in production.
  *
@@ -220,7 +221,7 @@ try {
   // --- about ---------------------------------------------------------------
   await page.locator('[data-tab="about"]').click();
   await page.waitForTimeout(150);
-  expect("the About guide explains all five working tabs", (await page.locator(".about-card").count()) === 5);
+  expect("the About guide explains all six working tabs", (await page.locator(".about-card").count()) === 6);
   expect("the About guide gives a five-step workflow", (await page.locator(".about-workflow li").count()) === 5);
   expect(
     "the About guide explains evidence limits",
@@ -238,7 +239,8 @@ try {
   );
   await page.locator("#save-blueprint").click();
   await page.waitForTimeout(600);
-  expect("a plan saves", (await page.textContent("#toast")) === "Plan saved");
+  expect("a plan saves", /team plan saved/i.test((await page.textContent("#toast")) ?? ""));
+  expect("saving creates a Markdown link", await page.locator("#saved-markdown-link").isVisible());
   const saved = await (await fetch(`${base}/api/blueprints`)).json();
   expect("the saved plan is retrievable", saved.blueprints.length === 1);
   const payload = JSON.parse(saved.blueprints[0].payload_json);
@@ -249,6 +251,43 @@ try {
     "the saved plan records team trial outcomes",
     payload.teamEvaluation?.trials?.some((trial) => trial.outcome === "pass"),
   );
+  expect(
+    "the saved plan contains a draft specification",
+    /Draft Application Specification/.test(payload.specificationMarkdown),
+  );
+
+  // --- saved plans --------------------------------------------------------
+  await page.locator('[data-tab="saved"]').click();
+  await page.waitForTimeout(600);
+  expect("the saved plan appears in the workspace", (await page.locator(".saved-plan-card").count()) === 1);
+  expect("the draft can be edited", /\[Fill in:/.test((await page.inputValue("#saved-plan-markdown")) ?? ""));
+  await page.fill("#saved-plan-name", "Edited school supplier plan");
+  await page.fill("#saved-plan-markdown", "# Edited school supplier specification\n\n[Fill in: acceptance target]");
+  await page.locator("#update-saved-plan").click();
+  await page.waitForTimeout(450);
+  expect("saved-plan edits persist", /draft updated/i.test((await page.textContent("#toast")) ?? ""));
+  expect(
+    "the draft has a Markdown export",
+    /\/markdown$/.test(await page.locator(".saved-detail-actions a").getAttribute("href")),
+  );
+
+  await page.locator("[data-detail-reopen]").click();
+  await page.waitForTimeout(250);
+  expect(
+    "reopening restores the custom application",
+    (await page.inputValue("#custom-application")) === "Supplier comparison for a school",
+  );
+  await page.locator('[data-style="cost"]').click();
+  await page.locator("#save-blueprint").click();
+  await page.waitForTimeout(500);
+  await page.locator('[data-tab="saved"]').click();
+  await page.waitForTimeout(650);
+  expect("a second saved team can be retained", (await page.locator(".saved-plan-card").count()) === 2);
+  await page.locator("input[data-plan-compare]").nth(0).check();
+  await page.waitForTimeout(120);
+  await page.locator("input[data-plan-compare]").nth(1).check();
+  await page.waitForTimeout(180);
+  expect("two plans can be compared side by side", (await page.locator("#saved-plan-compare table").count()) === 1);
 
   expect("no console errors", consoleErrors.length === 0, consoleErrors.join(" | "));
 } finally {
