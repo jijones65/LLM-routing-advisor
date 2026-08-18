@@ -388,6 +388,28 @@ export const BODY_MARKUP = `<header class="topbar">
 </div>
 <div id="audit-denominators">
 </div>
+<section class="layer-map" aria-label="How the four information layers differ">
+<article>
+<span>01</span>
+<strong>Recommendation ranking</strong>
+<p>Orders model variants for each team job using the user’s needs and selected plan style.</p>
+</article>
+<article>
+<span>02</span>
+<strong>Source-evidence layer</strong>
+<p>Records the official provider pages supporting catalogue names, status and stated capabilities.</p>
+</article>
+<article>
+<span>03</span>
+<strong>Registry-snapshot layer</strong>
+<p>Keeps the latest listings from six discovery sources so aliases, availability and overlap can be compared.</p>
+</article>
+<article>
+<span>04</span>
+<strong>Coverage-audit layer</strong>
+<p>Checks the main catalogue against those records and makes gaps, extra names and review work visible.</p>
+</article>
+</section>
   <div class="scope-contract">
 <section class="scope-card primary">
 <div class="eyebrow">What this catalogue includes</div>

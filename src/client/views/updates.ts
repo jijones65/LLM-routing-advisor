@@ -10,6 +10,14 @@ import type { Model } from "../../shared/types.js";
  */
 const CHANGES: readonly { state: string; title: string; scope: string; date: string; detail: string }[] = [
   {
+    state: "Corrected",
+    title: "D1 catalogue and evidence rows aligned with this release",
+    scope: "Data · migrations",
+    date: "18 Aug 2026",
+    detail:
+      "The database projection now contains the same 109 model variants as the published catalogue, and superseded official-source rows are removed. Saved application plans and all six registry snapshots are preserved.",
+  },
+  {
     state: "Added",
     title: "More starting application types and a custom type field",
     scope: "Application design · taxonomy",

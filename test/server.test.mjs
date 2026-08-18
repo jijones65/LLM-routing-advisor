@@ -9,10 +9,12 @@ import {
   getRegistryCandidates,
   listBlueprints,
   saveBlueprint,
+  syncCatalog,
   verificationSummary,
 } from "../build/server/db/repo.js";
 import { loadSnapshots, refreshSource } from "../build/server/registry/refresh.js";
 import { REGISTRY_SOURCES } from "../build/data/registry-sources.js";
+import { ensureSchema } from "../build/server/db/index.js";
 
 /** A fresh in-memory database. The schema is applied lazily, per binding. */
 function freshDb() {
@@ -40,6 +42,24 @@ test("the catalogue is served even with no database at all", async () => {
   for (const model of models) assert.ok(model.signals, `${model.id} has no signals attached`);
 });
 
+test("the D1 catalogue projection is aligned with the bundled release", async () => {
+  const db = freshDb();
+  await ensureSchema(db);
+  await db
+    .prepare("INSERT INTO catalog_models (id, data_json, updated_at) VALUES (?, ?, ?)")
+    .bind("legacy-example", JSON.stringify({ catalogVersion: "superseded" }), "2026-08-17T00:00:00Z")
+    .run();
+
+  await syncCatalog(db);
+  const rows = await db.prepare("SELECT data_json FROM catalog_models ORDER BY id").all();
+  assert.equal(rows.results.length, 109);
+  assert.ok(
+    rows.results.every((row) => JSON.parse(row.data_json).catalogVersion === "2026.08.18-2"),
+    "every stored catalogue row should use the current version",
+  );
+  db.close();
+});
+
 test("a database failure falls back to the bundled catalogue", async () => {
   const broken = {
     prepare() {
@@ -65,6 +85,14 @@ test("GET / renders a complete page", async () => {
   assert.match(html, /<\/html>\s*$/);
   assert.match(html, /id="bootstrap-data"/);
   assert.match(html, /LLM Application Routing Advisor/);
+  for (const label of [
+    "Recommendation ranking",
+    "Source-evidence layer",
+    "Registry-snapshot layer",
+    "Coverage-audit layer",
+  ]) {
+    assert.match(html, new RegExp(label), `the coverage map is missing ${label}`);
+  }
   // Every element the client looks up must exist in the shell.
   for (const id of [
     "archetype",
@@ -360,6 +388,34 @@ test("the audit view reports evidence, scope and sourcing confidence", async () 
     stub.restore();
     db.close();
   }
+});
+
+test("the evidence projection removes superseded source rows", async () => {
+  const db = freshDb();
+  await getAudit(db);
+  await db
+    .prepare(
+      `INSERT INTO source_evidence
+        (source_id, provider, family, source_url, cadence_hours, expected_ids_json, scope_version, reviewed_at, drift_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(
+      "legacy-example",
+      "Legacy provider",
+      "Legacy family",
+      "https://example.invalid/legacy",
+      168,
+      "[]",
+      "2026.08.17-5",
+      "2026-08-17",
+      "reviewed",
+    )
+    .run();
+
+  const audit = await getAudit(db);
+  assert.equal(audit.evidence.length, 27);
+  assert.ok(!audit.evidence.some((source) => source.id === "legacy-example"));
+  db.close();
 });
 
 test("every catalogue model is covered by an evidence source", async () => {

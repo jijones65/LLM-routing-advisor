@@ -540,6 +540,8 @@ Persistent tables:
 - `source_evidence`
 - `registry_snapshots`
 
+`catalog_models` and `source_evidence` are derived projections. On release, they are synchronised to the bundled, validated catalogue and current official-source set. The alignment migration must preserve `application_blueprints` and all six `registry_snapshots` so saved work and source history are not lost.
+
 HTTP interfaces:
 
 - `GET /` — rendered application
@@ -627,6 +629,12 @@ This is a regression test for scoring behaviour, not a permanent claim that Clau
 - Source overlap is computed after normalization.
 - Excluded non-language records do not enter the catalogue.
 - Possible matches require official provider evidence before admission.
+
+### Persistent projections
+
+- The D1 catalogue projection contains exactly the same 109 variants and catalogue version as the bundled release.
+- The official-source projection contains one current row per evidence source and no rows from superseded scope versions.
+- Catalogue and evidence alignment preserves saved application plans and the six discovery-source snapshots.
 
 ### Build and deployment
 

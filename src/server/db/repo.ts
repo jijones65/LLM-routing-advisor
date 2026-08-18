@@ -15,6 +15,44 @@ import { loadSnapshots } from "../registry/refresh.js";
 import { ensureSchema, fingerprint, type D1Database } from "./index.js";
 
 const MATCHER = new CatalogMatcher(CATALOG);
+const SYNCED_CATALOG_DBS = new WeakSet<object>();
+
+/** Keep the D1 catalogue projection aligned with the bundled release. */
+export async function syncCatalog(db: D1Database): Promise<void> {
+  if (SYNCED_CATALOG_DBS.has(db as object)) return;
+
+  const stored = await db.prepare("SELECT id, data_json FROM catalog_models").all<{
+    id: string;
+    data_json: string;
+  }>();
+  const rows = stored.results ?? [];
+  const current =
+    rows.length === CATALOG.length &&
+    rows.every((row) => {
+      try {
+        return (JSON.parse(row.data_json) as { catalogVersion?: string }).catalogVersion === CATALOG[0].catalogVersion;
+      } catch {
+        return false;
+      }
+    });
+
+  if (!current) {
+    await db.prepare("DELETE FROM catalog_models").run();
+    const statement = `INSERT INTO catalog_models (id, data_json, updated_at)
+      VALUES (?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET data_json=excluded.data_json, updated_at=excluded.updated_at`;
+    const updatedAt = new Date().toISOString();
+    for (let index = 0; index < CATALOG.length; index += 20) {
+      await db.batch(
+        CATALOG.slice(index, index + 20).map((model) =>
+          db.prepare(statement).bind(model.id, JSON.stringify(model), updatedAt),
+        ),
+      );
+    }
+  }
+
+  SYNCED_CATALOG_DBS.add(db as object);
+}
 
 /**
  * The catalogue with adoption signals attached.
@@ -27,6 +65,7 @@ export async function getCatalog(db: D1Database | undefined): Promise<{ models: 
   if (!db) return { models: withSignals(CATALOG), source: "bundled" };
   try {
     await ensureSchema(db);
+    await syncCatalog(db);
     const rows = await loadSnapshots(db);
     return { models: withSignals(CATALOG, tallyFromSnapshots(rows, MATCHER)), source: "published-registry" };
   } catch {
@@ -63,6 +102,15 @@ export async function seedEvidence(db: D1Database): Promise<void> {
       ),
     );
   }
+
+  // This is a derived projection, not an append-only history. Remove rows from
+  // superseded scopes so one provider is not shown twice after a release.
+  const ids = EVIDENCE.map((source) => source.id);
+  const placeholders = ids.map(() => "?").join(", ");
+  await db
+    .prepare(`DELETE FROM source_evidence WHERE source_id NOT IN (${placeholders})`)
+    .bind(...ids)
+    .run();
 }
 
 interface EvidenceRow {

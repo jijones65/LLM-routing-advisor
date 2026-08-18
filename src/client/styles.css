@@ -2388,6 +2388,36 @@ p {
   font-weight: 850;
   text-decoration: none;
 }
+.layer-map {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 18px;
+}
+.layer-map article {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+}
+.layer-map span {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+.layer-map strong {
+  font-size: 12px;
+}
+.layer-map p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
 @media (max-width: 1050px) {
   .tool-list {
     grid-template-columns: 1fr;
@@ -2413,6 +2443,9 @@ p {
     grid-template-columns: 1fr;
   }
   .result-readings {
+    grid-template-columns: 1fr;
+  }
+  .layer-map {
     grid-template-columns: 1fr;
   }
 }
