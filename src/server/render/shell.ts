@@ -1,0 +1,564 @@
+import { BRAND_MARK } from "../../client/brand.js";
+
+/**
+ * The page markup.
+ *
+ * Server-rendered once per request as a static shell; every dynamic region is an
+ * empty element the client bundle fills in. Keeping the markup here rather than
+ * generating it in the client means the page has readable structure and a
+ * meaningful document outline before any script runs.
+ *
+ * `{{...}}` placeholders are substituted in `page.ts`.
+ */
+export const BODY_MARKUP = `<header class="topbar">
+<div class="brand">
+<span class="mark" aria-hidden="true">
+<img src="${BRAND_MARK}" alt="">
+</span>
+<span>LLM application advisor</span>
+</div>
+<nav class="tabs" aria-label="Dashboard sections">
+<button class="tab active" data-tab="design">Application design</button>
+<button class="tab" data-tab="explore">Model explorer</button>
+<button class="tab" data-tab="registry">Live registry</button>
+<button class="tab" data-tab="audit-layer">Coverage check</button>
+<button class="tab" data-tab="updates">Update centre</button>
+</nav>
+<div class="live" id="live-state">
+<i>
+</i>Checks for updates · 60s</div>
+</header>
+<main>
+<section class="page active" id="design-page">
+<div class="workspace">
+<aside class="brief">
+<div class="eyebrow">01 · Describe the application</div>
+<h1>Plan the application first. Choose models second.</h1>
+<p class="lede">Describe the application, its work and its context. The advisor will then build different model teams for quality, balance, cost, proven use and capability range.</p>
+<section class="brief-section">
+<label class="label" for="archetype">Starting application type</label>
+<select class="select" id="archetype">
+</select>
+<p class="help" id="archetype-help">
+</p>
+</section>
+<section class="brief-section">
+<div class="brief-section-head">
+<span class="label">What it must do</span>
+<small id="case-count">
+</small>
+</div>
+<div class="capability-groups" id="capabilities">
+</div>
+</section>
+<section class="brief-section">
+<div class="brief-section-head">
+<span class="label">Where and why it will be used</span>
+<small>Context changes the checks—not the facts about a model</small>
+</div>
+<div class="context-grid">
+<label class="context-field">
+<span class="label">Business goal</span>
+<select class="select" id="business-goal">
+</select>
+</label>
+<label class="context-field">
+<span class="label">Industry</span>
+<select class="select" id="industry">
+</select>
+</label>
+<label class="context-field">
+<span class="label">Knowledge area</span>
+<select class="select" id="domain">
+</select>
+</label>
+<label class="context-field">
+<span class="label">Risk level</span>
+<select class="select" id="risk-level">
+</select>
+</label>
+</div>
+<details class="taxonomy-note">
+<summary>Where these categories come from</summary>
+<p>Plain-language choices are adapted from widely used frameworks. They help describe the application; they do not claim that a model is automatically better for an industry.</p>
+<a href="https://unstats.un.org/unsd/classifications/Econ/isic" target="_blank" rel="noreferrer">UN industry categories ↗</a> · <a href="https://www.apqc.org/process-frameworks" target="_blank" rel="noreferrer">APQC process framework ↗</a> · <a href="https://www.uis.unesco.org/en/methods-and-tools/isced" target="_blank" rel="noreferrer">UNESCO fields of study ↗</a> · <a href="https://www.oecd.org/en/publications/frascati-manual-2015_9789264239012-en.html" target="_blank" rel="noreferrer">OECD research fields ↗</a>
+</details>
+</section>
+<section class="brief-section">
+<div class="brief-section-head">
+<span class="label">Choose a plan style</span>
+<small>Six common starting points</small>
+</div>
+<div class="plan-style-grid" id="primary-styles">
+</div>
+<details class="signal-note">
+<summary>How ecosystem visibility and capability range are measured</summary>
+<p>
+<strong>Visible ecosystem reach</strong> describes what this application can observe across public sources: source appearances, hosted listings, ways to run a model, Ollama availability, Hugging Face downloads where available, and a dated OpenRouter usage snapshot. It does not count total users, measure reliability or prove production use.</p>
+<p>
+<strong>Broad capability range</strong> asks whether fewer versatile models can cover the work. <strong>Focused specialist team</strong> asks whether several efficient specialists can cover it together. Specialists are judged on their own job. Missing capabilities lower a score but do not hide a model.</p>
+<p>Model fit, source confidence, ecosystem visibility and measured performance are shown separately. These signals create a shortlist; they are not proof that a model gives better answers. The advisor has no hard-coded winning model or preferred provider.</p>
+<a href="https://openrouter.ai/rankings" target="_blank" rel="noreferrer">OpenRouter usage source · data through 17 Aug 2026 · CC BY 4.0 ↗</a>
+</details>
+<label class="context-field more-style">
+<span class="label">Other useful plan styles</span>
+<select class="select" id="other-style">
+</select>
+</label>
+</section>
+<section class="brief-section">
+<div class="brief-section-head">
+<span class="label">Requirements and limits</span>
+</div>
+<div class="switches">
+<label class="switch">
+<span>
+<strong>Keep data in a controlled setup</strong>
+<small>Prefer models that can run in a private or local setup.</small>
+</span>
+<input id="data-control" type="checkbox">
+</label>
+<label class="switch">
+<span>
+<strong>Prefer downloadable models</strong>
+<small>Prefer models whose weights can be downloaded.</small>
+</span>
+<input id="open-preferred" type="checkbox">
+</label>
+<label class="switch">
+<span>
+<strong>Use different providers</strong>
+<small>Reduce reliance on only one company.</small>
+</span>
+<input id="multi-vendor" type="checkbox" checked>
+</label>
+</div>
+</section>
+</aside>
+<section class="route">
+<div class="route-head">
+<div>
+<div class="eyebrow">02 · Recommended model teams</div>
+<h2 id="route-title">
+</h2>
+</div>
+<button class="save" id="save-blueprint">Save plan</button>
+</div>
+<div class="team-compare" id="team-compare">
+</div>
+<div class="team-hypothesis"><strong>Compare a broad model with a specialist team.</strong> A group of focused, lower-cost or locally run models may cover the same application as one large model. Their scores do not simply add up: routing, coordination, cost, latency and failure handling must be tested on the same real examples.</div>
+<div id="design-denominators">
+</div>
+<div class="stats" id="route-stats">
+</div>
+<div class="team-intro">
+<div>
+<div class="eyebrow" id="selected-style-label">Selected plan</div>
+<h3 id="team-title">
+</h3>
+<p id="team-description">
+</p>
+</div>
+</div>
+<div class="ranking-key">
+<strong>How to read this:</strong>
+<span>Primary = the main model users meet</span>
+<span id="rank-range">Each job has its own model order</span>
+<span>Score % = relative position in this ranking, not certainty</span>
+</div>
+<div class="node">
+<span class="index">APPLICATION BRIEF</span>
+<strong id="brief-summary">What users need</strong>
+<small id="context-summary">Capabilities · context · risk · limits</small>
+</div>
+<div class="arrow">↓</div>
+<div class="node router">
+<span class="index">BUILD THE TEAM</span>
+<strong>Match one model to each job</strong>
+<small>Primary model · routine work · specialists · checker · fallback choices</small>
+</div>
+<div class="arrow">↓</div>
+<div class="role-list" id="route-list">
+</div>
+<div class="tool-panel">
+<div class="eyebrow">Tools outside the model team</div>
+<h3>Other parts this application may need</h3>
+<p>Some jobs need search, maps, databases, safety checks or human review. A language model cannot replace these systems.</p>
+<div class="tool-list" id="tool-list">
+</div>
+</div>
+<div class="arrow">↓</div>
+<div class="node">
+<span class="index">TEST BEFORE LAUNCH</span>
+<strong>Use real examples from this application</strong>
+<small>Compare quality, cost, speed, safety and failure cases before making a final choice.</small>
+</div>
+<div class="note">
+<strong>Advisor summary</strong>
+<p id="readout">
+</p>
+</div>
+</section>
+</div>
+</section>
+<section class="page inner" id="explore-page">
+<div class="page-head">
+<div>
+<div class="eyebrow">Catalogue supported by official provider sources</div>
+<h1>Explore the model catalogue.</h1>
+<p class="lede">Official provider sources support each model’s name, current status and stated capabilities. The comparison scores are rule-based estimates until they are tested on real work.</p>
+</div>
+<div class="registry-stat">
+<strong id="match-count">0</strong>
+<span id="match-label">0 of {{MODEL_COUNT}} distinct model variants</span>
+</div>
+</div>
+<div id="explore-denominators">
+</div>
+<section class="catalogue-language" aria-labelledby="catalogue-language-title">
+<div>
+<div class="eyebrow">What the {{MODEL_COUNT}} entries represent</div>
+<h2 id="catalogue-language-title">How the {{MODEL_COUNT}} model variants are organised.</h2>
+<p>The {{MODEL_COUNT}} count refers to distinct model variants, not companies, product names or every name used by a website or API. A model family can contain several variants. Other sources may use extra names for the same variant. ChatGPT is an OpenAI product that can offer different models; it is not counted as one model variant here.</p>
+</div>
+<div class="catalogue-hierarchy" aria-label="Example model hierarchy">
+<div class="catalogue-level">
+<strong>Provider</strong>
+<span>OpenAI</span>
+</div>
+<span class="catalogue-arrow" aria-hidden="true">→</span>
+<div class="catalogue-level">
+<strong>Model family</strong>
+<span>GPT-5.6</span>
+</div>
+<span class="catalogue-arrow" aria-hidden="true">→</span>
+<div class="catalogue-level example">
+<strong>Distinct model variants</strong>
+<span>Sol · Terra · Luna</span>
+</div>
+<span class="catalogue-arrow" aria-hidden="true">→</span>
+<div class="catalogue-level">
+<strong>Other names and versions</strong>
+<span>API names, dated releases and hosted copies</span>
+</div>
+</div>
+<div class="term-grid">
+<div class="term-card">
+<strong>Official source confirmed</strong>
+<span>The provider page was read on the review date. The model name, status and stated capabilities matched this record.</span>
+</div>
+<div class="term-card">
+<strong>Why it is included</strong>
+<span>The model has a current API or official downloadable weights, clear provider documentation and a useful language-model job.</span>
+</div>
+<div class="term-card">
+<strong>One record per distinct variant</strong>
+<span>The app gives each separately useful model option one main record. API aliases, dated releases and hosted copies link to it.</span>
+</div>
+<div class="term-card">
+<strong>Rule-based shortlist</strong>
+<span>The app compares variants using the user's application choices. The relative score helps make a shortlist; it does not prove real-world performance.</span>
+</div>
+</div>
+</section>
+<div class="filters">
+<input class="search" id="model-search" placeholder="Search model, provider, family or capability" aria-label="Search models">
+<select class="select" id="provider-filter">
+</select>
+<select class="select" id="case-filter">
+</select>
+<select class="select" id="deployment-filter">
+<option value="all">All ways to run a model</option>
+<option value="hosted">Provider-hosted</option>
+<option value="open-weight">Downloadable (open-weight)</option>
+<option value="private cloud">Private cloud</option>
+<option value="edge">On-device / edge</option>
+</select>
+</div>
+<div class="model-list" id="model-list">
+</div>
+</section>
+<section class="page inner" id="registry-page">
+<div class="page-head">
+<div>
+<div class="eyebrow">Listings collected from several sources</div>
+<h1>Compare what different model lists contain.</h1>
+<p class="lede">Six sources provide model listings and technical information. Every listing keeps its source label. A model variant enters the main catalogue only after an official provider page supports it.</p>
+</div>
+<div class="registry-stat">
+<strong id="live-endpoint-count">—</strong>
+<span>source listings</span>
+</div>
+</div>
+<div class="registry-rationale">
+<article class="rationale-card">
+<span>01</span>
+<strong>Keep source types separate</strong>
+<p>Model marketplaces, hosting services and information lists answer different questions. Their counts stay separate before similar names are grouped.</p>
+</article>
+<article class="rationale-card">
+<span>02</span>
+<strong>Show where sources agree</strong>
+<p>A model name counts as shared when it appears in at least two sources after similar names are grouped. The app shows which sources contain it.</p>
+</article>
+<article class="rationale-card">
+<span>03</span>
+<strong>Check an official source before adding</strong>
+<p>Even agreement across all six sources is not enough. An official provider page must support the model’s name, current status and stated capabilities before it enters the main catalogue.</p>
+</article>
+</div>
+<div class="live-registry-summary" id="live-registry-summary">
+</div>
+<section class="overlap-panel">
+<div class="overlap-head">
+<div>
+<div class="eyebrow">Source agreement</div>
+<h2>Models found in more than one source</h2>
+<p>Agreement is measured after similar model names are grouped. It shows that several sources list a model; it does not prove quality, current support or provider approval.</p>
+</div>
+<div class="overlap-rate">
+<strong id="overlap-rate">—</strong>
+<span>model names found in 2+ sources</span>
+</div>
+</div>
+<div class="overlap-grid">
+<div class="overlap-block">
+<strong>How many sources list each model</strong>
+<div class="overlap-distribution" id="overlap-distribution">
+</div>
+</div>
+<div class="overlap-block">
+<strong>Where two sources list the same models</strong>
+<div class="overlap-pairs" id="overlap-pairs">
+</div>
+</div>
+</div>
+<div class="source-ledger" id="source-ledger">
+</div>
+</section>
+<div class="registry-controls">
+<input class="search" id="registry-search" placeholder="Search model name or source label" aria-label="Search model listings">
+<select class="select" id="registry-source">
+<option value="all">All sources</option>
+</select>
+<select class="select" id="registry-provider">
+<option value="all">All provider names</option>
+</select>
+<select class="select" id="registry-classification">
+<option value="all">All source listings</option>
+<option value="multi-source">Found in 2+ sources</option>
+<option value="possible-match">Possible catalogue match</option>
+<option value="review">Needs review</option>
+<option value="excluded">Listings outside this catalogue</option>
+</select>
+<button id="registry-refresh-now" type="button">Refresh sources</button>
+</div>
+<div class="live-registry-meta">
+<span id="live-registry-result">Open this tab to load the latest saved updates.</span>
+<span>Checks every 60 seconds while open · sources update every 6–12 hours</span>
+</div>
+<div class="endpoint-list" id="endpoint-list" aria-live="polite">
+</div>
+<div class="registry-pager">
+<button id="registry-prev" type="button">Previous</button>
+<span id="registry-page-state">—</span>
+<button id="registry-next" type="button">Next</button>
+</div>
+<div class="truth">
+<strong>What these sources tell us</strong>
+<p>Hosting and marketplace lists show where models may be available. Information lists help compare technical details. Official provider pages support the main catalogue records. None of these sources proves which model will perform best on a real task.</p>
+</div>
+</section>
+<section class="page inner" id="audit-layer-page">
+  <div class="page-head">
+<div>
+<div class="eyebrow">Check the catalogue against official sources</div>
+<h1>See what is included and what still needs review.</h1>
+<p class="lede">Official provider pages support the {{MODEL_COUNT}} distinct model variants in the main catalogue. Other lists can reveal possible missing models, extra names and hosted versions. Their counts stay separate.</p>
+</div>
+<div class="registry-stat">
+<strong id="coverage-percent">—</strong>
+<span>model variants checked</span>
+</div>
+</div>
+<div id="audit-denominators">
+</div>
+  <div class="scope-contract">
+<section class="scope-card primary">
+<div class="eyebrow">What this catalogue includes</div>
+<h2>Models useful for application decisions</h2>
+<p id="scope-statement">
+</p>
+<p id="scope-sla" style="margin-top:8px">
+</p>
+<span class="scope-version" id="scope-version">
+</span>
+</section>
+<section class="scope-card">
+<div class="eyebrow">Items not included</div>
+<div class="scope-list" id="scope-list">
+</div>
+</section>
+</div>
+  <div class="deepseek-callout evidence-callout">
+<div>
+<strong id="evidence-state">Ongoing official-source check</strong>
+<p>The app checks one official provider source during each update. If a page changes, it creates an item for review. It never changes model advice automatically.</p>
+</div>
+<button id="check-source" type="button">Check next official source</button>
+</div>
+  <section class="scope-card" style="margin: 0 0 18px">
+<div class="eyebrow">How well sourced the catalogue is</div>
+<h2>Not every entry is equally confirmed</h2>
+<p class="lede">An entry is <em>confirmed</em> when its provider page was read on the review date and the name, status and stated capabilities matched. Entries carrying over from an earlier sweep are marked <em>recheck pending</em>. Source confidence is shown separately and does not add performance points to the ranking.</p>
+<div class="coverage-summary" id="verification-summary">
+</div>
+</section>
+  <div class="coverage-summary" id="coverage-summary">
+</div>
+<div class="coverage-matrix" id="coverage-matrix">
+</div>
+  <section class="registry-panel">
+<div class="registry-panel-head">
+<div>
+<div class="eyebrow">Extra listings from six sources</div>
+<h2>Compare extra model listings</h2>
+<p>The app groups similar model names from six updated sources. Models found in several sources show where lists agree. Models found in only one source may need more checking. No extra listing can be added to the main catalogue or ranked automatically.</p>
+</div>
+<div class="registry-actions">
+<button id="refresh-registry" type="button">Refresh sources</button>
+</div>
+</div>
+<div class="registry-summary" id="registry-summary">
+</div>
+<div class="registry-queue" id="registry-queue">
+</div>
+<small class="registry-status" id="registry-status">Waiting for the first comparison of source listings.</small>
+</section>
+  <div class="truth">
+<strong>What this check can prove</strong>
+<p>This check confirms what is listed and where the information came from. Quality, speed and cost scores are rule-based estimates until they are tested on real tasks.</p>
+</div>
+  <section class="watchlist-panel">
+<div class="eyebrow">Providers still being checked</div>
+<h2>Visible, but not yet included</h2>
+<p class="lede">These providers stay visible while the app checks which current models they officially offer and whether those models are useful for applications.</p>
+<div class="watchlist-grid" id="watchlist-grid">
+</div>
+</section>
+</section>
+<section class="page inner" id="updates-page">
+<div class="page-head">
+<div>
+<div class="eyebrow">How the catalogue and planning framework stay current</div>
+<h1>Updates are checked before they change the advice.</h1>
+</div>
+<div class="registry-stat">
+<strong id="published-count">0</strong>
+<span>distinct model variants supported by official sources</span>
+</div>
+</div>
+<div class="loop">
+<div class="loop-step">
+<span>01</span>
+<strong>Find</strong>
+<small>Collect model lists and official provider pages</small>
+</div>
+<div class="loop-step">
+<span>02</span>
+<strong>Compare</strong>
+<small>Group similar names and show where sources agree</small>
+</div>
+<div class="loop-step">
+<span>03</span>
+<strong>Confirm</strong>
+<small>Check model names, categories and stated capabilities</small>
+</div>
+<div class="loop-step">
+<span>04</span>
+<strong>Test</strong>
+<small>Test complete model teams on real application work</small>
+</div>
+</div>
+<div class="update-grid">
+<div class="panel">
+<div class="panel-head">
+<div>
+<div class="eyebrow">Recent application updates</div>
+<h2>What changed and why</h2>
+</div>
+<span class="fresh">Reviewed {{REVIEWED_LABEL}}</span>
+</div>
+<div class="events" id="events">
+</div>
+</div>
+<aside class="panel">
+<div class="eyebrow">Catalogue coverage</div>
+<h2 id="provider-total">
+</h2>
+<p>Model availability, technical information, official provider pages and comparison scores are reported separately. Agreement between sources is useful, but it does not make a listing automatically correct.</p>
+<div class="audit">
+<div>
+<strong>3</strong>
+<span>model marketplace lists</span>
+</div>
+<div>
+<strong>1 + 2</strong>
+<span>hosting + information lists</span>
+</div>
+<div>
+<strong>{{PROVIDER_COUNT}}</strong>
+<span>official provider pages</span>
+</div>
+</div>
+<div class="provider-counts" id="provider-counts">
+</div>
+</aside>
+</div>
+<section class="panel" style="margin: 0 0 22px">
+<div class="panel-head">
+<div>
+<div class="eyebrow">Removed from the catalogue</div>
+<h2>Models a provider has stopped listing</h2>
+</div>
+<span class="fresh" id="retired-count">—</span>
+</div>
+<p>These entries were removed because the provider page no longer lists them. They stay visible here so a falling model count is explainable, and so anyone who planned around one can see what replaced it.</p>
+<div class="retired-list" id="retired-list">
+</div>
+</section>
+<div class="framework-panel">
+<article class="framework-card">
+<span>Industry context</span>
+<strong>UN ISIC</strong>
+<small>Plain-language industry choices are mapped to a widely used international structure.</small>
+<a href="https://unstats.un.org/unsd/classifications/Econ/isic" target="_blank" rel="noreferrer">Open source ↗</a>
+</article>
+<article class="framework-card">
+<span>Business goals and work</span>
+<strong>APQC Process Classification Framework</strong>
+<small>Business-process choices are reviewed against current cross-industry process categories.</small>
+<a href="https://www.apqc.org/process-frameworks" target="_blank" rel="noreferrer">Open source ↗</a>
+</article>
+<article class="framework-card">
+<span>Learning and knowledge</span>
+<strong>UNESCO ISCED-F</strong>
+<small>Knowledge-area wording is compared with international fields of education and training.</small>
+<a href="https://www.uis.unesco.org/en/methods-and-tools/isced" target="_blank" rel="noreferrer">Open source ↗</a>
+</article>
+<article class="framework-card">
+<span>Research domains</span>
+<strong>OECD Fields of Research and Development</strong>
+<small>Scientific and technical domains are reviewed against the Frascati Manual structure.</small>
+<a href="https://www.oecd.org/en/publications/frascati-manual-2015_9789264239012-en.html" target="_blank" rel="noreferrer">Open source ↗</a>
+</article>
+</div>
+<div class="truth">
+<strong>How updates work</strong>
+<p>Model sources are checked frequently. Industry, business-process and knowledge categories are reviewed when their source frameworks change and at least once each quarter. A model-team rule is reviewed when model availability, cost, capabilities or test results change. Updates create visible review items; they do not silently rewrite saved plans.</p>
+</div>
+</section>
+</main>
+<div class="toast" id="toast" role="status">
+</div>
+`;

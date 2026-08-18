@@ -1,12 +1,29 @@
 {
-  "name": "sites-worker-esm-starter",
+  "name": "llm-routing-advisor",
   "private": true,
   "type": "module",
+  "description": "Plan an application first, then choose the model team that fits it.",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "build": "bash scripts/build.sh",
-    "validate": "node scripts/validate-artifact.mjs",
-    "test:registry": "node scripts/test-registry.mjs",
-    "test:planning": "node scripts/test-planning.mjs",
-    "test:recommendations": "node scripts/test-recommendations.mjs"
+    "build": "node scripts/build.mjs",
+    "package": "npm run build && node scripts/package.mjs",
+    "build:test": "node scripts/build-test.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run typecheck && npm run build:test && node --test test/*.test.mjs",
+    "test:unit": "npm run build:test && node --test test/*.test.mjs",
+    "test:browser": "npm run build && node scripts/browser-test.mjs",
+    "dev": "npm run build && node scripts/dev-server.mjs --fixtures",
+    "dev:live": "npm run build && node scripts/dev-server.mjs",
+    "check": "npm run test && npm run test:browser",
+    "format": "prettier --write \"src/**/*.{ts,css}\" \"scripts/*.mjs\" \"test/**/*.mjs\"",
+    "format:check": "prettier --check \"src/**/*.{ts,css}\" \"scripts/*.mjs\" \"test/**/*.mjs\""
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "playwright": "^1.62.1",
+    "prettier": "^3.9.6",
+    "typescript": "^7.0.2"
   }
 }

@@ -1,0 +1,27 @@
+{
+  // Cloudflare Workers configuration.
+  //
+  // The app deploys to OpenAI Sites today (see .openai/hosting.json) and this
+  // file changes nothing about that. It exists because the build already produces
+  // a single ES-module worker with a D1 binding, which is exactly what Workers
+  // wants — so `wrangler dev` and `wrangler deploy` work against the same
+  // artefact with no code changes if the deployment target ever needs to move.
+  //
+  // To use it: create a D1 database (`wrangler d1 create llm-routing-advisor`),
+  // paste the returned id below, apply migrations/0001_initial.sql, then deploy.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "llm-routing-advisor",
+  "main": "dist/server/index.js",
+  "compatibility_date": "2026-08-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "llm-routing-advisor",
+      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

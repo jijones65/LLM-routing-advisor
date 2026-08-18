@@ -1,6 +1,9 @@
+node_modules/
 dist/
+build/
 site.tar.gz
+*.tar.gz
 work/
 outputs/
 .DS_Store
-*.tar.gz
+.wrangler/
