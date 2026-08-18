@@ -137,13 +137,26 @@ try {
   await page.locator('[data-style="quality"]').click();
   await page.waitForTimeout(150);
   const quality = await primaryName();
+  // Quality-first weights put several quality-5 models within a fraction of a
+  // point, so the primary job lands in the close-call band. Assert the mechanism —
+  // the band is detected and joint leaders are shown — rather than one specific
+  // resolution state: whether a tie-breaker separates the candidates or leaves
+  // them level is a property of the catalogue, and pinning it makes the test fail
+  // every time a model's readings change.
+  const primaryDecision = page.locator(".role-card").first().locator(".decision-card");
+  const decisionState = (await primaryDecision.getAttribute("class")) ?? "";
   expect(
-    "near-equal primary scores are labelled too close to call",
-    (await page.locator(".role-card").first().locator(".close-call").count()) === 1,
+    "a near-equal primary score is surfaced as a close-band decision",
+    /\btie-break-choice\b|\bclose-call\b/.test(decisionState),
+    decisionState || "no decision card rendered",
   );
   expect(
     "a close call shows joint leaders",
     (await page.locator(".role-card").first().locator(".close-candidates span").count()) >= 2,
+  );
+  expect(
+    "the close-call gap is reported below the threshold",
+    /0\.\d+ points? apart/.test((await primaryDecision.textContent()) ?? ""),
   );
   await page.locator('[data-style="cost"]').click();
   await page.waitForTimeout(150);
@@ -240,7 +253,19 @@ try {
     "a user override is labelled explicitly",
     /selected by you/i.test((await page.textContent(".primary-role")) ?? ""),
   );
-  await page.locator(".team-trial").first().locator('[data-trial-outcome="pass"]').click();
+  // The trial list is inside a collapsed <details>, so its buttons are in the DOM
+  // but not clickable until the disclosure is opened. Expand it the way a user
+  // would rather than forcing the click, so the test fails if the disclosure
+  // itself ever breaks.
+  const trialDisclosure = page.locator("#team-evaluation details", { has: page.locator(".team-trial-grid") });
+  expect("the trial list starts collapsed", !(await trialDisclosure.evaluate((element) => element.open)));
+  await trialDisclosure.locator("summary").click();
+  await page.waitForTimeout(150);
+  expect("the trial list opens on click", await trialDisclosure.evaluate((element) => element.open));
+
+  const passButton = page.locator(".team-trial").first().locator('[data-trial-outcome="pass"]');
+  expect("a trial outcome button is reachable once expanded", await passButton.isVisible());
+  await passButton.click();
   await page.waitForTimeout(150);
   expect(
     "a real-task trial result can be recorded",
