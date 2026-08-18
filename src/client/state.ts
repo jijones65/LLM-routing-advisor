@@ -88,6 +88,9 @@ export type TrialOutcome = "pass" | "partial" | "fail";
 /** User-recorded results. They are not model runs and are saved with the plan. */
 export const trialOutcomes = new Map<string, TrialOutcome>();
 
+/** Explicit model choices, kept separate for every brief, plan style and team job. */
+export const modelChoiceOverrides = new Map<string, string>();
+
 /** Keep results separate when the application brief or plan style changes. */
 export function trialScopeKey(brief: BriefInput, styleId: string): string {
   return [
@@ -100,4 +103,22 @@ export function trialScopeKey(brief: BriefInput, styleId: string): string {
     brief.risk,
     styleId,
   ].join("::");
+}
+
+export function modelChoiceKey(brief: BriefInput, styleId: string, roleId: string): string {
+  return `${trialScopeKey(brief, styleId)}::model-choice::${roleId}`;
+}
+
+export function modelChoicesFor(brief: BriefInput, styleId: string): Record<string, string> {
+  const prefix = `${trialScopeKey(brief, styleId)}::model-choice::`;
+  return Object.fromEntries(
+    [...modelChoiceOverrides.entries()]
+      .filter(([key]) => key.startsWith(prefix))
+      .map(([key, modelId]) => [key.slice(prefix.length), modelId]),
+  );
+}
+
+export function clearModelChoicesFor(brief: BriefInput, styleId: string): void {
+  const prefix = `${trialScopeKey(brief, styleId)}::model-choice::`;
+  for (const key of modelChoiceOverrides.keys()) if (key.startsWith(prefix)) modelChoiceOverrides.delete(key);
 }

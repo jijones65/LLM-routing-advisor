@@ -22,11 +22,15 @@ export function explainEntry(entry: PlanEntry, limit = 4): string {
   const opening = `Ranked #${entry.rank} among the current catalogue variants for this job under ${strategy.name.toLowerCase()}.`;
   const policy = entry.policyReason ? ` This choice was ${entry.policyReason}.` : "";
   const decision =
-    entry.decision.state === "too-close"
-      ? ` Its ${entry.decision.scoreGap?.toFixed(2)}-point lead is inside the close-call band and is not treated as a meaningful win.`
-      : entry.decision.state === "policy-choice"
-        ? " It was selected by a team policy rather than as the raw score leader."
-        : "";
+    entry.decision.state === "user-choice"
+      ? ` It was explicitly selected by the user from the models inside the 3-point choice band; the raw rank remains #${entry.rank}.`
+      : entry.decision.state === "tie-break-choice"
+        ? ` Its raw score is inside the close-call band; ${entry.decision.tieBreakBasis?.replaceAll("-", " ")} selected it without changing the raw ranking.`
+        : entry.decision.state === "too-close"
+          ? ` Its ${entry.decision.scoreGap?.toFixed(2)}-point lead is inside the close-call band and is not treated as a meaningful win.`
+          : entry.decision.state === "policy-choice"
+            ? " It was selected by a team policy rather than as the raw score leader."
+            : "";
   return `${opening} ${clauses.join("; ")}.${decision}${policy}`;
 }
 
@@ -65,9 +69,13 @@ export function explainPlan(
   const priced = entries.filter((entry) => entry.model.pricing.input !== null).length;
   const primary = entries[0];
   const primarySentence =
-    primary.decision.state === "too-close"
-      ? `${primary.model.name} is the provisional primary, but ${primary.decision.closeCandidates.map((candidate) => candidate.model.name).join(", ")} are inside the close-call band and must be compared on the same real tasks.`
-      : `${primary.model.name} is the leading primary candidate.`;
+    primary.decision.state === "user-choice"
+      ? `${primary.model.name} is the user's primary choice from the candidates inside the 3-point band; ${primary.advisorChoice.model.name} remains the advisor's automatic choice.`
+      : primary.decision.state === "tie-break-choice"
+        ? `${primary.model.name} is the primary selected by the visible ${primary.decision.tieBreakBasis?.replaceAll("-", " ")} close-call tie-breaker; it is still a candidate to test.`
+        : primary.decision.state === "too-close"
+          ? `${primary.model.name} is the provisional primary, but ${primary.decision.closeCandidates.map((candidate) => candidate.model.name).join(", ")} are inside the close-call band and must be compared on the same real tasks.`
+          : `${primary.model.name} is the leading primary candidate.`;
 
   return [
     `This ${strategy.name.toLowerCase()} plan has ${supporting} supporting job${supporting === 1 ? "" : "s"} across ${providers} provider${providers === 1 ? "" : "s"}. ${primarySentence}`,

@@ -1,7 +1,7 @@
 # LLM Application Routing Advisor — Product and Implementation Specification
 
-**Specification version:** 1.3
-**Current implementation baseline:** 18 August 2026 · catalogue `2026.08.18-2` · scoring `2026.08.18-3` · taxonomy `2026.08.18-2`
+**Specification version:** 1.5
+**Current implementation baseline:** 18 August 2026 · catalogue `2026.08.18-2` · scoring `2026.08.18-4` · taxonomy `2026.08.18-2`
 **Status:** Living specification for refinement, maintenance, and future rebuilds
 
 ## 1. Purpose
@@ -418,16 +418,38 @@ Correlated signals should be identified and reduced over time. Platform-specific
 
 ### 8.8 Close calls and decision guidance
 
-A difference of one score point or less is inside the close-call band. Candidates in that band are joint leaders; the numerical order is not treated as meaningful evidence.
+A difference of less than one score point is inside the close-call band. The raw rank and score remain visible but are not treated as meaningful evidence of a better model.
+
+The advisor applies these tie-breakers in order without rewriting the raw score:
+
+1. **Measured performance evidence:** complete relevant tests outrank partial tests, which outrank catalogue estimates.
+2. **Application specialisation:** 70% requirement coverage, 20% concentration of the model's stated capabilities on the assigned job, and 10% provider-stated job positioning.
+3. **Ecosystem reach:** the separate ecosystem-visibility reading described above.
+
+Application specialisation is still based on stated catalogue capabilities, not an independent performance test. Ecosystem reach is still a visibility proxy, not a user count or proof of quality. If these readings do not separate the candidates, the result remains unresolved and requires a real-task trial.
+
+There is also a wider **user-choice band** for models less than three raw-score points from the leader. For every team job with two or more candidates in this band, the interface shows a dropdown that:
+
+- Defaults to the advisor's automatic choice
+- Lists every eligible model with its raw rank and score
+- Allows the user to override the automatic choice
+- Labels the result **Selected by you**
+- Keeps the advisor choice, raw rank, raw score and automatic tie-break unchanged and visible
+- Rejects a stored override if the model is no longer inside the three-point band
+- Clears recorded trial outcomes for that plan style when the team changes, because results for the previous roster do not validate the new roster
+
+The three-point band is a choice boundary, not another claim that all candidates are equal. The sub-one-point band remains the automatic close-call rule.
 
 The interface must:
 
-- Label the result **Too close to call**
-- Show up to four close candidates with raw ranks and scores
-- Call the displayed model a provisional lead rather than a winner
-- State whether any candidate has complete relevant capability-test evidence
+- Label a resolved result **Close-call tie-break applied** and an unresolved result **Too close to call**
+- Show up to four close candidates with raw ranks, raw scores, performance-evidence level, application-specialisation reading, and ecosystem-reach reading
+- Mark the selected candidate and name the reading that separated it
+- State that the raw score was not rewritten and that the selected model remains a candidate to test
 - Recommend the same minimum ten representative tasks for every close candidate
 - Break an observed tie by task completion and corrections first, then measured total cost, response time, deployment fit and failure recovery
+
+The six headline plan cards must also report when one provider supplies the primary choice in at least half of them. This is labelled a **primary-choice concentration**, not proof that the provider is generally better. The note directs the user to the close-call readings and real-task trials.
 
 When a provider-diversity or one-provider policy selects a model other than the raw leader, label it **Selected by a team policy** and show both models and the score gap.
 
@@ -614,9 +636,10 @@ Saved plans include:
 - Diversity threshold
 - Job-specific requirements
 - Model selections and fallbacks
+- Any user-selected model override, its raw rank, and the advisor's automatic choice
 - Relative ranks
 - Separate evidence readings
-- Close-call or policy-choice decision guidance
+- Close-call, tie-break, or policy-choice decision guidance
 - Structural team checks
 - Real-task trial instructions and recorded outcomes
 - Catalogue version
@@ -709,8 +732,12 @@ Interface requirements:
 - Full team membership is visible before a user selects a plan.
 - Diversity-adjusted choices retain their raw rank and explanation.
 - Relative percentages are labelled as relative, not absolute.
-- Score gaps of one point or less are labelled too close to call.
-- A close-call result shows the joint leaders and a real-task tie-breaker.
+- Raw-score gaps below one point invoke the documented tie-break sequence without changing the raw scores.
+- A close-call result shows every deciding reading, the selected candidate, the reason for selection and a real-task trial.
+- A close call remains unresolved when measured evidence, application specialisation and ecosystem reach are also level.
+- A provider leading at least half of the headline primary choices produces a concentration warning rather than a claim of superiority.
+- Every job with multiple candidates less than three raw-score points from the leader offers a user-choice dropdown.
+- A user override is labelled, preserves the automatic choice and raw scoring, is saved with the plan, and clears trial outcomes for the changed roster.
 - Untested quality estimates receive less weight than complete relevant capability tests.
 - Provider job labels contribute less than one matched capability.
 - A provider-policy override is distinguished from the raw score leader.
@@ -726,6 +753,7 @@ Interface requirements:
 ### Saved plans and specifications
 
 - A saved plan contains its brief, model team, evidence readings, close-call guidance, team checks, trial outcomes and version stamps.
+- A saved plan records whether a model was selected by the user and retains the advisor's automatic choice for comparison.
 - Saving returns a direct Markdown download link.
 - The generated Markdown contains the application type, every selected model and all required specification sections.
 - Unknown application decisions remain explicit fill-in fields rather than generated claims.
@@ -814,7 +842,7 @@ A rebuild is complete only when:
 - A custom application label can produce a complete team after the user confirms or adjusts what it must do.
 - Every current catalogue model remains visible in every job ranking; missing capabilities and technical preferences change fit rather than silently excluding it.
 - Each recommendation separates fit, source confidence, ecosystem visibility, and measured performance.
-- Near-equal numerical results are shown as joint leaders with an explicit real-task tie-breaker.
+- Near-equal numerical results keep their raw order and show the explicit measured-evidence, application-specialisation and ecosystem-reach tie-break sequence.
 - Proposed teams expose structural cautions and cannot become validated until the complete roster is trialled.
 - Public visibility is never described as users, reliability, market share, or proof of quality.
 - Plan cards show complete teams.

@@ -4,9 +4,13 @@ import { withSignals } from "../engine/signals.js";
 import { evaluateTeam } from "../engine/team-evaluation.js";
 import { byId, esc, fillSelect, setHtml, toast } from "./dom.js";
 import {
+  clearModelChoicesFor,
   expandedBreakdowns,
   initialBrief,
   initialRegistryQuery,
+  modelChoiceKey,
+  modelChoiceOverrides,
+  modelChoicesFor,
   readBootstrap,
   trialOutcomes,
   trialScopeKey,
@@ -147,6 +151,19 @@ byId("route-list").addEventListener("click", (event) => {
   refresh();
 });
 
+byId("route-list").addEventListener("change", (event) => {
+  const select = (event.target as HTMLElement).closest<HTMLSelectElement>("select[data-model-choice-role]");
+  const roleId = select?.dataset.modelChoiceRole;
+  if (!select || !roleId) return;
+  const key = modelChoiceKey(brief, brief.planStyle, roleId);
+  if (select.value) modelChoiceOverrides.set(key, select.value);
+  else modelChoiceOverrides.delete(key);
+  const trialPrefix = `${trialScopeKey(brief, brief.planStyle)}::`;
+  for (const trialKey of trialOutcomes.keys()) if (trialKey.startsWith(trialPrefix)) trialOutcomes.delete(trialKey);
+  refresh();
+  toast("Model choice updated — record new trials for the changed team");
+});
+
 byId("team-evaluation").addEventListener("click", (event) => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-trial-key]");
   const key = button?.dataset.trialKey;
@@ -279,7 +296,7 @@ byId("save-blueprint").addEventListener("click", async () => {
   const originalLabel = saveButton.textContent;
   saveButton.textContent = "Saving…";
   const complete = completeBrief(brief);
-  const plan = planFor(catalog, complete, complete.planStyle);
+  const plan = planFor(catalog, complete, complete.planStyle, modelChoicesFor(brief, complete.planStyle));
   const evaluation = evaluateTeam(plan.entries, complete);
   const trialScope = trialScopeKey(brief, plan.strategy.id);
   const strategy = boot.strategies[complete.planStyle] ?? boot.strategies.balanced;
@@ -303,6 +320,7 @@ byId("save-blueprint").addEventListener("click", async () => {
           fit: entry.fit,
           readings: entry.readings,
           decision: entry.decision,
+          userSelected: entry.userSelected,
         })),
         teamEvaluation: {
           checks: evaluation.checks,
@@ -387,9 +405,16 @@ initSavedPlans(boot, (plan: SavedPlan) => {
   brief.multiVendor = saved.multiVendor !== false;
 
   const scope = trialScopeKey(brief, brief.planStyle);
+  clearModelChoicesFor(brief, brief.planStyle);
   const evaluation = plan.payload.teamEvaluation as {
     trials?: { id?: string; outcome?: TrialOutcome | "not-tested" }[];
   };
+  const routing = plan.payload.routing as { role?: string; modelId?: string; userSelected?: boolean }[];
+  for (const entry of routing ?? []) {
+    if (entry.userSelected && entry.role && entry.modelId) {
+      modelChoiceOverrides.set(modelChoiceKey(brief, brief.planStyle, entry.role), entry.modelId);
+    }
+  }
   for (const trial of evaluation?.trials ?? []) {
     if (!trial.id) continue;
     const key = `${scope}::${trial.id}`;

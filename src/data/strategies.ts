@@ -1,7 +1,7 @@
 import type { Strategy } from "../shared/types.js";
 
 /** Bumped whenever ranking behaviour or its evidence interpretation changes. */
-export const SCORING_VERSION = "2026.08.18-3";
+export const SCORING_VERSION = "2026.08.18-4";
 
 /**
  * Plan styles, as declarative weight sets.

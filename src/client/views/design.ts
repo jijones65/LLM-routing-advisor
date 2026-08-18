@@ -5,6 +5,9 @@ import { explainPlan } from "../../engine/explain.js";
 import { byId, esc, num, setHtml, setText } from "../dom.js";
 import {
   expandedBreakdowns,
+  modelChoiceKey,
+  modelChoiceOverrides,
+  modelChoicesFor,
   trialOutcomes,
   trialScopeKey,
   type Bootstrap,
@@ -92,19 +95,53 @@ function robustnessNote(context: DesignContext, entry: PlanEntry, plansByStyle: 
 function decisionCard(entry: PlanEntry): string {
   const decision = entry.decision;
   const gap = decision.scoreGap === null ? "No second candidate" : `${decision.scoreGap.toFixed(2)} points`;
-  const candidates = decision.closeCandidates
-    .map(
-      (candidate) =>
-        `<span><b>#${candidate.rank} ${esc(candidate.model.name)}</b><small>${candidate.score.toFixed(2)}</small></span>`,
-    )
+  const selectedChoice = entry.choiceCandidates.find((candidate) => candidate.model.id === entry.model.id);
+  const candidatesToShow =
+    decision.state === "user-choice"
+      ? [entry.advisorChoice, selectedChoice].filter(
+          (candidate, index, items): candidate is NonNullable<typeof candidate> => {
+            if (!candidate) return false;
+            return items.findIndex((item) => item?.model.id === candidate.model.id) === index;
+          },
+        )
+      : decision.closeCandidates;
+  const candidates = candidatesToShow
+    .map((candidate) => {
+      const readings = candidate.tieBreak;
+      const selected = candidate.model.id === entry.model.id;
+      return `<span class="${selected ? "selected" : ""}"><b>#${candidate.rank} ${esc(candidate.model.name)}${selected ? " · selected" : ""}</b><small>Raw score ${candidate.score.toFixed(2)}</small>${
+        readings
+          ? `<small>Performance ${esc(readings.performanceEvidence)} · application specialisation ${readings.applicationSpecialisation}/100 · ecosystem reach ${readings.ecosystemReach}/100</small>`
+          : ""
+      }</span>`;
+    })
     .join("");
+
+  if (decision.state === "user-choice") {
+    return `<section class="decision-card user-choice">
+      <div><span>Decision status</span><strong>Selected by you</strong><small>Raw rank #${entry.rank} · ${esc(gap)} from the raw-score leader</small></div>
+      <div class="close-candidates">${candidates}</div>
+      <p>${esc(decision.reason)}</p>
+      <p><b>Still test:</b> ${esc(decision.recommendedTest)}</p>
+    </section>`;
+  }
+
+  if (decision.state === "tie-break-choice") {
+    return `<section class="decision-card tie-break-choice">
+      <div><span>Decision status</span><strong>Close-call tie-break applied</strong><small>${esc(gap)} apart · the raw scores remain visible</small></div>
+      <div class="close-candidates">${candidates}</div>
+      <p>${esc(decision.reason)}</p>
+      <p><b>Tie-break order:</b> measured performance evidence, then application specialisation, then ecosystem reach. Application specialisation is 70% requirement coverage, 20% concentration on this job and 10% provider job positioning.</p>
+      <p><b>Still test:</b> ${esc(decision.recommendedTest)}</p>
+    </section>`;
+  }
 
   if (decision.state === "too-close") {
     return `<section class="decision-card close-call">
-      <div><span>Decision status</span><strong>Too close to call</strong><small>${esc(gap)} apart · differences under ${decision.closeCallThreshold} point are not treated as meaningful</small></div>
+      <div><span>Decision status</span><strong>Too close to call</strong><small>${esc(gap)} apart · differences below ${decision.closeCallThreshold} point are not treated as meaningful</small></div>
       <div class="close-candidates">${candidates}</div>
       <p>${esc(decision.reason)}</p>
-      <p><b>Good tie-breaker:</b> ${esc(decision.recommendedTest)}</p>
+      <p><b>The catalogue tie-breakers are also level:</b> ${esc(decision.recommendedTest)}</p>
     </section>`;
   }
 
@@ -246,6 +283,19 @@ function roleCard(
   const expanded = expandedBreakdowns.has(entry.role.id);
   const rankClass = entry.policyAdjusted ? "policy" : "";
   const policy = entry.policyReason ? `<p class="rank-reason">Plan rule: ${esc(entry.policyReason)}.</p>` : "";
+  const choiceKey = modelChoiceKey(context.brief, entry.styleId, entry.role.id);
+  const selectedOverride = modelChoiceOverrides.get(choiceKey) ?? "";
+  const choiceControl =
+    entry.choiceCandidates.length > 1
+      ? `<label class="model-choice-control"><span>Choose among models within 3 raw-score points</span><select data-model-choice-role="${esc(entry.role.id)}"><option value="">Use advisor choice — ${esc(entry.advisorChoice.model.name)}</option>${entry.choiceCandidates
+          .map(
+            (candidate) =>
+              `<option value="${esc(candidate.model.id)}" ${selectedOverride === candidate.model.id ? "selected" : ""}>#${candidate.rank} ${esc(candidate.model.name)} · ${candidate.score.toFixed(2)}</option>`,
+          )
+          .join(
+            "",
+          )}</select><small>Choosing here records a user override. It does not change the raw score or prove that the model is better.</small></label>`
+      : "";
 
   return `<article class="role-card ${entry.role.id === "primary" ? "primary-role" : ""}">
     <div class="role-num"><div>${String(index + 1).padStart(2, "0")}<small>job</small></div></div>
@@ -260,6 +310,7 @@ function roleCard(
       <div class="sourcing-row">${verificationBadge(entry.model)}${priceTag(entry.model)}</div>
       ${resultReadings(entry)}
       ${decisionCard(entry)}
+      ${choiceControl}
       ${modelLinks(entry.model, true)}
       <p>${esc(entry.role.purpose)}</p>
       ${policy}
@@ -325,8 +376,12 @@ export function renderDesign(context: DesignContext): void {
 
   // Every primary plan style is computed, because the comparison strip and the
   // robustness note both need to know what the alternatives would have chosen.
-  const plansByStyle = new Map(boot.primaryStrategyIds.map((id) => [id, planFor(catalog, brief, id)]));
-  const plan = plansByStyle.get(brief.planStyle) ?? planFor(catalog, brief, brief.planStyle);
+  const plansByStyle = new Map(
+    boot.primaryStrategyIds.map((id) => [id, planFor(catalog, brief, id, modelChoicesFor(context.brief, id))]),
+  );
+  const plan =
+    plansByStyle.get(brief.planStyle) ??
+    planFor(catalog, brief, brief.planStyle, modelChoicesFor(context.brief, brief.planStyle));
   const entries = plan.entries;
 
   setText("route-title", `${strategy.name} team for ${applicationName.toLowerCase()}`);
@@ -357,30 +412,42 @@ export function renderDesign(context: DesignContext): void {
       .join(""),
   );
 
+  const primaryProviderCounts = new Map<string, number>();
+  for (const styleId of boot.primaryStrategyIds) {
+    const provider = plansByStyle.get(styleId)?.entries[0]?.model.provider;
+    if (provider) primaryProviderCounts.set(provider, (primaryProviderCounts.get(provider) ?? 0) + 1);
+  }
+  const concentratedProvider = [...primaryProviderCounts.entries()].sort((left, right) => right[1] - left[1])[0];
+  const concentrationNote =
+    concentratedProvider && concentratedProvider[1] >= 3
+      ? `<aside class="primary-concentration"><strong>Primary-choice concentration: ${esc(concentratedProvider[0])} leads ${concentratedProvider[1]} of ${boot.primaryStrategyIds.length} headline plans.</strong><span>This reflects the current capability statements, estimates and tie-break readings. It is not measured proof that this provider is generally better. Inspect each close-call decision and test the alternatives on the same work.</span></aside>`
+      : "";
+
   setHtml(
     "team-compare",
-    boot.primaryStrategyIds
-      .map((styleId) => {
-        const option = boot.strategies[styleId];
-        const team = plansByStyle.get(styleId);
-        const primary = team?.entries[0];
-        if (!primary) return "";
-        const teamProviders = new Set(team.entries.map((entry) => entry.model.provider));
-        const summary = teamSummary(team.entries, brief.cases);
-        const teamEvaluation = evaluateTeam(team.entries, brief);
-        const trialState = outcomeSummary(context.brief, styleId, teamEvaluation.trials);
-        const roster = team.entries
-          .map((entry) => `<span><b>${esc(entry.role.label)}</b><em>${esc(entry.model.name)}</em></span>`)
-          .join("");
-        return `<button class="team-option ${brief.planStyle === styleId ? "active" : ""}" data-team-style="${esc(styleId)}">
+    concentrationNote +
+      boot.primaryStrategyIds
+        .map((styleId) => {
+          const option = boot.strategies[styleId];
+          const team = plansByStyle.get(styleId);
+          const primary = team?.entries[0];
+          if (!primary) return "";
+          const teamProviders = new Set(team.entries.map((entry) => entry.model.provider));
+          const summary = teamSummary(team.entries, brief.cases);
+          const teamEvaluation = evaluateTeam(team.entries, brief);
+          const trialState = outcomeSummary(context.brief, styleId, teamEvaluation.trials);
+          const roster = team.entries
+            .map((entry) => `<span><b>${esc(entry.role.label)}</b><em>${esc(entry.model.name)}</em></span>`)
+            .join("");
+          return `<button class="team-option ${brief.planStyle === styleId ? "active" : ""}" data-team-style="${esc(styleId)}">
           <span>${esc(option.name)}</span>
           <strong>${esc(primary.model.name)}</strong>
           <small>Primary · ${summary.covered}/${summary.total} team coverage · ${summary.lowerCost}/${team.entries.length} lower-cost jobs · ${teamProviders.size} providers</small>
           <small class="team-trial-state">${esc(trialState)}</small>
           <div class="team-preview">${roster}</div>
         </button>`;
-      })
-      .join(""),
+        })
+        .join(""),
   );
 
   denominatorFlow(

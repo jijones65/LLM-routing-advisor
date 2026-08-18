@@ -232,15 +232,24 @@ export interface Alternative {
   readonly rank: number;
   readonly fit: number;
   readonly score: number;
+  /** Readings used only when the raw score is inside the close-call band. */
+  readonly tieBreak?: {
+    readonly performanceEvidence: RecommendationReadings["measuredPerformance"]["evidenceLevel"];
+    readonly applicationSpecialisation: number;
+    readonly ecosystemReach: number;
+  };
 }
 
 /** Whether the numerical order is meaningful enough to name one leader. */
 export interface DecisionGuide {
-  readonly state: "clear-lead" | "too-close" | "tested-lead" | "policy-choice";
+  readonly state: "clear-lead" | "too-close" | "tie-break-choice" | "tested-lead" | "policy-choice" | "user-choice";
   /** Difference between first and second before any team policy is applied. */
   readonly scoreGap: number | null;
   readonly closeCallThreshold: number;
   readonly closeCandidates: readonly Alternative[];
+  /** Which reading separated close raw scores, or why they remain unresolved. */
+  readonly tieBreakBasis:
+    "measured-performance" | "application-specialisation" | "ecosystem-reach" | "unresolved" | null;
   /** Plain-language explanation of what did, or did not, separate the candidates. */
   readonly reason: string;
   /** The most useful real task to run when estimates cannot decide. */
@@ -259,6 +268,11 @@ export interface PlanEntry {
   readonly terms: readonly ScoreTerm[];
   readonly readings: RecommendationReadings;
   readonly decision: DecisionGuide;
+  /** The advisor's automatic choice before an allowed user override. */
+  readonly advisorChoice: Alternative;
+  /** Every model less than three raw-score points from the leader. */
+  readonly choiceCandidates: readonly Alternative[];
+  readonly userSelected: boolean;
   readonly alternatives: readonly Alternative[];
   readonly styleId: string;
 }

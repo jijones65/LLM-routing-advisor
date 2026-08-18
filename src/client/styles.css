@@ -2687,6 +2687,21 @@ p {
   gap: 8px;
   margin: 14px 0 18px;
 }
+.primary-concentration {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid #d8b77a;
+  border-radius: 10px;
+  background: #fff8e9;
+  color: #6f5630;
+  font-size: 9px;
+  line-height: 1.45;
+}
+.primary-concentration strong {
+  color: #6a461b;
+}
 .team-option {
   display: grid;
   gap: 5px;
@@ -2837,6 +2852,14 @@ p {
   border-color: #dcaa63;
   background: #fff7e8;
 }
+.decision-card.tie-break-choice {
+  border-color: #8db4aa;
+  background: #eef8f5;
+}
+.decision-card.user-choice {
+  border-color: #93a9ce;
+  background: #f1f5fb;
+}
 .decision-card.policy-choice {
   border-color: #aebbd0;
   background: #f1f5fa;
@@ -2851,14 +2874,42 @@ p {
   gap: 4px;
 }
 .close-candidates span {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
   gap: 8px;
   padding: 5px 7px;
   border: 1px solid #ead4ad;
   border-radius: 6px;
   background: rgb(255 255 255 / 65%);
   text-transform: none;
+}
+.close-candidates span.selected {
+  border-color: #6c9b8d;
+  background: #e4f4ef;
+}
+.model-choice-control {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 3px;
+  padding: 9px 10px;
+  border: 1px solid #b9c7c4;
+  border-radius: 8px;
+  background: #f7faf9;
+}
+.model-choice-control > span {
+  color: var(--navy);
+  font-size: 8px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.model-choice-control select {
+  width: 100%;
+  min-height: 32px;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 9px;
 }
 .close-candidates b,
 .close-candidates small {

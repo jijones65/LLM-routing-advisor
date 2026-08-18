@@ -3,7 +3,15 @@ import { test } from "node:test";
 import { CATALOG } from "../build/data/catalog.js";
 import { STRATEGIES, PRIMARY_STRATEGY_IDS, OTHER_STRATEGY_IDS } from "../build/data/strategies.js";
 import { withSignals, capabilityRange } from "../build/engine/signals.js";
-import { completeBrief, deriveCases, deriveRoles, planFor, recommendedTools } from "../build/engine/planning.js";
+import {
+  applicationSpecialisation,
+  USER_CHOICE_SCORE_GAP,
+  completeBrief,
+  deriveCases,
+  deriveRoles,
+  planFor,
+  recommendedTools,
+} from "../build/engine/planning.js";
 import {
   fitPercent,
   ineligibleReason,
@@ -243,18 +251,91 @@ test("the four recommendation readings remain separate", () => {
   assert.match(entry.readings.measuredPerformance.evidenceLevel, /estimated|partly-tested|tested/);
 });
 
-test("small numerical differences are labelled too close to call", () => {
+test("small numerical differences use visible tie-break readings without changing the raw scores", () => {
   const comparison = brief({
     archetype: "product-comparison",
     needs: ["documents", "current-research", "complex-decisions", "write-explain", "validate"],
     planStyle: "quality",
   });
   const primary = planFor(catalog, comparison, "quality").entries[0];
-  assert.equal(primary.decision.state, "too-close");
+  assert.equal(primary.decision.state, "tie-break-choice");
   assert.ok(primary.decision.closeCandidates.length >= 2);
-  assert.ok(primary.decision.scoreGap <= primary.decision.closeCallThreshold);
-  assert.match(primary.decision.reason, /provisional lead|within 1 point/i);
+  assert.ok(primary.decision.scoreGap < primary.decision.closeCallThreshold);
+  assert.equal(primary.decision.tieBreakBasis, "ecosystem-reach");
+  assert.ok(primary.decision.closeCandidates.every((candidate) => candidate.tieBreak));
+  assert.match(primary.decision.reason, /raw scores less than 1 point apart/i);
+  assert.match(primary.decision.reason, /raw scores were not rewritten/i);
   assert.match(primary.decision.recommendedTest, /same 10 representative/i);
+});
+
+test("application specialisation is checked before ecosystem reach in a close call", () => {
+  const sales = brief({
+    archetype: "sales-proposals",
+    needs: ["internal-knowledge", "current-research", "write-explain", "software-tools", "validate"],
+    planStyle: "quality",
+  });
+  const primary = planFor(catalog, sales, "quality").entries[0];
+  assert.equal(primary.decision.state, "tie-break-choice");
+  assert.equal(primary.decision.tieBreakBasis, "application-specialisation");
+  const selected = primary.decision.closeCandidates.find((candidate) => candidate.model.id === primary.model.id);
+  assert.equal(
+    selected.tieBreak.applicationSpecialisation,
+    applicationSpecialisation(primary.model, primary.role, sales),
+  );
+  assert.ok(
+    selected.tieBreak.applicationSpecialisation >
+      Math.max(
+        ...primary.decision.closeCandidates
+          .filter((candidate) => candidate.model.id !== primary.model.id)
+          .map((candidate) => candidate.tieBreak.applicationSpecialisation),
+      ),
+  );
+});
+
+test("a provider name alone never changes a model score", () => {
+  const model = catalog.find((candidate) => candidate.roles.includes("primary"));
+  assert.ok(model);
+  const comparison = brief();
+  const original = scoreModel(model, "primary", comparison, STRATEGIES.balanced);
+  const renamed = scoreModel(
+    { ...model, id: `${model.id}-provider-check`, name: `${model.name} provider check`, provider: "Example provider" },
+    "primary",
+    comparison,
+    STRATEGIES.balanced,
+  );
+  assert.equal(renamed.score, original.score);
+});
+
+test("a user can choose any model inside the three-point band without rewriting the advisor choice", () => {
+  const comparison = brief({
+    archetype: "product-comparison",
+    needs: ["documents", "current-research", "complex-decisions", "write-explain", "validate"],
+    planStyle: "quality",
+  });
+  const automatic = planFor(catalog, comparison, "quality").entries[0];
+  assert.ok(automatic.choiceCandidates.length > 1);
+  assert.ok(
+    automatic.choiceCandidates.every(
+      (candidate) => automatic.choiceCandidates[0].score - candidate.score < USER_CHOICE_SCORE_GAP,
+    ),
+  );
+  const requested = automatic.choiceCandidates.find((candidate) => candidate.model.id !== automatic.model.id);
+  assert.ok(requested);
+
+  const overridden = planFor(catalog, comparison, "quality", { primary: requested.model.id }).entries[0];
+  assert.equal(overridden.model.id, requested.model.id);
+  assert.equal(overridden.userSelected, true);
+  assert.equal(overridden.decision.state, "user-choice");
+  assert.equal(overridden.advisorChoice.model.id, automatic.model.id);
+  assert.match(overridden.decision.reason, /selected by the user/i);
+
+  const outsideBand = catalog.find(
+    (model) => !automatic.choiceCandidates.some((candidate) => candidate.model.id === model.id),
+  );
+  assert.ok(outsideBand);
+  const rejected = planFor(catalog, comparison, "quality", { primary: outsideBand.id }).entries[0];
+  assert.equal(rejected.model.id, automatic.model.id);
+  assert.equal(rejected.userSelected, false);
 });
 
 test("team evaluation separates structural checks from trials that must be run", () => {

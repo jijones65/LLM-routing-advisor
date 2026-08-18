@@ -92,7 +92,13 @@ export function generateBlueprintSpecification(payload: AnyRecord): string {
 
   const closeCalls = routing
     .map((entry) => ({ entry, decision: record(entry.decision) }))
-    .filter(({ decision }) => decision.state === "too-close" || decision.state === "policy-choice")
+    .filter(
+      ({ decision }) =>
+        decision.state === "too-close" ||
+        decision.state === "tie-break-choice" ||
+        decision.state === "policy-choice" ||
+        decision.state === "user-choice",
+    )
     .map(
       ({ entry, decision }) =>
         `- **${oneLine(entry.roleLabel, oneLine(entry.role))}:** ${oneLine(decision.reason)} Test: ${oneLine(decision.recommendedTest)}`,
@@ -165,9 +171,9 @@ ${capabilities.length ? capabilities.map((capability) => `- ${oneLine(capability
 |---|---|---|---:|---:|---|---|
 ${modelTable}
 
-### Close calls and policy choices
+### Close calls, tie-break choices and policy choices
 
-${closeCalls.length ? closeCalls.join("\n") : "- No close-call or provider-policy decision was recorded when this draft was saved."}
+${closeCalls.length ? closeCalls.join("\n") : "- No close-call, catalogue tie-break or provider-policy decision was recorded when this draft was saved."}
 
 ### Team responsibilities to complete
 

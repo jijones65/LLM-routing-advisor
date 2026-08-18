@@ -13,7 +13,7 @@ import type {
 import { BASE_ROLES, SPECIALIST_ROLES } from "../data/roles.js";
 import { BUSINESS_GOALS, NEED_INDEX } from "../data/taxonomy.js";
 import { STRATEGIES } from "../data/strategies.js";
-import { effectiveSettings, fitPercent, rankForRole, type Exclusion } from "./scoring.js";
+import { effectiveSettings, fitPercent, jobRequirements, rankForRole, type Exclusion } from "./scoring.js";
 
 /** Work out which capabilities the brief implies. */
 export function deriveCases(brief: Omit<Brief, "cases">): Capability[] {
@@ -89,38 +89,119 @@ export const DIVERSITY_FIT_THRESHOLD = 82;
 /** A smaller numerical gap is not treated as evidence of a real difference. */
 export const CLOSE_CALL_SCORE_GAP = 1;
 
+/** Models inside this wider band can be selected explicitly by the user. */
+export const USER_CHOICE_SCORE_GAP = 3;
+
+type TieBreakBasis = NonNullable<DecisionGuide["tieBreakBasis"]>;
+
+interface CloseCallSelection {
+  readonly chosen: ScoredModel;
+  readonly close: readonly ScoredModel[];
+  readonly basis: TieBreakBasis | null;
+}
+
+/**
+ * How closely a model's stated strengths concentrate on the work assigned to
+ * this job. Requirement coverage leads; narrow focus and the provider's job
+ * positioning are supporting signals rather than performance claims.
+ */
+export function applicationSpecialisation(model: Model, role: Role, brief: Brief): number {
+  const requirements = jobRequirements(role.role, brief);
+  const matched = requirements.filter((capability) => model.cases.includes(capability)).length;
+  const coverage = requirements.length ? (matched / requirements.length) * 100 : 0;
+  const focus = (matched / Math.max(1, model.cases.length)) * 100;
+  const jobPositioning = model.roles.includes(role.role) ? 100 : 0;
+  return Math.round(coverage * 0.7 + focus * 0.2 + jobPositioning * 0.1);
+}
+
+function tieBreakReadings(candidate: ScoredModel, role: Role, brief: Brief): NonNullable<Alternative["tieBreak"]> {
+  return {
+    performanceEvidence: candidate.readings.measuredPerformance.evidenceLevel,
+    applicationSpecialisation: applicationSpecialisation(candidate.model, role, brief),
+    ecosystemReach: candidate.readings.ecosystemVisibility,
+  };
+}
+
+const EVIDENCE_ORDER = { estimated: 0, "partly-tested": 1, tested: 2 } as const;
+
+/** Resolve a sub-one-point raw-score gap without changing the raw ranking. */
+function selectCloseCall(ranked: readonly ScoredModel[], role: Role, brief: Brief): CloseCallSelection {
+  const top = ranked[0];
+  const close = ranked.filter((candidate) => top.score - candidate.score < CLOSE_CALL_SCORE_GAP).slice(0, 4);
+  if (close.length <= 1) return { chosen: top, close, basis: null };
+
+  let remaining = [...close];
+  const bestEvidence = Math.max(
+    ...remaining.map((candidate) => EVIDENCE_ORDER[candidate.readings.measuredPerformance.evidenceLevel]),
+  );
+  remaining = remaining.filter(
+    (candidate) => EVIDENCE_ORDER[candidate.readings.measuredPerformance.evidenceLevel] === bestEvidence,
+  );
+  if (remaining.length === 1) return { chosen: remaining[0], close, basis: "measured-performance" };
+
+  const specialisation = new Map(
+    remaining.map((candidate) => [candidate.model.id, applicationSpecialisation(candidate.model, role, brief)]),
+  );
+  const bestSpecialisation = Math.max(...specialisation.values());
+  remaining = remaining.filter((candidate) => specialisation.get(candidate.model.id) === bestSpecialisation);
+  if (remaining.length === 1) return { chosen: remaining[0], close, basis: "application-specialisation" };
+
+  const bestReach = Math.max(...remaining.map((candidate) => candidate.readings.ecosystemVisibility));
+  remaining = remaining.filter((candidate) => candidate.readings.ecosystemVisibility === bestReach);
+  if (remaining.length === 1) return { chosen: remaining[0], close, basis: "ecosystem-reach" };
+
+  return { chosen: top, close, basis: "unresolved" };
+}
+
 function decisionGuide(
   ranked: readonly ScoredModel[],
   decorate: (candidate: ScoredModel) => Alternative,
   role: Role,
+  brief: Brief,
   chosen: ScoredModel,
+  closeCall: CloseCallSelection,
+  policyReason: string | null,
+  userSelected: boolean,
+  choiceCandidates: readonly ScoredModel[],
 ): DecisionGuide {
   const top = ranked[0];
   const second = ranked[1];
-  if (chosen !== top) {
+  if (userSelected) {
+    const choiceGap = Math.round((top.score - chosen.score) * 100) / 100;
+    return {
+      state: "user-choice",
+      scoreGap: choiceGap,
+      closeCallThreshold: CLOSE_CALL_SCORE_GAP,
+      closeCandidates: choiceCandidates.map(decorate),
+      tieBreakBasis: null,
+      reason: `${chosen.model.name} was selected by the user from ${choiceCandidates.length} candidates less than ${USER_CHOICE_SCORE_GAP} raw-score points from ${top.model.name}. Its raw rank is #${ranked.indexOf(chosen) + 1}; the advisor's scores and automatic choice were not rewritten.`,
+      recommendedTest: `Compare the selected model and the advisor choice on the same 10 representative ${role.label.toLowerCase()} tasks before treating the override as the final choice.`,
+    };
+  }
+  if (policyReason) {
     const policyGap = Math.round((top.score - chosen.score) * 100) / 100;
     return {
       state: "policy-choice",
       scoreGap: policyGap,
       closeCallThreshold: CLOSE_CALL_SCORE_GAP,
       closeCandidates: [decorate(top), decorate(chosen)],
+      tieBreakBasis: null,
       reason: `${chosen.model.name} is not the raw score leader. It is ${policyGap.toFixed(2)} points behind ${top.model.name} and was selected by the team’s provider policy.`,
       recommendedTest: `Run both choices through the same 10 representative ${role.label.toLowerCase()} tasks and keep the policy choice only if the operational benefit outweighs any measured result gap.`,
     };
   }
   const scoreGap = second ? Math.round((top.score - second.score) * 100) / 100 : null;
-  const close = ranked.filter((candidate) => top.score - candidate.score <= CLOSE_CALL_SCORE_GAP).slice(0, 4);
-  const topEvidence = top.readings.measuredPerformance;
-  const secondEvidence = second?.readings.measuredPerformance;
-  const testedLead =
-    close.length > 1 && topEvidence.evidenceLevel === "tested" && secondEvidence?.evidenceLevel !== "tested";
+  const close = closeCall.close;
+  const chosenReadings = tieBreakReadings(chosen, role, brief);
 
   if (close.length === 1) {
+    const topEvidence = top.readings.measuredPerformance;
     return {
       state: topEvidence.evidenceLevel === "tested" ? "tested-lead" : "clear-lead",
       scoreGap,
       closeCallThreshold: CLOSE_CALL_SCORE_GAP,
       closeCandidates: close.map(decorate),
+      tieBreakBasis: null,
       reason:
         topEvidence.evidenceLevel === "tested"
           ? `${top.model.name} has relevant capability-test evidence and is more than ${CLOSE_CALL_SCORE_GAP} point ahead.`
@@ -129,14 +210,43 @@ function decisionGuide(
     };
   }
 
+  if (closeCall.basis && closeCall.basis !== "unresolved") {
+    const next = close
+      .filter((candidate) => candidate !== chosen)
+      .map((candidate) => ({ candidate, readings: tieBreakReadings(candidate, role, brief) }))
+      .sort((left, right) => {
+        if (closeCall.basis === "measured-performance") {
+          return EVIDENCE_ORDER[right.readings.performanceEvidence] - EVIDENCE_ORDER[left.readings.performanceEvidence];
+        }
+        if (closeCall.basis === "application-specialisation") {
+          return right.readings.applicationSpecialisation - left.readings.applicationSpecialisation;
+        }
+        return right.readings.ecosystemReach - left.readings.ecosystemReach;
+      })[0]!;
+    const basisReason =
+      closeCall.basis === "measured-performance"
+        ? `${chosen.model.name} has ${chosenReadings.performanceEvidence} relevant performance evidence, ahead of ${next.readings.performanceEvidence} evidence for ${next.candidate.model.name}`
+        : closeCall.basis === "application-specialisation"
+          ? `${chosen.model.name} has the strongest application-specialisation reading at ${chosenReadings.applicationSpecialisation}/100, compared with ${next.readings.applicationSpecialisation}/100 for ${next.candidate.model.name}`
+          : `${chosen.model.name} and the remaining candidates are level on application specialisation, so its ${chosenReadings.ecosystemReach}/100 ecosystem-reach reading separates it from ${next.candidate.model.name} at ${next.readings.ecosystemReach}/100`;
+    return {
+      state: "tie-break-choice",
+      scoreGap,
+      closeCallThreshold: CLOSE_CALL_SCORE_GAP,
+      closeCandidates: close.map(decorate),
+      tieBreakBasis: closeCall.basis,
+      reason: `${close.map((candidate) => candidate.model.name).join(", ")} have raw scores less than ${CLOSE_CALL_SCORE_GAP} point apart. ${basisReason}. The raw scores were not rewritten.`,
+      recommendedTest: `Treat this as a reasoned candidate choice, not a proven winner. Give the close candidates the same 10 representative ${role.label.toLowerCase()} tasks and compare task completion, corrections, measured cost, response time, deployment fit and failure recovery.`,
+    };
+  }
+
   return {
-    state: testedLead ? "tested-lead" : "too-close",
+    state: "too-close",
     scoreGap,
     closeCallThreshold: CLOSE_CALL_SCORE_GAP,
     closeCandidates: close.map(decorate),
-    reason: testedLead
-      ? `${top.model.name} leads because it has complete relevant capability-test evidence; the numerical scores alone are too close to decide.`
-      : `${close.map((candidate) => candidate.model.name).join(", ")} are within ${CLOSE_CALL_SCORE_GAP} point. No complete relevant application test separates them, so the displayed model is a provisional lead rather than a proven winner.`,
+    tieBreakBasis: "unresolved",
+    reason: `${close.map((candidate) => candidate.model.name).join(", ")} have raw scores less than ${CLOSE_CALL_SCORE_GAP} point apart, and measured performance, application specialisation and ecosystem reach do not separate them. The displayed model remains provisional.`,
     recommendedTest: `Give the close candidates the same 10 representative ${role.label.toLowerCase()} tasks. Prefer the one with better task completion and fewer corrections; if those tie, use measured total cost, response time, deployment fit and failure recovery—in that order.`,
   };
 }
@@ -152,7 +262,12 @@ function decisionGuide(
  *     threshold is visible and versioned because it is not yet empirically
  *     validated.
  */
-export function planFor(catalog: readonly Model[], brief: Brief, styleId: string): Plan {
+export function planFor(
+  catalog: readonly Model[],
+  brief: Brief,
+  styleId: string,
+  userChoices: Readonly<Record<string, string>> = {},
+): Plan {
   const strategy = STRATEGIES[styleId] ?? STRATEGIES.balanced;
   const settings = effectiveSettings(brief, strategy);
   const roles = deriveRoles(brief, strategy);
@@ -178,16 +293,17 @@ export function planFor(catalog: readonly Model[], brief: Brief, styleId: string
     }
 
     const top = ranked[0];
-    let chosen = top;
+    const closeCall = selectCloseCall(ranked, role, brief);
+    let chosen = closeCall.chosen;
     let policyReason: string | null = null;
 
     if (strategy.singleProvider && primaryProvider) {
       const sameProvider = ranked.find((candidate) => candidate.model.provider === primaryProvider);
-      if (sameProvider && sameProvider !== top) {
+      if (sameProvider && sameProvider !== chosen) {
         chosen = sameProvider;
         policyReason = `kept on ${primaryProvider} because this plan style uses one provider for the whole team`;
       }
-    } else if (settings.multiVendor) {
+    } else if (settings.multiVendor && usedProviders.size > 0) {
       // A percentage-of-top threshold breaks with negative scores, so compare on
       // the fit scale, which is normalised and always ordered correctly.
       const diverse = ranked.find(
@@ -195,10 +311,19 @@ export function planFor(catalog: readonly Model[], brief: Brief, styleId: string
           !usedProviders.has(candidate.model.provider) &&
           fitPercent(candidate.score, ranked) >= DIVERSITY_FIT_THRESHOLD,
       );
-      if (diverse && diverse !== top) {
+      if (diverse && diverse !== chosen) {
         chosen = diverse;
-        policyReason = `chosen over ${top.model.name} to avoid depending on a single provider under the provisional ${DIVERSITY_FIT_THRESHOLD}% near-match rule`;
+        policyReason = `chosen over ${closeCall.chosen.model.name} to avoid depending on a single provider under the provisional ${DIVERSITY_FIT_THRESHOLD}% near-match rule`;
       }
+    }
+
+    const advisorChosen = chosen;
+    const choiceCandidates = ranked.filter((candidate) => top.score - candidate.score < USER_CHOICE_SCORE_GAP);
+    const requestedChoice = choiceCandidates.find((candidate) => candidate.model.id === userChoices[role.id]);
+    const userSelected = Boolean(requestedChoice);
+    if (requestedChoice) {
+      chosen = requestedChoice;
+      policyReason = null;
     }
 
     primaryProvider ??= chosen.model.provider;
@@ -209,20 +334,34 @@ export function planFor(catalog: readonly Model[], brief: Brief, styleId: string
       rank: ranked.indexOf(candidate) + 1,
       fit: fitPercent(candidate.score, ranked),
       score: candidate.score,
+      tieBreak: tieBreakReadings(candidate, role, brief),
     });
 
-    const decision = decisionGuide(ranked, decorate, role, chosen);
+    const decision = decisionGuide(
+      ranked,
+      decorate,
+      role,
+      brief,
+      chosen,
+      closeCall,
+      policyReason,
+      userSelected,
+      choiceCandidates,
+    );
 
     entries.push({
       role,
       model: chosen.model,
       rank: ranked.indexOf(chosen) + 1,
       fit: fitPercent(chosen.score, ranked),
-      policyAdjusted: chosen !== top,
+      policyAdjusted: policyReason !== null,
       policyReason,
       terms: chosen.terms,
       readings: chosen.readings,
       decision,
+      advisorChoice: decorate(advisorChosen),
+      choiceCandidates: choiceCandidates.map(decorate),
+      userSelected,
       alternatives: ranked
         .filter((candidate) => candidate.model.id !== chosen.model.id)
         .slice(0, 3)

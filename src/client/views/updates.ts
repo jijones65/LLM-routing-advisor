@@ -11,6 +11,22 @@ import type { Model } from "../../shared/types.js";
 const CHANGES: readonly { state: string; title: string; scope: string; date: string; detail: string }[] = [
   {
     state: "Added",
+    title: "Users can choose another model inside a three-point band",
+    scope: "Recommendations · user choice",
+    date: "18 Aug 2026",
+    detail:
+      "Each team job now shows a dropdown when two or more models are less than three raw-score points from the leader. A user choice is labelled and saved without changing the advisor's scores or automatic choice. Changing the roster clears prior trial outcomes for that plan style so old results are not attached to a new team.",
+  },
+  {
+    state: "Refined",
+    title: "Close calls now use visible application and ecosystem tie-breakers",
+    scope: "Recommendations · decisions",
+    date: "18 Aug 2026",
+    detail:
+      "When raw scores are less than one point apart, the advisor keeps the raw order visible and checks measured performance evidence, application specialisation and then ecosystem reach. Every reading and the deciding reason are shown. A provider-concentration note also warns when one provider leads most headline plans; concentration is not treated as measured proof.",
+  },
+  {
+    state: "Added",
     title: "Saved plans can be deleted",
     scope: "Plans · control",
     date: "18 Aug 2026",
@@ -35,11 +51,11 @@ const CHANGES: readonly { state: string; title: string; scope: string; date: str
   },
   {
     state: "Added",
-    title: "Close calls now replace false numerical certainty",
+    title: "Close calls replace false numerical certainty",
     scope: "Recommendations · decisions",
     date: "18 Aug 2026",
     detail:
-      "Candidates within one score point are labelled Too close to call and shown together. The displayed model is only a provisional lead until the candidates are tested on the same ten real tasks; task success, corrections, cost, response time, deployment fit and failure recovery provide the tie-breaker.",
+      "A raw difference below one score point is treated as a close call rather than proof of a better model. The later tie-break refinement shown above makes the catalogue's provisional choice explicit while the same real-task trial remains the deciding evidence.",
   },
   {
     state: "Added",

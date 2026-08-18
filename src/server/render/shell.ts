@@ -176,7 +176,8 @@ export const BODY_MARKUP = `<header class="topbar">
 <strong>How to read this:</strong>
 <span>Primary = the candidate main model that users meet</span>
 <span id="rank-range">Each job has its own model order</span>
-<span>Scores inside the 1-point close-call band are joint leaders, not meaningful winners</span>
+<span>Raw-score gaps below 1 point use visible evidence, specialisation and ecosystem tie-breakers</span>
+<span>Models within 3 raw-score points can be chosen by the user without changing the scores</span>
 </div>
 <div class="node">
 <span class="index">APPLICATION BRIEF</span>
@@ -635,7 +636,7 @@ export const BODY_MARKUP = `<header class="topbar">
 <span class="about-number">01</span>
 <div>
 <h2>Application design</h2>
-<p>Describe the application, choose what it must do, add its context and compare six main plan styles. This tab builds candidate teams, explains close calls and gives you team checks and trials to complete.</p>
+<p>Describe the application, choose what it must do, add its context and compare six main plan styles. This tab builds candidate teams, explains close calls, lets you choose another model inside the three-point choice band, and gives you team checks and trials to complete.</p>
 <small><strong>It cannot prove:</strong> that a candidate team is the best one before you test the whole team on your own tasks.</small>
 </div>
 </article>
@@ -696,7 +697,7 @@ export const BODY_MARKUP = `<header class="topbar">
 <div class="about-terms">
 <article><strong>Candidate does not mean proven winner.</strong><span>It is a model or team worth testing next.</span></article>
 <article><strong>Source confirmed does not mean performance tested.</strong><span>It means the official provider page supported the recorded facts when checked.</span></article>
-<article><strong>Too close to call means one point or less.</strong><span>The numerical order is too small to treat as a meaningful result.</span></article>
+<article><strong>A close call means less than one point.</strong><span>The raw order is kept. Measured evidence, application specialisation and then ecosystem reach provide visible tie-breakers; if they are also level, the result stays unresolved.</span></article>
 <article><strong>Trials are recorded by the user.</strong><span>The advisor does not call model APIs or run the application tests for you.</span></article>
 </div>
 </section>

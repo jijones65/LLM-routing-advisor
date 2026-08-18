@@ -231,6 +231,15 @@ try {
   // --- saving a plan -------------------------------------------------------
   await page.locator('[data-tab="design"]').click();
   await page.waitForTimeout(250);
+  const primaryChoice = page.locator('.primary-role select[data-model-choice-role="primary"]');
+  expect("the primary job offers models inside the three-point choice band", await primaryChoice.isVisible());
+  expect("the choice band contains alternatives", (await primaryChoice.locator("option").count()) > 2);
+  await primaryChoice.selectOption({ index: 2 });
+  await page.waitForTimeout(180);
+  expect(
+    "a user override is labelled explicitly",
+    /selected by you/i.test((await page.textContent(".primary-role")) ?? ""),
+  );
   await page.locator(".team-trial").first().locator('[data-trial-outcome="pass"]').click();
   await page.waitForTimeout(150);
   expect(
@@ -250,6 +259,10 @@ try {
   expect(
     "the saved plan records team trial outcomes",
     payload.teamEvaluation?.trials?.some((trial) => trial.outcome === "pass"),
+  );
+  expect(
+    "the saved plan records a user-selected model",
+    payload.routing.some((entry) => entry.userSelected),
   );
   expect(
     "the saved plan contains a draft specification",
