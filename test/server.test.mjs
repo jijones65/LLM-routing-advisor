@@ -131,6 +131,10 @@ test("GET / renders a complete page", async () => {
   for (const id of [
     "archetype",
     "custom-application",
+    "concept-paper-file",
+    "import-concept-paper",
+    "concept-paper-status",
+    "concept-paper-result",
     "capabilities",
     "primary-styles",
     "other-style",
@@ -371,6 +375,19 @@ test("saving a plan validates the payload", async () => {
         links: [{ name: "Google AI Edge Gallery", url: "https://github.com/google-ai-edge/gallery" }],
       },
     ],
+    conceptPaper: {
+      fileName: "school-supplier-concept.docx",
+      importedAt: "2026-08-18T11:55:00.000Z",
+      objective: "Compare current supplier evidence and explain the trade-offs to school procurement staff.",
+      context: "A school is replacing a manual supplier comparison process.",
+      users: "Procurement staff and a responsible human approver.",
+      inputs: "Supplier contracts, price tables and current external evidence.",
+      outputs: "A cited comparison report and shortlist.",
+      constraints: "Keep confidential supplier information in an approved environment.",
+      evaluationCriteria: "At least 95% of cited facts must match their source.",
+      edgeCases: "Missing prices and conflicting supplier claims.",
+      verificationSteps: "Run ten representative comparisons and simulate a source outage.",
+    },
     catalogVersion: "catalog-test",
     scoringVersion: "scoring-test",
     taxonomyVersion: "taxonomy-test",
@@ -397,6 +414,10 @@ test("saving a plan validates the payload", async () => {
   assert.match(stored.specificationMarkdown, /not measured proof for this application/);
   assert.match(stored.specificationMarkdown, /Required non-model components/);
   assert.match(stored.specificationMarkdown, /Google AI Edge Gallery/);
+  assert.match(stored.specificationMarkdown, /school-supplier-concept\.docx/);
+  assert.match(stored.specificationMarkdown, /Compare current supplier evidence/);
+  assert.match(stored.specificationMarkdown, /At least 95% of cited facts/);
+  assert.match(stored.specificationMarkdown, /Missing prices and conflicting supplier claims/);
   assert.match(stored.specificationMarkdown, /\[Fill in:/);
 
   const detail = await (await worker.fetch(request(`/api/blueprints/${id}`), { DB: db })).json();

@@ -1,6 +1,6 @@
 # LLM Application Routing Advisor — Product and Implementation Specification
 
-**Specification version:** 1.9
+**Specification version:** 2.0
 **Current implementation baseline:** 19 August 2026 · catalogue `2026.08.19-1` · scoring `2026.08.19-1` · taxonomy `2026.08.19-3`
 **Status:** Living specification for refinement, maintenance, and future rebuilds
 
@@ -65,6 +65,7 @@ The user defines an application and receives alternative model teams.
 
 Inputs:
 
+- Optional PDF or DOCX concept paper in any layout, up to 8 MB
 - Application type
 - Skills the application needs
 - Business goal
@@ -78,6 +79,7 @@ Inputs:
 
 Outputs:
 
+- A reviewable brief inferred from the concept paper, where supplied
 - Application requirements derived from the input
 - Alternative model teams for six main plan styles
 - Complete list of jobs and selected models for every team
@@ -88,6 +90,17 @@ Outputs:
 - Provider and Ollama links where applicable
 - External tools the application may require
 - A reminder to test on real examples before launch
+
+Concept-paper import requirements:
+
+- Accept genuine PDF and DOCX files; reject renamed or unsupported files.
+- Read the file only for the current import. Do not retain the original bytes.
+- For PDFs, read the selectable text layer. If little text is present, explain that a scanned paper needs OCR rather than inventing a plan.
+- Infer a starting application type, Skills, business goal, industry, knowledge area, risk and operating preferences from phrases in the paper. These are suggestions and remain editable.
+- Extract bounded text for objective, context, users, inputs, outputs, constraints, evaluation criteria, edge cases and verification steps.
+- When the team is saved, retain the filename, extraction metadata and bounded inferred fields in the plan payload. Do not retain the complete source document.
+- Prefill the matching Markdown specification fields while leaving unsupported decisions as explicit `[Fill in: …]` items.
+- Provide a downloadable Markdown concept-paper template based on the eight-part structure in the referenced specification-engineering article: objective, context, inputs, output format, constraints, evaluation criteria, edge cases and verification steps.
 
 ### 4.2 Model Explorer
 

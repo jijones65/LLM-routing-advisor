@@ -25,6 +25,7 @@ import { initExploreFilters, renderModels } from "./views/explore.js";
 import { loadRegistry } from "./views/registry.js";
 import { initSavedPlans, loadSavedPlans, type SavedPlan } from "./views/saved.js";
 import { renderUpdates } from "./views/updates.js";
+import type { ConceptPaperAnalysis } from "../shared/concept-paper.js";
 
 const boot = readBootstrap();
 // Signals arrive already attached from the server; recomputing is a cheap no-op
@@ -36,11 +37,60 @@ const registryQuery: RegistryQuery = { ...initialRegistryQuery };
 
 const context: DesignContext = { boot, catalog, brief, registrySummary: null };
 let savedPlansLoaded = false;
+let importedConcept: ConceptPaperAnalysis | null = null;
 
 /** Re-render the design view. Every brief control funnels through here. */
 function refresh(): void {
   context.brief = brief;
   renderDesign(context);
+}
+
+function renderConceptPaper(): void {
+  const result = byId<HTMLElement>("concept-paper-result");
+  if (!importedConcept) {
+    result.hidden = true;
+    result.innerHTML = "";
+    return;
+  }
+  const filled = [
+    importedConcept.objective,
+    importedConcept.context,
+    importedConcept.users,
+    importedConcept.inputs,
+    importedConcept.outputs,
+    importedConcept.constraints,
+    importedConcept.evaluationCriteria,
+    importedConcept.edgeCases,
+    importedConcept.verificationSteps,
+  ].filter(Boolean).length;
+  result.hidden = false;
+  result.innerHTML = `<strong>${esc(importedConcept.fileName)} imported</strong>
+    <span>${esc(importedConcept.suggestedNeeds.length)} Skills suggested · ${filled} specification areas started</span>
+    <small>Review every suggestion before saving. The original file was not retained.</small>
+    <button type="button" id="clear-concept-paper">Do not include these document details when saving</button>`;
+}
+
+function applyConceptPaper(analysis: ConceptPaperAnalysis): void {
+  importedConcept = analysis;
+  brief.archetype = boot.archetypes.some((item) => item.id === analysis.suggestedArchetype)
+    ? analysis.suggestedArchetype
+    : initialBrief.archetype;
+  brief.customApplicationType = analysis.applicationType.slice(0, 100);
+  const knownNeeds = new Set(boot.needGroups.flatMap((group) => group.items.map((item) => item.id)));
+  brief.needs = analysis.suggestedNeeds.filter((need) => knownNeeds.has(need));
+  if (!brief.needs.length) brief.needs = [...initialBrief.needs];
+  if (boot.businessGoals.some((item) => item.id === analysis.businessGoal)) brief.businessGoal = analysis.businessGoal;
+  if (boot.industries.some((item) => item.id === analysis.industry)) brief.industry = analysis.industry;
+  if (boot.domains.some((item) => item.id === analysis.domain)) brief.domain = analysis.domain;
+  brief.risk = analysis.risk;
+  brief.planStyle = "balanced";
+  brief.dataControl = analysis.dataControl;
+  brief.openPreferred = analysis.openPreferred;
+  brief.multiVendor = true;
+  modelChoiceOverrides.clear();
+  trialOutcomes.clear();
+  refresh();
+  renderConceptPaper();
 }
 
 // ---------------------------------------------------------------------------
@@ -89,6 +139,59 @@ setHtml(
 );
 
 initExploreFilters(boot, catalog);
+
+// ---------------------------------------------------------------------------
+// Concept-paper import
+// ---------------------------------------------------------------------------
+
+byId<HTMLInputElement>("concept-paper-file").addEventListener("change", (event) => {
+  const file = (event.target as HTMLInputElement).files?.[0];
+  const status = byId("concept-paper-status");
+  status.classList.remove("error");
+  status.textContent = file ? `${file.name} · ready to read` : "PDF or DOCX · up to 8 MB · scanned PDFs need OCR";
+});
+
+byId<HTMLButtonElement>("import-concept-paper").addEventListener("click", async () => {
+  const input = byId<HTMLInputElement>("concept-paper-file");
+  const button = byId<HTMLButtonElement>("import-concept-paper");
+  const status = byId("concept-paper-status");
+  const file = input.files?.[0];
+  status.classList.remove("error");
+  if (!file) {
+    status.textContent = "Choose a PDF or DOCX concept paper first.";
+    status.classList.add("error");
+    return;
+  }
+  button.disabled = true;
+  button.textContent = "Reading the paper…";
+  status.textContent = "Extracting text and matching it to the application brief…";
+  try {
+    const form = new FormData();
+    form.append("file", file);
+    const response = await fetch("/api/concept-paper", { method: "POST", body: form });
+    const data = (await response.json()) as { analysis?: ConceptPaperAnalysis; error?: string };
+    if (!response.ok || !data.analysis) throw new Error(data.error ?? "The concept paper could not be read.");
+    applyConceptPaper(data.analysis);
+    status.textContent = "Plan brief created from the paper — review the application name, Skills and context below.";
+    toast("Concept paper imported — candidate teams updated");
+  } catch (error) {
+    status.textContent = error instanceof Error ? error.message : "The concept paper could not be read.";
+    status.classList.add("error");
+  } finally {
+    button.disabled = false;
+    button.textContent = "Make a plan from this paper";
+  }
+});
+
+byId("concept-paper-result").addEventListener("click", (event) => {
+  if (!(event.target as HTMLElement).closest("#clear-concept-paper")) return;
+  importedConcept = null;
+  byId<HTMLInputElement>("concept-paper-file").value = "";
+  const status = byId("concept-paper-status");
+  status.textContent = "Document details removed from future saves; the current brief choices are unchanged.";
+  status.classList.remove("error");
+  renderConceptPaper();
+});
 
 // ---------------------------------------------------------------------------
 // Brief interactions
@@ -348,6 +451,7 @@ byId("save-blueprint").addEventListener("click", async () => {
           })),
         },
         tools: recommendedTools(complete),
+        conceptPaper: importedConcept,
         catalogVersion: boot.catalogVersion,
         scoringVersion: boot.scoringVersion,
         taxonomyVersion: boot.taxonomyVersion,
@@ -422,6 +526,8 @@ initSavedPlans(boot, (plan: SavedPlan) => {
   brief.dataControl = Boolean(saved.dataControl);
   brief.openPreferred = Boolean(saved.openPreferred);
   brief.multiVendor = saved.multiVendor !== false;
+  importedConcept = (plan.payload.conceptPaper as ConceptPaperAnalysis | null | undefined) ?? null;
+  renderConceptPaper();
 
   const scope = trialScopeKey(brief, brief.planStyle);
   clearModelChoicesFor(brief, brief.planStyle);

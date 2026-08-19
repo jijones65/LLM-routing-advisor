@@ -64,6 +64,10 @@ export function generateBlueprintSpecification(payload: AnyRecord): string {
   const checks = records(evaluation.checks);
   const tools = records(payload.tools);
   const created = text(payload.savedAt, new Date().toISOString());
+  const concept = record(payload.conceptPaper);
+  const conceptFile = typeof concept.fileName === "string" ? concept.fileName.trim() : "";
+  const conceptValue = (field: string, fallback: string): string =>
+    typeof concept[field] === "string" && String(concept[field]).trim() ? oneLine(concept[field]) : fallback;
 
   const modelTable = routing.length
     ? routing
@@ -150,6 +154,7 @@ export function generateBlueprintSpecification(payload: AnyRecord): string {
 >
 > **Plan:** ${oneLine(payload.name)}  
 > **Created:** ${oneLine(created)}  
+${conceptFile ? `> **Concept paper:** ${oneLine(conceptFile)} · imported ${oneLine(concept.importedAt, "date not recorded")}  \n` : ""}> **Specification approach:** This draft follows the specification-engineering structure described in [KDnuggets](${SPECIFICATION_GUIDE_URL}): objective, context, inputs, output format, constraints, evaluation criteria, edge cases, and verification steps.
 > **Specification approach:** This draft follows the specification-engineering structure described in [KDnuggets](${SPECIFICATION_GUIDE_URL}): objective, context, inputs, output format, constraints, evaluation criteria, edge cases, and verification steps.
 
 ## 1. Objective
@@ -158,10 +163,10 @@ export function generateBlueprintSpecification(payload: AnyRecord): string {
 **Business-goal category:** ${oneLine(optionName(BUSINESS_GOALS, brief.businessGoal, "Not selected"))}
 
 **Objective statement**  
-[Fill in: In one or two sentences, state the user problem, the intended outcome, and why an AI-supported application is appropriate.]
+${conceptValue("objective", "[Fill in: In one or two sentences, state the user problem, the intended outcome, and why an AI-supported application is appropriate.]")}
 
 **Success for users**  
-[Fill in: Describe the observable improvement for the people who will use or be affected by the application.]
+${conceptValue("evaluationCriteria", "[Fill in: Describe the observable improvement for the people who will use or be affected by the application.]")}
 
 **Out of scope**  
 [Fill in: List work this application must not attempt.]
@@ -172,7 +177,8 @@ export function generateBlueprintSpecification(payload: AnyRecord): string {
 - **Knowledge area:** ${oneLine(optionName(DOMAINS, brief.domain, "General knowledge"))}
 - **Risk level:** ${oneLine(optionName(RISK_LEVELS, brief.risk, "Not selected"))}
 - **Selected plan style:** ${oneLine(strategy.name)} — ${oneLine(strategy.description)}
-- **People and operating setting:** [Fill in: users, decision owners, locations, languages, accessibility needs, and existing workflow.]
+- **Concept-paper context:** ${conceptValue("context", "[Fill in: background, current state, rationale and operating environment.]")}
+- **People and operating setting:** ${conceptValue("users", "[Fill in: users, decision owners, locations, languages, accessibility needs, and existing workflow.]")}
 - **Important domain rules:** [Fill in: laws, policies, professional standards, or internal rules that apply.]
 
 ## 3. Inputs
@@ -187,7 +193,7 @@ ${capabilities.length ? capabilities.map((capability) => `- ${oneLine(capability
 
 ### Input contract to complete
 
-- **Input sources:** [Fill in: documents, databases, APIs, messages, images, audio, sensors, or user entries.]
+- **Input sources:** ${conceptValue("inputs", "[Fill in: documents, databases, APIs, messages, images, audio, sensors, or user entries.]")}
 - **Required fields or schema:** [Fill in: names, types, required/optional fields, units, and identifiers.]
 - **Volume and frequency:** [Fill in: typical and peak items, users, requests, and batch sizes.]
 - **Data quality:** [Fill in: missing, duplicated, conflicting, outdated, or low-confidence input handling.]
@@ -196,7 +202,7 @@ ${capabilities.length ? capabilities.map((capability) => `- ${oneLine(capability
 
 ## 4. Output format
 
-- **User-facing outputs:** [Fill in: answer, report, recommendation, generated file, alert, action, or conversation.]
+- **User-facing outputs:** ${conceptValue("outputs", "[Fill in: answer, report, recommendation, generated file, alert, action, or conversation.]")}
 - **Machine-readable contract:** [Fill in: JSON schema, database fields, API response, event, or file format.]
 - **Evidence and citations:** [Fill in: which claims require a source and how the source must be shown.]
 - **Uncertainty:** [Fill in: confidence wording, refusal rules, and when to say that evidence is insufficient.]
@@ -247,6 +253,7 @@ ${closeCalls.length ? closeCalls.join("\n") : "- No close-call, catalogue tie-br
 
 ## 6. Constraints
 
+${conceptFile ? `- **Requirements inferred from the concept paper:** ${conceptValue("constraints", "No explicit constraints were found; complete the fields below.")}` : ""}
 - **Data control:** ${brief.dataControl ? "Prefer a controlled, private, or local setup." : "No special deployment preference was selected; confirm the real data-handling requirement."}
 - **Downloadable-model preference:** ${brief.openPreferred ? "Preferred." : "Not selected."}
 - **Provider diversity:** ${brief.multiVendor ? "Use different providers where a close fit is available." : "Not selected in the saved brief."}
@@ -265,6 +272,7 @@ ${checkLines}
 
 ### Acceptance measures to complete
 
+${conceptFile ? `- **Concept-paper success criteria:** ${conceptValue("evaluationCriteria", "No explicit success criteria were found; define measurable acceptance targets below.")}` : ""}
 - **Task completion:** [Fill in: target percentage and scoring rubric for representative tasks.]
 - **Correction rate:** [Fill in: maximum factual, reasoning, formatting, or policy corrections.]
 - **Evidence quality:** [Fill in: citation accuracy, coverage, and source-quality thresholds.]
@@ -276,6 +284,7 @@ ${checkLines}
 
 ## 8. Edge cases and failure handling
 
+${conceptFile ? `- **From the concept paper:** ${conceptValue("edgeCases", "No explicit edge cases or failure modes were found.")}` : ""}
 - [Fill in: empty, malformed, oversized, contradictory, adversarial, and unsupported inputs.]
 - [Fill in: stale or missing knowledge, unavailable tools, expired credentials, and provider outages.]
 - [Fill in: routing loops, duplicate work, incompatible outputs, and context lost between members.]
@@ -285,6 +294,7 @@ ${checkLines}
 
 ## 9. Verification steps
 
+${conceptFile ? `- [ ] **Concept-paper verification:** ${conceptValue("verificationSteps", "No explicit verification steps were found; define representative tests below.")}` : ""}
 ${trialLines}
 
 - [ ] Confirm every output contract with valid and invalid examples.
@@ -306,7 +316,7 @@ ${trialLines}
 - **Catalogue:** ${oneLine(payload.catalogVersion)}
 - **Scoring:** ${oneLine(payload.scoringVersion)}
 - **Application categories:** ${oneLine(payload.taxonomyVersion)}
-- **Draft specification format:** 1.0
+- **Draft specification format:** 1.1
 - **Last edited:** ${oneLine(payload.lastEditedAt, created)}
 `;
 }

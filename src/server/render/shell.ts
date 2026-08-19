@@ -37,6 +37,25 @@ export const BODY_MARKUP = `<header class="topbar">
 <div class="eyebrow">01 · Describe the application</div>
 <h1>Plan the application first. Choose models second.</h1>
 <p class="lede">Describe the application, its work and its context. The advisor will then build different model teams for quality, balance, cost, ecosystem reach and capability range.</p>
+<section class="concept-import" aria-labelledby="concept-import-title">
+<div class="concept-import-head">
+<div>
+<span class="label" id="concept-import-title">Start with a concept paper</span>
+<p>Upload a PDF or DOCX in any layout. The advisor reads its text, suggests the application brief and uses the extracted facts to start the saved Markdown specification.</p>
+</div>
+<span class="concept-private">File not stored</span>
+</div>
+<label class="concept-file" for="concept-paper-file">
+<span>Choose concept paper</span>
+<input id="concept-paper-file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+</label>
+<div class="concept-import-actions">
+<button type="button" id="import-concept-paper">Make a plan from this paper</button>
+<a href="/api/concept-paper-template" download>Download a starter template (.md)</a>
+</div>
+<p class="concept-import-status" id="concept-paper-status" role="status">PDF or DOCX · up to 8 MB · scanned PDFs need OCR</p>
+<div class="concept-import-result" id="concept-paper-result" hidden></div>
+</section>
 <section class="brief-section">
 <label class="label" for="archetype">Starting application type</label>
 <select class="select" id="archetype">

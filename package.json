@@ -22,8 +22,13 @@
   },
   "devDependencies": {
     "esbuild": "^0.28.2",
+    "jszip": "^3.10.1",
     "playwright": "^1.62.1",
     "prettier": "^3.9.6",
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "mammoth": "^1.12.1",
+    "unpdf": "^1.8.1"
   }
 }

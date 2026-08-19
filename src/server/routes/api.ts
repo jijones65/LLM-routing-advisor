@@ -18,6 +18,8 @@ import {
   type BlueprintPayload,
 } from "../db/repo.js";
 import { generateBlueprintSpecification, specificationFilename } from "../blueprints/specification.js";
+import { ConceptPaperError, readConceptPaper } from "../concepts/parse.js";
+import { CONCEPT_PAPER_TEMPLATE } from "../concepts/template.js";
 
 /** No caching anywhere: every response depends on live source state. */
 const NO_STORE = { "cache-control": "no-store" } as const;
@@ -26,6 +28,36 @@ const json = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...NO_STORE } });
 
 const flag = (url: URL, name: string): boolean => url.searchParams.get(name) === "1";
+
+/** POST /api/concept-paper — read one PDF or DOCX without retaining its bytes. */
+export async function conceptPaperRoute(request: Request): Promise<Response> {
+  if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
+  const contentType = request.headers.get("content-type") ?? "";
+  if (!contentType.toLowerCase().includes("multipart/form-data")) {
+    return json({ error: "Upload the concept paper as form data." }, 415);
+  }
+  try {
+    const form = await request.formData();
+    const file = form.get("file");
+    if (!(file instanceof File)) return json({ error: "Choose a PDF or DOCX concept paper." }, 400);
+    return json({ analysis: await readConceptPaper(file) });
+  } catch (error) {
+    if (error instanceof ConceptPaperError) return json({ error: error.message }, error.status);
+    return json({ error: "The concept paper could not be read." }, 400);
+  }
+}
+
+/** GET /api/concept-paper-template — downloadable starter based on the linked guide. */
+export async function conceptPaperTemplateRoute(request: Request): Promise<Response> {
+  if (request.method !== "GET") return new Response("Method not allowed", { status: 405 });
+  return new Response(CONCEPT_PAPER_TEMPLATE, {
+    headers: {
+      "content-type": "text/markdown; charset=utf-8",
+      "content-disposition": 'attachment; filename="ai-application-concept-paper-template.md"',
+      ...NO_STORE,
+    },
+  });
+}
 
 /**
  * GET /api/catalog — the scored catalogue plus its provenance.

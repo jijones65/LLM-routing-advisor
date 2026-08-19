@@ -6,6 +6,8 @@ import {
   blueprintsRoute,
   candidatesRoute,
   catalogRoute,
+  conceptPaperRoute,
+  conceptPaperTemplateRoute,
   registriesRoute,
 } from "./routes/api.js";
 import { renderPage } from "./render/page.js";
@@ -40,6 +42,8 @@ const ROUTES: Record<string, (request: Request, url: URL, env: Env) => Promise<R
     return candidatesRoute(url, env.DB);
   },
   "/api/blueprints": async (request, _url, env) => blueprintsRoute(request, env.DB),
+  "/api/concept-paper": async (request) => conceptPaperRoute(request),
+  "/api/concept-paper-template": async (request) => conceptPaperTemplateRoute(request),
   "/api/health": async () =>
     new Response(JSON.stringify({ ok: true, time: new Date().toISOString() }), {
       headers: { "content-type": "application/json", "cache-control": "no-store" },

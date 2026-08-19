@@ -212,6 +212,138 @@ p {
   color: var(--muted);
   font-size: 11px;
 }
+.concept-import {
+  margin: 0 0 26px;
+  padding: 18px;
+  border: 1px solid rgba(104, 198, 197, 0.55);
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(104, 198, 197, 0.12), rgba(201, 223, 105, 0.1));
+}
+.concept-import-head {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.concept-import .label {
+  margin: 0 0 5px;
+  color: var(--navy);
+  font-size: 13px;
+}
+.concept-import p {
+  margin: 0;
+  color: #52636c;
+  font-size: 11px;
+  line-height: 1.55;
+}
+.concept-private {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border-radius: 999px;
+  color: #365a5d;
+  background: rgba(104, 198, 197, 0.18);
+  font-size: 9px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.concept-file {
+  display: block;
+  margin-top: 13px;
+  padding: 12px;
+  border: 1px dashed #91b7b3;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.66);
+}
+.concept-file > span {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--navy);
+  font-size: 10px;
+  font-weight: 850;
+}
+.concept-file input {
+  width: 100%;
+  color: var(--muted);
+  font-size: 10px;
+}
+.concept-file input::file-selector-button {
+  margin-right: 8px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  background: var(--navy2);
+  font-weight: 750;
+}
+.concept-import-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+.concept-import-actions button,
+.concept-import-actions a,
+.concept-import-result button {
+  min-height: 39px;
+  padding: 9px 11px;
+  border: 0;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 850;
+  text-align: center;
+  text-decoration: none;
+}
+.concept-import-actions button {
+  color: #fff;
+  background: var(--navy);
+}
+.concept-import-actions button:disabled {
+  opacity: 0.62;
+  cursor: wait;
+}
+.concept-import-actions a {
+  color: var(--navy2);
+  border: 1px solid rgba(26, 61, 82, 0.18);
+  background: rgba(255, 255, 255, 0.76);
+}
+.concept-import-status {
+  margin-top: 9px !important;
+}
+.concept-import-status.error {
+  color: #9a3f2d;
+  font-weight: 750;
+}
+.concept-import-result {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(104, 198, 197, 0.42);
+}
+.concept-import-result strong,
+.concept-import-result span,
+.concept-import-result small {
+  display: block;
+}
+.concept-import-result strong {
+  color: var(--navy);
+  font-size: 11px;
+}
+.concept-import-result span {
+  margin: 4px 0;
+  color: #445a64;
+  font-size: 10px;
+}
+.concept-import-result small {
+  color: var(--muted);
+  font-size: 9px;
+}
+.concept-import-result button {
+  min-height: 30px;
+  margin-top: 8px;
+  padding: 6px 9px;
+  color: #704734;
+  border: 1px solid rgba(112, 71, 52, 0.2);
+  background: rgba(255, 255, 255, 0.68);
+}
 .custom-type {
   margin-top: 14px;
   padding: 12px 14px 2px;

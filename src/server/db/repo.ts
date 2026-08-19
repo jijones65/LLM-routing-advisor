@@ -499,7 +499,7 @@ export async function saveBlueprint(db: D1Database, payload: BlueprintPayload): 
     ...payload,
     savedAt,
     lastEditedAt: savedAt,
-    specificationVersion: "1.0",
+    specificationVersion: "1.1",
     specificationMarkdown:
       typeof payload.specificationMarkdown === "string"
         ? payload.specificationMarkdown
@@ -526,7 +526,7 @@ export async function updateBlueprint(
     ...existing.payload,
     name: change.name.trim().slice(0, 160),
     specificationMarkdown: change.specificationMarkdown,
-    specificationVersion: "1.0",
+    specificationVersion: "1.1",
     lastEditedAt,
   };
   await db

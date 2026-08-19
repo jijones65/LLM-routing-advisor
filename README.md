@@ -11,6 +11,8 @@ Live site: [llm-application-routing-advisor.jeff-jones-7064.chatgpt.site](https:
 - **112 model variants** across 27 providers, each carrying its source URL, review date and sourcing state
 - **26 reviewed SLMs, 26 edge language models and 10 edge vision-language models**, with dedicated explorer filters and clear boundaries between language models, perception tools and device runtimes
 - **25 starting application types plus a custom type field**, including real-time asset tracking, predictive maintenance and edge vision safety
+- **Concept-paper import** — upload a PDF or DOCX in any layout to suggest the application brief and prefill the saved Markdown specification; the original file is not retained
+- **Downloadable concept-paper template** — a Markdown starter covering objective, context, inputs, output format, constraints, evaluation criteria, edge cases and verification steps
 - **14 plan styles** — Quality, Balanced, Cost, Visible ecosystem reach, Broad capability range and Focused specialist team as headline choices, plus eight more
 - **Published pricing** where providers publish it, driving the cost score instead of an estimate
 - **Full scoring breakdown** on every recommendation: each term, its value and its reasoning
@@ -55,6 +57,7 @@ src/
     index.ts               worker entry and route table
     routes/api.ts          JSON endpoints
     blueprints/            Markdown application-specification generator
+    concepts/              PDF/DOCX extraction, brief inference and the starter template
     db/                    D1 schema, access and repository
     registry/              fetch, parse, normalise and reconcile the six lists
     render/                page shell and HTML rendering
