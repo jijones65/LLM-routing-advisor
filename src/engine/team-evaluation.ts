@@ -65,6 +65,10 @@ export function evaluateTeam(entries: readonly PlanEntry[], brief: Brief): TeamE
   const fallbackReady = entries.filter((entry) =>
     entry.alternatives.some((alternative) => alternative.model.provider !== entry.model.provider),
   ).length;
+  const targetReady = entries.filter(
+    (entry) => entry.readings.measuredPerformance.score >= entry.operatingPolicy.qualityTarget,
+  ).length;
+  const throughputJobs = entries.filter((entry) => entry.operatingPolicy.mode === "high-throughput");
 
   const checks: TeamCheck[] = [
     {
@@ -81,6 +85,24 @@ export function evaluateTeam(entries: readonly PlanEntry[], brief: Brief): TeamE
       label: "Members fit their assigned jobs",
       status: assignedFit === entries.length ? "pass" : "caution",
       summary: `${assignedFit} of ${entries.length} members state at least one capability needed for their assigned job.`,
+    },
+    {
+      id: "quality-targets",
+      label: "Job-specific quality targets",
+      status: targetReady === entries.length ? "pass" : "caution",
+      summary:
+        targetReady === entries.length
+          ? `All ${entries.length} candidates meet their job's current planning target, using the best available measured or estimated quality reading.`
+          : `${entries.length - targetReady} of ${entries.length} candidates fall below their job's soft planning target. They remain visible because the evidence may be incomplete; test or replace them before launch.`,
+    },
+    {
+      id: "quality-cost-routing",
+      label: "Quality and cost routing",
+      status: throughputJobs.length > 0 ? "trial-required" : "caution",
+      summary:
+        throughputJobs.length > 0
+          ? `${throughputJobs.length} high-throughput job${throughputJobs.length === 1 ? " starts" : "s start"} with an efficient model and explicit escalation. Measure successful work, not token volume alone.`
+          : "No high-throughput job is present. Cost optimisation depends on testing whether some repeatable work can safely use an efficient first route.",
     },
     {
       id: "complementarity",
@@ -129,9 +151,10 @@ export function evaluateTeam(entries: readonly PlanEntry[], brief: Brief): TeamE
     },
     {
       id: "operating-result",
-      label: "End-to-end cost, speed and reliability",
+      label: "End-to-end quality, cost, speed and reliability",
       status: "trial-required",
-      summary: "Per-model estimates do not add up to a team result. Measure the complete route on the same tasks.",
+      summary:
+        "Per-model estimates do not add up to a team result. Measure successful tasks per total dollar and elapsed minute, including tools, retries, fallbacks and human corrections.",
     },
   ];
 
@@ -141,7 +164,8 @@ export function evaluateTeam(entries: readonly PlanEntry[], brief: Brief): TeamE
       id: "representative-task",
       label: "Representative result",
       task: `Run 10 real examples covering ${work}. Use the same inputs and success criteria for every proposed team.`,
-      success: "At least 9 complete successfully, with material errors and human corrections recorded.",
+      success:
+        "At least 9 meet the agreed output-quality rubric, with material errors, escalations and human corrections recorded.",
     },
     {
       id: "handoff",
@@ -163,10 +187,10 @@ export function evaluateTeam(entries: readonly PlanEntry[], brief: Brief): TeamE
     },
     {
       id: "load-cost-latency",
-      label: "Cost, latency and load",
-      task: "Run the same representative batch at expected peak volume and record total tokens, tool calls, retries, elapsed time and provider charges.",
+      label: "Useful-work efficiency under load",
+      task: "Run the same representative batch at expected peak volume and record successful tasks, total tokens, tool calls, retries, fallbacks, human corrections, elapsed time and provider charges.",
       success:
-        "The complete team meets the application's agreed budget and response-time limits without a higher failure rate.",
+        "The complete team meets the output-quality rubric, budget and response-time limits; report successful tasks per total dollar and elapsed minute without hiding a higher failure or correction rate.",
     },
   ];
 

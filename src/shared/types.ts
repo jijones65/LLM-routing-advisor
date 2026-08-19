@@ -26,6 +26,10 @@ export type Deployment = "hosted" | "open-weight" | "private cloud" | "edge";
 /** What the model can read and write. */
 export type Modality = "text" | "image" | "audio" | "video";
 
+/** A plain-language deployment profile used to find compact and edge models. */
+export type ModelProfile =
+  "small-language-model" | "edge-language-model" | "edge-vision-language-model" | "device-action-model";
+
 /** The job a model is being considered for inside a plan. */
 export type RoleId =
   "primary" | "planner" | "worker" | "validator" | "researcher" | "coder" | "vision" | "voice" | "private";
@@ -157,6 +161,8 @@ export interface Model {
   readonly roles: readonly RoleId[];
   readonly deployments: readonly Deployment[];
   readonly modalities: readonly Modality[];
+  /** Audited discovery labels; these do not replace capability or performance evidence. */
+  readonly profiles?: readonly ModelProfile[];
   readonly summary: string;
   readonly sourceUrl: string;
   readonly ollamaUrl: string | null;
@@ -182,7 +188,7 @@ export interface Role {
  *
  * Every weight is a multiplier applied to one normalised model attribute in
  * `scoreModel`. Keeping them declarative means a plan style is auditable — you
- * can read why "Cost first" behaves differently from "Quality first" without
+ * can read why "Cost optimised" behaves differently from "Quality first" without
  * reading the scoring code.
  */
 export interface Strategy {
@@ -299,6 +305,26 @@ export interface DecisionGuide {
   readonly recommendedTest: string;
 }
 
+/**
+ * How one team job should balance output quality with operating efficiency.
+ *
+ * This is a planning policy, not a performance result. The target and weights
+ * affect the shortlist; the routing and measurement text says how to validate
+ * the choice on the real application.
+ */
+export interface JobOperatingPolicy {
+  readonly mode: "quality-critical" | "adaptive" | "high-throughput" | "assurance";
+  readonly label: string;
+  /** Soft planning target on the existing 1–5 quality scale. */
+  readonly qualityTarget: number;
+  /** Effective job-specific weights after the plan-style weights are applied. */
+  readonly qualityWeight: number;
+  readonly costWeight: number;
+  readonly routingRule: string;
+  readonly escalationRule: string;
+  readonly successMeasure: string;
+}
+
 /** One job in a finished plan, with its chosen model and the reasoning. */
 export interface PlanEntry {
   readonly role: Role;
@@ -310,6 +336,7 @@ export interface PlanEntry {
   readonly policyReason: string | null;
   readonly terms: readonly ScoreTerm[];
   readonly readings: RecommendationReadings;
+  readonly operatingPolicy: JobOperatingPolicy;
   readonly decision: DecisionGuide;
   /** The advisor's automatic choice before an allowed user override. */
   readonly advisorChoice: Alternative;
@@ -325,4 +352,5 @@ export interface ToolRecommendation {
   readonly id: string;
   readonly name: string;
   readonly reason: string;
+  readonly links?: readonly { readonly name: string; readonly url: string }[];
 }

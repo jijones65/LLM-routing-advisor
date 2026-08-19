@@ -2,6 +2,7 @@ import type {
   Capability,
   Deployment,
   Model,
+  ModelProfile,
   ModelStatus,
   Modality,
   Pricing,
@@ -11,7 +12,7 @@ import type {
 } from "../shared/types.js";
 import { CAPABILITY_TESTS } from "./capability-tests.js";
 import { CATALOG_TABLE, RETIRED_TABLE } from "./catalog.data.js";
-import { CATALOG_VERSION, OLLAMA_LIBRARY, PROVIDER_SOURCES, VERIFIED_AT } from "./providers.js";
+import { CATALOG_VERSION, MODEL_SOURCE_OVERRIDES, OLLAMA_LIBRARY, PROVIDER_SOURCES, VERIFIED_AT } from "./providers.js";
 
 const CASE_CODES: Readonly<Record<string, Capability>> = {
   r: "reasoning",
@@ -61,6 +62,54 @@ const ROLE_IDS: readonly RoleId[] = [
   "voice",
   "private",
 ];
+
+/**
+ * Compact variants confirmed by an official model name, card or provider description.
+ * This is deliberately audited rather than inferred from words such as "mini" alone.
+ */
+const SMALL_MODEL_IDS = new Set([
+  "functiongemma-270m",
+  "gpt-oss-20b",
+  "gemma-4-e4b",
+  "gemma-4-e2b",
+  "deepseek-r1-0528-qwen3-8b",
+  "deepseek-r1-distill-qwen-1-5b",
+  "deepseek-r1-distill-qwen-7b",
+  "deepseek-r1-distill-llama-8b",
+  "jamba2-3b",
+  "jamba-reasoning-3b",
+  "ministral-3-8b",
+  "ministral-3-3b",
+  "qwen-3-5-9b",
+  "qwen3-vl-2b",
+  "qwen3-vl-4b",
+  "llama-3-2-edge",
+  "granite-4-1-8b",
+  "phi-4-mm",
+  "phi-4-mini",
+  "nemotron-3-nano",
+  "step3-vl-10b",
+  "exaone-4-0-1-2b",
+  "hyperclovax-omni-8b",
+  "hyperclovax-vision-3b",
+  "falcon-h1-7b",
+  "falcon-h1-tiny-r-0-6b",
+]);
+
+function deriveProfiles(
+  id: string,
+  deployments: readonly Deployment[],
+  modalities: readonly Modality[],
+): ModelProfile[] {
+  const profiles: ModelProfile[] = [];
+  if (SMALL_MODEL_IDS.has(id)) profiles.push("small-language-model");
+  if (deployments.includes("edge")) profiles.push("edge-language-model");
+  if (deployments.includes("edge") && (modalities.includes("image") || modalities.includes("video"))) {
+    profiles.push("edge-vision-language-model");
+  }
+  if (id === "functiongemma-270m") profiles.push("device-action-model");
+  return profiles;
+}
 
 /** Non-numeric context values the table accepts, and how they read in the UI. */
 const CONTEXT_LABELS: Readonly<Record<string, string>> = {
@@ -214,7 +263,7 @@ export function parseCatalog(table: string = CATALOG_TABLE): Model[] {
     if (seen.has(id)) fail(row, `duplicate id "${id}"`);
     seen.add(id);
 
-    const sourceUrl = PROVIDER_SOURCES[provider];
+    const sourceUrl = MODEL_SOURCE_OVERRIDES[id] ?? PROVIDER_SOURCES[provider];
     if (!sourceUrl) fail(row, `provider "${provider}" has no entry in PROVIDER_SOURCES`);
     if (!TIERS.includes(tier as Tier)) fail(row, `unknown tier "${tier}"`);
 
@@ -245,6 +294,9 @@ export function parseCatalog(table: string = CATALOG_TABLE): Model[] {
     if (!verificationState) fail(row, `unknown verification code "${verification}"`);
     if (verificationState === "drifted" && !driftNote) fail(row, "drifted entries must carry a drift note");
 
+    const deploymentList = decode(row, "deployment", DEPLOYMENT_CODES, deployments);
+    const modalityList = decode(row, "modality", MODALITY_CODES, modalities);
+
     return {
       id,
       name,
@@ -264,8 +316,9 @@ export function parseCatalog(table: string = CATALOG_TABLE): Model[] {
       // and its measured evidence stay separately sourced and separately dated.
       ...(CAPABILITY_TESTS.byModel.has(id) ? { capabilityTests: CAPABILITY_TESTS.byModel.get(id) } : {}),
       roles: roleList,
-      deployments: decode(row, "deployment", DEPLOYMENT_CODES, deployments),
-      modalities: decode(row, "modality", MODALITY_CODES, modalities),
+      deployments: deploymentList,
+      modalities: modalityList,
+      profiles: deriveProfiles(id, deploymentList, modalityList),
       summary,
       sourceUrl,
       ollamaUrl: OLLAMA_LIBRARY[id] ?? null,
@@ -297,4 +350,12 @@ export const CAPABILITY_LABELS: Readonly<Record<Capability, string>> = {
   multilingual: "Many languages",
   agents: "Software & tools",
   safety: "Checking & safety",
+};
+
+/** Friendly definitions used by the explorer's edge and compact-model filter. */
+export const MODEL_PROFILE_LABELS: Readonly<Record<ModelProfile, string>> = {
+  "small-language-model": "Small language model (SLM)",
+  "edge-language-model": "Language model for edge devices",
+  "edge-vision-language-model": "Vision-language model for edge devices",
+  "device-action-model": "On-device action model",
 };

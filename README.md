@@ -4,12 +4,13 @@ Plan the application first. Choose models second.
 
 The advisor turns an application brief into alternative model teams. It separates what the application must do from its business goal, industry, knowledge area, risk and operating limits, then proposes leading candidates for the primary model, supporting jobs, checkers, fallbacks and the non-model tools the application will also need.
 
-Live site: [llm-routing-advisor.ji-jones.chatgpt.site](https://llm-routing-advisor.ji-jones.chatgpt.site)
+Live site: [llm-application-routing-advisor.jeff-jones-7064.chatgpt.site](https://llm-application-routing-advisor.jeff-jones-7064.chatgpt.site)
 
 ## What it does
 
-- **109 model variants** across 27 providers, each carrying its source URL, review date and sourcing state
-- **22 starting application types plus a custom type field**, with user-editable needs that determine the model-team jobs
+- **112 model variants** across 27 providers, each carrying its source URL, review date and sourcing state
+- **26 reviewed SLMs, 26 edge language models and 10 edge vision-language models**, with dedicated explorer filters and clear boundaries between language models, perception tools and device runtimes
+- **25 starting application types plus a custom type field**, including real-time asset tracking, predictive maintenance and edge vision safety
 - **14 plan styles** — Quality, Balanced, Cost, Visible ecosystem reach, Broad capability range and Focused specialist team as headline choices, plus eight more
 - **Published pricing** where providers publish it, driving the cost score instead of an estimate
 - **Full scoring breakdown** on every recommendation: each term, its value and its reasoning
@@ -131,7 +132,7 @@ That writes `site.tar.gz` containing exactly what the Sites project expects:
 
 ```
 server/index.js
-.openai/hosting.json          # d1: DB, project_id: appgprj_6a826bc4cb…
+.openai/hosting.json          # d1: DB, project_id: appgprj_6a851a9f65…
 .openai/drizzle/0001_initial.sql
 .openai/drizzle/0002_align_catalog_and_evidence.sql
 ```
@@ -168,7 +169,9 @@ recommendation are unaffected — but it is worth knowing which one.
 
 ## Notes on the data
 
-The catalogue was reviewed against official provider pages on 18 August 2026. Of 109 entries, 46 were confirmed against their provider page on that date and 63 carry over from an earlier review; the coverage check reports the split rather than presenting them as equal.
+The catalogue was reviewed against official provider pages on 19 August 2026. Of 112 entries, 49 are confirmed against their provider page and 63 carry over from an earlier review; the coverage check reports the split rather than presenting them as equal.
+
+The edge review added FunctionGemma 270M and Qwen3-VL 2B and 4B. It also made the application boundary explicit: sensors and positioning provide authoritative events, perception models detect and track, runtimes execute on the target hardware, and language or vision-language models interpret, explain or choose approved actions. The advisor recommends these non-model components separately rather than counting every vendor runtime or detector as a language model.
 
 That review corrected several entries:
 
@@ -186,7 +189,7 @@ Pricing is published for 10 entries so far. Where a provider publishes per-token
 
 `src/data/capability-tests.data.ts` holds published benchmark results, one row per
 figure, each with the source that published it. As of 19 August 2026 that is 65
-figures covering 19 of the 109 models across seven benchmarks. Where a result
+figures covering 19 of the 112 models across seven benchmarks. Where a result
 exists it replaces the general quality estimate for that job and earns a higher
 evidence factor in the ranking; where none exists the model is scored as an
 estimate and the interface says so.

@@ -1,4 +1,4 @@
-import { CATALOG_VERSION, VERIFIED_AT } from "./providers.js";
+import { CATALOG_VERSION, PROVIDER_SOURCES, VERIFIED_AT } from "./providers.js";
 import { CATALOG } from "./catalog.js";
 
 /** What this catalogue is and is not, stated once and shown in the audit view. */
@@ -41,16 +41,23 @@ export const EVIDENCE: readonly EvidenceSource[] = (() => {
     entry.ids.push(model.id);
     byKey.set(key, entry);
   }
-  return [...byKey.values()].map((entry) => ({
-    id: `${entry.provider.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-models`,
-    provider: entry.provider,
-    family: `${entry.provider} models`,
-    cadenceHours: 168,
-    sourceUrl: entry.sourceUrl,
-    expectedIds: entry.ids,
-    reviewedAt: VERIFIED_AT,
-    scopeVersion: SCOPE.version,
-  }));
+  return [...byKey.values()].map((entry) => {
+    const providerSlug = entry.provider.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const sourceSlug =
+      entry.sourceUrl === PROVIDER_SOURCES[entry.provider]
+        ? "models"
+        : `${entry.ids[0].toLowerCase().replace(/[^a-z0-9]+/g, "-")}-models`;
+    return {
+      id: `${providerSlug}-${sourceSlug}`,
+      provider: entry.provider,
+      family: `${entry.provider} models`,
+      cadenceHours: 168,
+      sourceUrl: entry.sourceUrl,
+      expectedIds: entry.ids,
+      reviewedAt: VERIFIED_AT,
+      scopeVersion: SCOPE.version,
+    };
+  });
 })();
 
 /** What is deliberately left out, and why. */
@@ -68,8 +75,9 @@ export const EXCLUSION_POLICY = [
     reason: "They are not counted separately when a current model name behaves in the same way.",
   },
   {
-    name: "Embedding, reordering, image-only and video-only tools",
-    reason: "They perform a different kind of task and are outside this catalogue.",
+    name: "Embedding, reordering, sensor-only, image-only and video-only models",
+    reason:
+      "They are supporting perception or data tools, not language-model team members. The advisor names relevant runtimes, detectors and trackers separately.",
   },
   {
     name: "Every size of the same model",

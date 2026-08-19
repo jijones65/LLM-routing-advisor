@@ -13,7 +13,14 @@ import type {
 import { BASE_ROLES, SPECIALIST_ROLES } from "../data/roles.js";
 import { BUSINESS_GOALS, NEED_INDEX } from "../data/taxonomy.js";
 import { STRATEGIES } from "../data/strategies.js";
-import { effectiveSettings, fitPercent, jobRequirements, rankForRole, type Exclusion } from "./scoring.js";
+import {
+  effectiveSettings,
+  fitPercent,
+  jobOperatingPolicy,
+  jobRequirements,
+  rankForRole,
+  type Exclusion,
+} from "./scoring.js";
 
 /** Work out which capabilities the brief implies. */
 export function deriveCases(brief: Omit<Brief, "cases">): Capability[] {
@@ -186,8 +193,8 @@ function decisionGuide(
       closeCallThreshold: CLOSE_CALL_SCORE_GAP,
       closeCandidates: [decorate(top), decorate(chosen)],
       tieBreakBasis: null,
-      reason: `${chosen.model.name} is not the raw score leader. It is ${policyGap.toFixed(2)} points behind ${top.model.name} and was selected by the team’s provider policy.`,
-      recommendedTest: `Run both choices through the same 10 representative ${role.label.toLowerCase()} tasks and keep the policy choice only if the operational benefit outweighs any measured result gap.`,
+      reason: `${chosen.model.name} is not the raw score leader. It is ${policyGap.toFixed(2)} points behind ${top.model.name}. Team rule: ${policyReason}.`,
+      recommendedTest: `Run both choices through the same 10 representative ${role.label.toLowerCase()} tasks and keep the policy choice only if it meets the job-quality target and its measured operational benefit outweighs any result gap.`,
     };
   }
   const scoreGap = second ? Math.round((top.score - second.score) * 100) / 100 : null;
@@ -296,19 +303,40 @@ export function planFor(
     const closeCall = selectCloseCall(ranked, role, brief);
     let chosen = closeCall.chosen;
     let policyReason: string | null = null;
+    const operatingPolicy = jobOperatingPolicy(role.role, brief, strategy);
+    const chosenQuality = chosen.readings.measuredPerformance.score;
+    const targetCandidate = ranked.find(
+      (candidate) => candidate.readings.measuredPerformance.score >= operatingPolicy.qualityTarget,
+    );
+    const meetsAttainableTarget = (candidate: ScoredModel): boolean =>
+      !targetCandidate || candidate.readings.measuredPerformance.score >= operatingPolicy.qualityTarget;
 
-    if (strategy.singleProvider && primaryProvider) {
-      const sameProvider = ranked.find((candidate) => candidate.model.provider === primaryProvider);
+    // High-quality output is a requirement in every plan style. If the raw
+    // leader falls below the job's soft target, prefer the highest-ranked
+    // candidate that reaches it. The raw order stays visible and every model
+    // remains in the ranking; this is a documented team policy, not exclusion.
+    if (chosenQuality < operatingPolicy.qualityTarget) {
+      if (targetCandidate && targetCandidate !== chosen) {
+        chosen = targetCandidate;
+        policyReason = `meets the ${operatingPolicy.qualityTarget.toFixed(2)}/5 planning quality target while ${closeCall.chosen.model.name} is below it`;
+      }
+    }
+
+    if (!policyReason && strategy.singleProvider && primaryProvider) {
+      const sameProvider = ranked.find(
+        (candidate) => candidate.model.provider === primaryProvider && meetsAttainableTarget(candidate),
+      );
       if (sameProvider && sameProvider !== chosen) {
         chosen = sameProvider;
         policyReason = `kept on ${primaryProvider} because this plan style uses one provider for the whole team`;
       }
-    } else if (settings.multiVendor && usedProviders.size > 0) {
+    } else if (!policyReason && settings.multiVendor && usedProviders.size > 0) {
       // A percentage-of-top threshold breaks with negative scores, so compare on
       // the fit scale, which is normalised and always ordered correctly.
       const diverse = ranked.find(
         (candidate) =>
           !usedProviders.has(candidate.model.provider) &&
+          meetsAttainableTarget(candidate) &&
           fitPercent(candidate.score, ranked) >= DIVERSITY_FIT_THRESHOLD,
       );
       if (diverse && diverse !== chosen) {
@@ -358,6 +386,7 @@ export function planFor(
       policyReason,
       terms: chosen.terms,
       readings: chosen.readings,
+      operatingPolicy,
       decision,
       advisorChoice: decorate(advisorChosen),
       choiceCandidates: choiceCandidates.map(decorate),
@@ -382,15 +411,88 @@ export function planFor(
 export function recommendedTools(brief: Brief): ToolRecommendation[] {
   const items: ToolRecommendation[] = [];
   const has = (...needs: string[]): boolean => needs.some((need) => brief.needs.includes(need));
-  const add = (id: string, name: string, reason: string): void => {
-    if (!items.some((item) => item.id === id)) items.push({ id, name, reason });
+  const add = (
+    id: string,
+    name: string,
+    reason: string,
+    links?: readonly { readonly name: string; readonly url: string }[],
+  ): void => {
+    if (!items.some((item) => item.id === id)) items.push({ id, name, reason, ...(links ? { links } : {}) });
   };
 
-  if (has("documents", "internal-knowledge")) {
+  if (has("sensor-streams", "physical-edge-systems", "field-mobile")) {
+    add(
+      "edge-runtime",
+      "Edge AI runtime and model delivery",
+      "Runs, updates and measures compact models on approved phones, gateways or edge computers; deployment must be tested on the exact hardware.",
+      [
+        { name: "Google AI Edge Gallery", url: "https://developers.google.com/edge/gallery" },
+        { name: "Qualcomm AI Hub", url: "https://aihub.qualcomm.com/models" },
+        {
+          name: "Qwen3-VL 4B on Qualcomm IoT",
+          url: "https://aihub.qualcomm.com/iot/models/qwen3_vl_4b_instruct",
+        },
+        { name: "NVIDIA Jetson", url: "https://developer.nvidia.com/embedded/develop/software" },
+        {
+          name: "Intel OpenVINO",
+          url: "https://docs.openvino.ai/2025/documentation/compatibility-and-support/supported-models.html",
+        },
+      ],
+    );
+  }
+  if (has("computer-vision") && has("sensor-streams", "physical-edge-systems", "monitor-events", "field-mobile")) {
+    add(
+      "edge-perception",
+      "Real-time perception and tracking",
+      "Detects, classifies or tracks objects and events before a vision-language model explains them. These specialist models are supporting tools, not language-model team members.",
+      [
+        { name: "NVIDIA Metropolis", url: "https://developer.nvidia.com/metropolis-microservices" },
+        { name: "Qualcomm AI Hub models", url: "https://aihub.qualcomm.com/models" },
+        {
+          name: "OpenVINO model support",
+          url: "https://docs.openvino.ai/2025/documentation/compatibility-and-support/supported-models.html",
+        },
+        { name: "Ultralytics tracking", url: "https://docs.ultralytics.com/modes/track/" },
+      ],
+    );
+  }
+  if (has("sensor-streams", "monitor-events")) {
+    add(
+      "iot-platform",
+      "IoT device, event and model-management platform",
+      "Collects device events, handles connectivity and deploys approved inference components without relying on a language model for transport or device control.",
+      [
+        {
+          name: "AWS IoT Greengrass ML",
+          url: "https://docs.aws.amazon.com/greengrass/v2/developerguide/machine-learning-components.html",
+        },
+        {
+          name: "Azure IoT Edge inference",
+          url: "https://learn.microsoft.com/en-us/azure/architecture/guide/iot/machine-learning-inference-iot-edge",
+        },
+      ],
+    );
+  }
+  if (has("sensor-streams") && has("geospatial", "monitor-events")) {
+    add(
+      "asset-identity",
+      "Asset identity and positioning",
+      "Uses authoritative RFID, BLE, UWB, GNSS or camera-derived identifiers and positions. A model can explain exceptions, but must not invent an asset's identity or location.",
+    );
+  }
+
+  if (has("documents", "internal-knowledge", "memory-context")) {
     add(
       "knowledge",
       "Search and knowledge store",
       "Keeps trusted documents, permissions and citations outside the model.",
+    );
+  }
+  if (has("memory-context")) {
+    add(
+      "memory",
+      "Approved memory and state store",
+      "Keeps selected facts, preferences and work in progress outside the model so they can be reviewed or removed.",
     );
   }
   if (has("current-research")) {
@@ -399,7 +501,7 @@ export function recommendedTools(brief: Brief): ToolRecommendation[] {
   if (has("geospatial")) {
     add("gis", "GIS, maps and spatial database", "Performs real distance, boundary, route and location calculations.");
   }
-  if (has("software-tools", "high-volume", "coordinate-work", "code-build")) {
+  if (has("software-tools", "high-volume", "coordinate-work", "code-build", "monitor-events")) {
     add(
       "workflow",
       "Tool access and workflow controls",
@@ -413,17 +515,35 @@ export function recommendedTools(brief: Brief): ToolRecommendation[] {
       "Provides OCR, file parsing or specialist image-generation tools where needed.",
     );
   }
+  if (has("monitor-events")) {
+    add(
+      "events",
+      "Event stream, thresholds and alerting",
+      "Detects new records and changes reliably before a model interprets or explains them.",
+    );
+  }
   if (has("listen-speak", "field-mobile")) {
     add("speech", "Speech input and output", "Handles audio capture, transcription, playback and interruptions.");
   }
   if (has("sensitive-data") || brief.dataControl) {
     add("privacy", "Identity, access and private storage", "Controls who can see data and where it is stored.");
   }
-  if (has("forecast-scenarios") || brief.industry === "financial" || brief.domain === "finance") {
+  if (
+    has("structured-data", "quantitative-analysis", "forecast-scenarios") ||
+    brief.industry === "financial" ||
+    brief.domain === "finance"
+  ) {
     add(
       "calculation",
       "Trusted data and calculation engine",
       "Keeps important figures and calculations reproducible outside free-form text.",
+    );
+  }
+  if (has("apply-policies")) {
+    add(
+      "policy",
+      "Versioned rules and audit trail",
+      "Keeps authoritative rules, exceptions, approvals and decision records explicit instead of relying on model memory.",
     );
   }
   if (brief.industry === "science" || ["health", "physical", "earth"].includes(brief.domain)) {
@@ -440,5 +560,5 @@ export function recommendedTools(brief: Brief): ToolRecommendation[] {
       "Tests real examples and sends high-impact decisions to a responsible person.",
     );
   }
-  return items.slice(0, 7);
+  return items.slice(0, 10);
 }

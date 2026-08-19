@@ -1,7 +1,7 @@
 import type { Strategy } from "../shared/types.js";
 
 /** Bumped whenever ranking behaviour or its evidence interpretation changes. */
-export const SCORING_VERSION = "2026.08.18-4";
+export const SCORING_VERSION = "2026.08.19-1";
 
 /**
  * Plan styles, as declarative weight sets.
@@ -9,8 +9,9 @@ export const SCORING_VERSION = "2026.08.18-4";
  * Each number is a multiplier on one normalised model attribute inside
  * `scoreModel`. Because the weights live here rather than inside branching
  * scoring code, the difference between two plan styles is readable in one place
- * and testable: "Cost first" weights cheapness eight times as heavily as
- * "Quality first" does, and that is the whole of the difference.
+ * and testable. Job-specific operating policies then adjust these weights so a
+ * routine worker can optimise throughput without treating a primary model,
+ * specialist or checker as the same kind of call.
  *
  * Adoption weights are kept small on purpose. Routed-token volume is a
  * popularity signal, not a quality measurement, and letting it drive selection
@@ -22,7 +23,7 @@ export const STRATEGIES: Readonly<Record<string, Strategy>> = {
     name: "Quality first",
     short: "Highest expected quality",
     description:
-      "Gives the most weight to the best available quality evidence for each job, even when cost or speed is less favourable.",
+      "Sets the highest planning quality target for every job, then still reports price, speed and lower-cost routes.",
     quality: 8,
     cost: 0.25,
     latency: 0.25,
@@ -33,7 +34,7 @@ export const STRATEGIES: Readonly<Record<string, Strategy>> = {
     name: "Balanced",
     short: "Results, cost and speed",
     description:
-      "Balances expected quality, operating cost and response time after checking that the model fits the job.",
+      "Uses job-specific quality targets, then balances operating cost and response time for the work assigned to each model.",
     quality: 3,
     cost: 3,
     latency: 2,
@@ -41,9 +42,10 @@ export const STRATEGIES: Readonly<Record<string, Strategy>> = {
   },
   cost: {
     id: "cost",
-    name: "Cost first",
-    short: "Lowest practical cost",
-    description: "Uses efficient models for routine work and saves stronger models for difficult jobs.",
+    name: "Cost optimised",
+    short: "Lowest cost that can meet the job",
+    description:
+      "Uses efficient models first for repeatable work, but keeps stronger models and checking for difficult, uncertain or high-impact jobs.",
     quality: 1,
     cost: 8,
     latency: 1,
@@ -76,7 +78,7 @@ export const STRATEGIES: Readonly<Record<string, Strategy>> = {
     name: "Focused specialist team",
     short: "Several focused, efficient models",
     description:
-      "Builds a lower-cost team of models judged on their separate jobs, then compares the complete team with broader models.",
+      "Builds a lower-cost team of models judged against separate job-quality targets, then tests routing and the complete result.",
     quality: 2,
     cost: 4,
     latency: 2,

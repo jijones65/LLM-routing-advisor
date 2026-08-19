@@ -15,12 +15,13 @@ import {
 import {
   fitPercent,
   ineligibleReason,
+  jobOperatingPolicy,
   jobRequirements,
   qualityForJob,
   rankForRole,
   scoreModel,
 } from "../build/engine/scoring.js";
-import { explainEntry, explainPlan, tradeOffs } from "../build/engine/explain.js";
+import { explainEntry, explainPlan, skillFitSummary, tradeOffs } from "../build/engine/explain.js";
 import { evaluateTeam } from "../build/engine/team-evaluation.js";
 
 const catalog = withSignals(CATALOG);
@@ -58,6 +59,23 @@ test("a custom application label keeps the starter needs and builds a team", () 
   assert.ok(planFor(catalog, custom, "balanced").entries.length >= 2);
 });
 
+test("a model recommendation traces relevant Skills to stated and tested evidence", () => {
+  const application = brief({
+    archetype: "software-agent",
+    needs: ["code-build", "system-integration", "service-monitoring", "validate"],
+  });
+  const plan = planFor(catalog, application, "balanced");
+  const coding = plan.entries.find((entry) => entry.role.id === "coder") ?? plan.entries[0];
+  const rationale = skillFitSummary(coding, application);
+
+  assert.ok(rationale.skills.length > 0);
+  assert.ok(rationale.skills.some((skill) => skill.id === "code-build"));
+  assert.ok(rationale.skills.every((skill) => ["stated-match", "partial-match", "gap"].includes(skill.state)));
+  assert.ok(rationale.skills.every((skill) => skill.reason.includes("record")));
+  assert.doesNotMatch(rationale.summary, /proven winner|demonstrably better/i);
+  assert.match(rationale.summary, /testable rationale, not proof/i);
+});
+
 test("every plan style produces a complete team", () => {
   for (const styleId of [...PRIMARY_STRATEGY_IDS, ...OTHER_STRATEGY_IDS]) {
     const plan = planFor(catalog, brief({ planStyle: styleId }), styleId);
@@ -68,6 +86,20 @@ test("every plan style produces a complete team", () => {
       `${styleId} has no checker`,
     );
     assert.equal(plan.unfilled.length, 0, `${styleId} left a job unfilled`);
+    for (const entry of plan.entries) {
+      const attainable = rankForRole(
+        catalog,
+        entry.role.role,
+        brief({ planStyle: styleId }),
+        STRATEGIES[styleId],
+      ).ranked.some((candidate) => candidate.readings.measuredPerformance.score >= entry.operatingPolicy.qualityTarget);
+      if (attainable) {
+        assert.ok(
+          entry.readings.measuredPerformance.score >= entry.operatingPolicy.qualityTarget,
+          `${styleId}/${entry.role.id} did not meet an attainable planning quality target`,
+        );
+      }
+    }
   }
 });
 
@@ -185,11 +217,55 @@ test("a provider job label adds evidence but does not gate a model out", () => {
 
 test("an untested quality estimate receives the reduced evidence factor", () => {
   const model = catalog.find((candidate) => !candidate.capabilityTests);
-  const term = scoreModel(model, "primary", brief(), STRATEGIES.quality).terms.find(
+  const application = brief();
+  const policy = jobOperatingPolicy("primary", application, STRATEGIES.quality);
+  const term = scoreModel(model, "primary", application, STRATEGIES.quality).terms.find(
     (candidate) => candidate.label === "Expected quality",
   );
-  assert.equal(term.value, model.quality * STRATEGIES.quality.quality * 0.6);
+  assert.equal(term.value, model.quality * policy.qualityWeight * 0.6);
   assert.match(term.detail, /evidence factor 0.6/);
+});
+
+test("job operating policies keep quality critical work separate from throughput work", () => {
+  const application = brief({ planStyle: "cost" });
+  const primary = jobOperatingPolicy("primary", application, STRATEGIES.cost);
+  const worker = jobOperatingPolicy("worker", application, STRATEGIES.cost);
+  const checker = jobOperatingPolicy("validator", application, STRATEGIES.cost);
+
+  assert.equal(worker.mode, "high-throughput");
+  assert.equal(checker.mode, "assurance");
+  assert.ok(worker.costWeight > primary.costWeight);
+  assert.ok(primary.qualityTarget > worker.qualityTarget);
+  assert.ok(checker.qualityWeight > worker.qualityWeight);
+  assert.match(worker.escalationRule, /Escalate/i);
+  assert.match(worker.successMeasure, /Successful tasks/i);
+});
+
+test("a cost-optimised team still meets every attainable job quality target", () => {
+  const application = brief({ planStyle: "cost" });
+  const plan = planFor(catalog, application, "cost");
+  for (const entry of plan.entries) {
+    const attainable = rankForRole(catalog, entry.role.role, application, STRATEGIES.cost).ranked.some(
+      (candidate) => candidate.readings.measuredPerformance.score >= entry.operatingPolicy.qualityTarget,
+    );
+    if (attainable) {
+      assert.ok(
+        entry.readings.measuredPerformance.score >= entry.operatingPolicy.qualityTarget,
+        `${entry.role.id} chose ${entry.model.name} at ${entry.readings.measuredPerformance.score} below ${entry.operatingPolicy.qualityTarget}`,
+      );
+    }
+  }
+});
+
+test("the quality target is a visible policy adjustment, not a hidden exclusion", () => {
+  const application = brief({ planStyle: "cost" });
+  const worker = planFor(catalog, application, "cost").entries.find((entry) => entry.role.id === "worker");
+  assert.ok(worker);
+  assert.ok(worker.policyAdjusted);
+  assert.match(worker.policyReason, /planning quality target/i);
+  assert.equal(worker.decision.state, "policy-choice");
+  assert.match(worker.decision.reason, /Team rule:/);
+  assert.ok(worker.decision.closeCandidates.some((candidate) => candidate.model.id === worker.advisorChoice.model.id));
 });
 
 test("current variants receive a finite score for every job", () => {
@@ -348,9 +424,15 @@ test("team evaluation separates structural checks from trials that must be run",
   assert.equal(evaluation.totalCapabilities, application.cases.length);
   assert.equal(evaluation.trials.length, 5);
   assert.ok(evaluation.checks.some((check) => check.id === "coverage"));
+  assert.ok(evaluation.checks.some((check) => check.id === "quality-targets"));
+  assert.ok(evaluation.checks.some((check) => check.id === "quality-cost-routing"));
   assert.ok(evaluation.checks.some((check) => check.id === "coordination" && check.status === "trial-required"));
   assert.ok(evaluation.trials.some((trial) => trial.id === "failure-recovery"));
   assert.ok(evaluation.trials.some((trial) => trial.id === "load-cost-latency"));
+  assert.match(
+    evaluation.trials.find((trial) => trial.id === "load-cost-latency").success,
+    /successful tasks per total dollar/i,
+  );
 });
 
 test("reusing one model across jobs is not described as independent validation", () => {
@@ -484,7 +566,7 @@ test("explanations name real factors and stay readable", () => {
   assert.ok(text.length > 80 && text.length < 900, `explanation was ${text.length} characters`);
 
   const summary = explainPlan(plan.entries, "balanced", true, false);
-  assert.match(summary, /primary candidate/);
+  assert.match(summary, /primary (candidate|selected)/);
   assert.match(summary, /Test the complete team/, "the summary must not drop the caveat");
 });
 
@@ -549,7 +631,27 @@ test("tools outside the model team are recommended from the brief", () => {
   assert.ok(ids.includes("gis"));
   assert.ok(ids.includes("search"));
   assert.ok(ids.includes("privacy"));
-  assert.ok(tools.length <= 7);
+  assert.ok(tools.length <= 10);
+});
+
+test("edge and IoT applications recommend the non-model layers they need", () => {
+  const application = brief({
+    archetype: "real-time-asset-tracking",
+    needs: ["sensor-streams", "geospatial", "computer-vision", "monitor-events", "field-mobile", "validate"],
+  });
+  const plan = planFor(catalog, application, "balanced");
+  assert.ok(plan.entries.length >= 2);
+
+  const tools = recommendedTools(application);
+  for (const id of ["edge-runtime", "edge-perception", "iot-platform", "asset-identity"]) {
+    assert.ok(
+      tools.some((tool) => tool.id === id),
+      `${id} is missing`,
+    );
+  }
+  assert.ok(tools.find((tool) => tool.id === "edge-runtime").links.some((link) => /AI Edge Gallery/.test(link.name)));
+  assert.ok(tools.find((tool) => tool.id === "edge-runtime").links.some((link) => /Qualcomm IoT/.test(link.name)));
+  assert.ok(tools.find((tool) => tool.id === "edge-perception").reason.includes("not language-model team members"));
 });
 
 test("capability range is bounded", () => {

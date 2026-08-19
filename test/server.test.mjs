@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { FakeD1, stubFetch } from "./fake-d1.mjs";
 import worker from "../build/server/index.js";
@@ -14,6 +15,7 @@ import {
 } from "../build/server/db/repo.js";
 import { loadSnapshots, refreshSource } from "../build/server/registry/refresh.js";
 import { REGISTRY_SOURCES } from "../build/data/registry-sources.js";
+import { ARCHETYPES, NEED_GROUPS, TAXONOMY_VERSION } from "../build/data/taxonomy.js";
 import { ensureSchema } from "../build/server/db/index.js";
 
 /** A fresh in-memory database. The schema is applied lazily, per binding. */
@@ -52,9 +54,9 @@ test("the D1 catalogue projection is aligned with the bundled release", async ()
 
   await syncCatalog(db);
   const rows = await db.prepare("SELECT data_json FROM catalog_models ORDER BY id").all();
-  assert.equal(rows.results.length, 109);
+  assert.equal(rows.results.length, 112);
   assert.ok(
-    rows.results.every((row) => JSON.parse(row.data_json).catalogVersion === "2026.08.18-2"),
+    rows.results.every((row) => JSON.parse(row.data_json).catalogVersion === "2026.08.19-1"),
     "every stored catalogue row should use the current version",
   );
   db.close();
@@ -101,6 +103,20 @@ test("GET / renders a complete page", async () => {
     assert.match(html, new RegExp(`<h2>${tab}</h2>`), `the About guide is missing ${tab}`);
   }
   assert.match(html, /What each tab does—and what it cannot prove/);
+  assert.match(html, /id="about-decision-flow"/);
+  assert.match(html, /Choose Skills by asking eight simple questions/);
+  assert.match(html, /Improve and operate/);
+  for (const label of ["Model fit", "Source confidence", "ecosystem visibility", "measured performance"]) {
+    assert.match(html, new RegExp(label, "i"), `the decision guide is missing ${label}`);
+  }
+  for (const framework of [
+    "OECD AI-system classification",
+    "NIST AI Risk Management Framework",
+    "ISO/IEC 22989",
+    "SFIA",
+  ]) {
+    assert.match(html, new RegExp(framework), `the Skills guide is missing ${framework}`);
+  }
   assert.equal((html.match(/class="about-card"/g) ?? []).length, 6);
   assert.equal((html.match(/class="tab(?: active)?" data-tab=/g) ?? []).length, 7);
   for (const label of [
@@ -119,6 +135,7 @@ test("GET / renders a complete page", async () => {
     "primary-styles",
     "other-style",
     "route-list",
+    "quality-cost-plan",
     "team-evaluation",
     "route-stats",
     "team-compare",
@@ -129,6 +146,11 @@ test("GET / renders a complete page", async () => {
     "provider-filter",
     "case-filter",
     "deployment-filter",
+    "model-profile-filter",
+    "small-model-count",
+    "edge-model-count",
+    "edge-vision-model-count",
+    "device-action-model-count",
     "endpoint-list",
     "registry-summary",
     "registry-queue",
@@ -154,6 +176,45 @@ test("GET / renders a complete page", async () => {
     assert.match(html, new RegExp(`id="${id}"`), `the shell is missing #${id}`);
   }
   db.close();
+});
+
+test("the planning client renders accessible Skill help and model-fit rationales", () => {
+  const main = readFileSync(new URL("../build/client/main.js", import.meta.url), "utf8");
+  const design = readFileSync(new URL("../build/client/views/design.js", import.meta.url), "utf8");
+  assert.match(main, /skill-popover/);
+  assert.match(main, /role="tooltip"/);
+  assert.match(main, /When to choose it/);
+  assert.match(main, /Examples/);
+  assert.match(design, /Skill-fit rationale/);
+  assert.match(design, /skill-by-skill reason/);
+});
+
+test("the Skills taxonomy is complete, explained and versioned", () => {
+  assert.equal(NEED_GROUPS.length, 8);
+  assert.equal(NEED_GROUPS.flatMap((group) => group.items).length, 37);
+  assert.equal(TAXONOMY_VERSION, "2026.08.19-3");
+  assert.equal(ARCHETYPES.length, 25);
+
+  const ids = new Set();
+  for (const group of NEED_GROUPS) {
+    assert.ok(group.name.trim());
+    assert.ok(group.prompt.endsWith("?"), `${group.name} needs a guiding question`);
+    for (const skill of group.items) {
+      assert.ok(skill.name.trim(), `${skill.id} needs a plain-language name`);
+      assert.ok(skill.guidance.length >= 30, `${skill.id} needs useful selection guidance`);
+      assert.ok(skill.examples.length >= 30, `${skill.id} needs concrete examples`);
+      assert.ok(skill.boundary.length >= 30, `${skill.id} needs a useful boundary`);
+      assert.ok(skill.cases.length > 0, `${skill.id} must affect at least one internal capability`);
+      assert.ok(!ids.has(skill.id), `duplicate Skill id: ${skill.id}`);
+      ids.add(skill.id);
+    }
+  }
+
+  for (const archetype of ARCHETYPES) {
+    for (const skillId of archetype.needs) {
+      assert.ok(ids.has(skillId), `${archetype.id} uses unknown Skill ${skillId}`);
+    }
+  }
 });
 
 test("the rendered page has balanced tags and no unsubstituted placeholders", async () => {
@@ -264,7 +325,30 @@ test("saving a plan validates the payload", async () => {
         rank: 1,
         fit: 100,
         readings: { measuredPerformance: { evidenceLevel: "estimated" } },
+        skillFit: {
+          summary:
+            "Claude Fable 5 has a provider-stated match for the capability building blocks behind this selected Skill; it still needs application testing.",
+          skills: [
+            {
+              name: "Search current sources",
+              state: "stated-match",
+              reason:
+                "The provider-stated record covers research and retrieval. This is a stated capability match, not measured proof for this application.",
+            },
+          ],
+        },
         decision: { state: "too-close", reason: "Two candidates are close.", recommendedTest: "Run ten tasks." },
+        operatingPolicy: {
+          mode: "adaptive",
+          label: "Adaptive quality route",
+          qualityTarget: 4,
+          qualityWeight: 1.25,
+          costWeight: 0.75,
+          routingRule: "Use this model for normal work after the input is classified.",
+          escalationRule: "Escalate uncertain, failed or high-impact work to the checker or a human.",
+          successMeasure:
+            "Successful tasks meeting the output rubric per total dollar and elapsed minute, including tools, retries, fallbacks and human corrections.",
+        },
       },
     ],
     teamEvaluation: {
@@ -279,6 +363,14 @@ test("saving a plan validates the payload", async () => {
         },
       ],
     },
+    tools: [
+      {
+        id: "edge-runtime",
+        name: "Edge AI runtime and model delivery",
+        reason: "Runs approved compact models on edge computers.",
+        links: [{ name: "Google AI Edge Gallery", url: "https://github.com/google-ai-edge/gallery" }],
+      },
+    ],
     catalogVersion: "catalog-test",
     scoringVersion: "scoring-test",
     taxonomyVersion: "taxonomy-test",
@@ -297,6 +389,14 @@ test("saving a plan validates the payload", async () => {
   assert.match(stored.specificationMarkdown, /# Draft Application Specification/);
   assert.match(stored.specificationMarkdown, /Supplier comparison for a school/);
   assert.match(stored.specificationMarkdown, /Claude Fable 5/);
+  assert.match(stored.specificationMarkdown, /Quality, cost and routing policy/);
+  assert.match(stored.specificationMarkdown, /Adaptive quality route/);
+  assert.match(stored.specificationMarkdown, /Successful tasks meeting the output rubric/);
+  assert.match(stored.specificationMarkdown, /Why these models fit the selected Skills/);
+  assert.match(stored.specificationMarkdown, /Search current sources/);
+  assert.match(stored.specificationMarkdown, /not measured proof for this application/);
+  assert.match(stored.specificationMarkdown, /Required non-model components/);
+  assert.match(stored.specificationMarkdown, /Google AI Edge Gallery/);
   assert.match(stored.specificationMarkdown, /\[Fill in:/);
 
   const detail = await (await worker.fetch(request(`/api/blueprints/${id}`), { DB: db })).json();
@@ -534,7 +634,7 @@ test("the evidence projection removes superseded source rows", async () => {
     .run();
 
   const audit = await getAudit(db);
-  assert.equal(audit.evidence.length, 27);
+  assert.equal(audit.evidence.length, 30);
   assert.ok(!audit.evidence.some((source) => source.id === "legacy-example"));
   db.close();
 });

@@ -151,7 +151,7 @@ export interface EvidenceView {
  * Check the single most overdue official source, then stop.
  *
  * One page per request, rather than all of them: the check runs inside a user's
- * page load, and a sweep of 27 provider pages would either time out or make the
+ * page load, and a sweep of every official provider and model page would either time out or make the
  * app feel broken. Over normal traffic the whole set gets covered, and the
  * cadence column makes the coverage auditable.
  */

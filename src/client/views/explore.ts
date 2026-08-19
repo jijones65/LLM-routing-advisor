@@ -1,7 +1,14 @@
-import type { Capability, Model } from "../../shared/types.js";
+import type { Capability, Model, ModelProfile } from "../../shared/types.js";
 import { byId, esc, setHtml, setText } from "../dom.js";
 import type { Bootstrap } from "../state.js";
 import { dots, modelLinks, priceTag, signalBadges, statusLabel, verificationBadge } from "./shared.js";
+
+const PROFILE_LABELS: Readonly<Record<ModelProfile, string>> = {
+  "small-language-model": "Small language model (SLM)",
+  "edge-language-model": "Language model for edge devices",
+  "edge-vision-language-model": "Vision-language model for edge devices",
+  "device-action-model": "On-device action model",
+};
 
 /** Populate the explorer's filter dropdowns from the catalogue itself. */
 export function initExploreFilters(boot: Bootstrap, catalog: readonly Model[]): void {
@@ -24,11 +31,22 @@ export function renderModels(boot: Bootstrap, catalog: readonly Model[]): void {
   const provider = byId<HTMLSelectElement>("provider-filter").value;
   const capability = byId<HTMLSelectElement>("case-filter").value;
   const deployment = byId<HTMLSelectElement>("deployment-filter").value;
+  const profile = byId<HTMLSelectElement>("model-profile-filter").value;
+
+  const edgeModels = catalog.filter((model) => model.profiles?.includes("edge-language-model")).length;
+  const smallModels = catalog.filter((model) => model.profiles?.includes("small-language-model")).length;
+  const edgeVisionModels = catalog.filter((model) => model.profiles?.includes("edge-vision-language-model")).length;
+  const actionModels = catalog.filter((model) => model.profiles?.includes("device-action-model")).length;
+  setText("edge-model-count", String(edgeModels));
+  setText("small-model-count", String(smallModels));
+  setText("edge-vision-model-count", String(edgeVisionModels));
+  setText("device-action-model-count", String(actionModels));
 
   const matches = catalog.filter((model) => {
     if (provider !== "all" && model.provider !== provider) return false;
     if (capability !== "all" && !model.cases.includes(capability as Capability)) return false;
     if (deployment !== "all" && !model.deployments.includes(deployment as Model["deployments"][number])) return false;
+    if (profile !== "all" && !model.profiles?.includes(profile as ModelProfile)) return false;
     if (!query) return true;
     const haystack = [
       model.name,
@@ -37,6 +55,7 @@ export function renderModels(boot: Bootstrap, catalog: readonly Model[]): void {
       model.tier,
       model.summary,
       ...model.cases.map((entry) => boot.capabilityLabels[entry]),
+      ...(model.profiles ?? []).map((entry) => PROFILE_LABELS[entry]),
     ]
       .join(" ")
       .toLowerCase();
@@ -65,6 +84,13 @@ export function renderModels(boot: Bootstrap, catalog: readonly Model[]): void {
             .map((entry) => `<span>${esc(boot.capabilityLabels[entry])}</span>`)
             .join("")}</div>
           <div class="tags">${model.deployments.map((entry) => `<span>${esc(entry)}</span>`).join("")}</div>
+          ${
+            model.profiles?.length
+              ? `<div class="tags profile-tags">${model.profiles
+                  .map((entry) => `<span>${esc(PROFILE_LABELS[entry])}</span>`)
+                  .join("")}</div>`
+              : ""
+          }
           ${signalBadges(model)}
           ${modelLinks(model)}
           ${model.driftNote ? `<small class="rank-reason">Source drift: ${esc(model.driftNote)}</small>` : ""}

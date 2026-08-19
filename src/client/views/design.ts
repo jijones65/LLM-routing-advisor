@@ -1,7 +1,7 @@
 import type { Capability, Model, PlanEntry } from "../../shared/types.js";
 import { completeBrief, planFor, recommendedTools, type Plan } from "../../engine/planning.js";
 import { evaluateTeam, type TeamTrial } from "../../engine/team-evaluation.js";
-import { explainPlan } from "../../engine/explain.js";
+import { explainPlan, skillFitSummary } from "../../engine/explain.js";
 import { byId, esc, num, setHtml, setText } from "../dom.js";
 import {
   expandedBreakdowns,
@@ -161,6 +161,31 @@ function decisionCard(entry: PlanEntry): string {
   </section>`;
 }
 
+/** Trace the selected Skills through this job to the model's stated and tested evidence. */
+function skillFitPanel(context: DesignContext, entry: PlanEntry): string {
+  const fit = skillFitSummary(entry, completeBrief(context.brief));
+  if (fit.skills.length === 0) return "";
+  const rows = fit.skills
+    .map((skill) => {
+      const label =
+        skill.state === "stated-match" ? "Stated match" : skill.state === "partial-match" ? "Partial match" : "Gap";
+      return `<article class="skill-fit-row ${esc(skill.state)}">
+        <div><strong>${esc(skill.name)}</strong><span>${esc(label)}</span></div>
+        <p>${esc(skill.reason)}</p>
+      </article>`;
+    })
+    .join("");
+
+  return `<section class="skill-fit-rationale">
+    <div class="skill-fit-rationale-head"><span>Skill-fit rationale</span><strong>Why ${esc(entry.model.name)} is a candidate for this job</strong></div>
+    <p>${esc(fit.summary)}</p>
+    <details>
+      <summary>See ${fit.skills.length} skill-by-skill reason${fit.skills.length === 1 ? "" : "s"}</summary>
+      <div class="skill-fit-list">${rows}</div>
+    </details>
+  </section>`;
+}
+
 const OUTCOME_LABELS: Readonly<Record<TrialOutcome, string>> = {
   pass: "Pass",
   partial: "Needs work",
@@ -262,6 +287,7 @@ function teamSummary(
   covered: number;
   total: number;
   lowerCost: number;
+  qualityTargetReady: number;
 } {
   const covered = requirements.filter((capability) =>
     entries.some((entry) => entry.model.cases.includes(capability)),
@@ -270,7 +296,54 @@ function teamSummary(
     covered,
     total: requirements.length,
     lowerCost: entries.filter((entry) => entry.model.costClass <= 2).length,
+    qualityTargetReady: entries.filter(
+      (entry) => entry.readings.measuredPerformance.score >= entry.operatingPolicy.qualityTarget,
+    ).length,
   };
+}
+
+/** Explain how quality and cost are combined for the selected team. */
+function qualityCostPlanPanel(plan: Plan): string {
+  const rows = plan.entries
+    .map((entry) => {
+      const policy = entry.operatingPolicy;
+      const quality = entry.readings.measuredPerformance;
+      const meetsTarget = quality.score >= policy.qualityTarget;
+      return `<article class="job-operating-policy ${esc(policy.mode)}">
+        <div class="job-policy-head">
+          <span>${esc(entry.role.label)}</span>
+          <strong>${esc(policy.label)}</strong>
+          <small class="${meetsTarget ? "target-ready" : "target-caution"}">${meetsTarget ? "Meets" : "Below"} ${policy.qualityTarget.toFixed(2)}/5 planning target · ${esc(quality.evidenceLevel)}</small>
+        </div>
+        <p><b>${esc(entry.model.name)}</b> · quality weight ${policy.qualityWeight} · cost weight ${policy.costWeight}</p>
+        <dl>
+          <div><dt>Route</dt><dd>${esc(policy.routingRule)}</dd></div>
+          <div><dt>Escalate</dt><dd>${esc(policy.escalationRule)}</dd></div>
+        </dl>
+      </article>`;
+    })
+    .join("");
+
+  const throughputCount = plan.entries.filter((entry) => entry.operatingPolicy.mode === "high-throughput").length;
+  const assuranceCount = plan.entries.filter((entry) => entry.operatingPolicy.mode === "assurance").length;
+
+  return `<div class="quality-cost-head">
+      <div><span>Quality and cost together</span><h3>Optimise the route—not every job in the same way.</h3></div>
+      <p>High-quality output is a requirement for every job. Cost is reduced by giving repeatable work to efficient models and escalating uncertain, failed or high-impact work to stronger models and checking.</p>
+    </div>
+    <div class="quality-cost-summary">
+      <article><strong>${throughputCount}</strong><span>high-throughput job${throughputCount === 1 ? "" : "s"}</span><small>Efficient first route for defined, repeatable work</small></article>
+      <article><strong>${plan.entries.length - throughputCount - assuranceCount}</strong><span>adaptive or quality-critical jobs</span><small>Task quality leads cost for difficult or specialist work</small></article>
+      <article><strong>${assuranceCount}</strong><span>assurance job${assuranceCount === 1 ? "" : "s"}</span><small>Checks important results before release or action</small></article>
+    </div>
+    <div class="job-policy-grid">${rows}</div>
+    <div class="useful-work-rule"><strong>Measure useful-work efficiency</strong><span>Successful tasks that meet the output rubric per total dollar and elapsed minute—including tools, retries, fallbacks and human corrections. Token volume alone is not output quality or productivity.</span></div>
+    <details class="throughput-research">
+      <summary>Research behind this routing approach</summary>
+      <p>A July 2026 Vercel gateway snapshot observed open-weight models handling 29% of tokens on under 4% of spend, while high-stakes spend remained concentrated in frontier models. That is evidence about one gateway's workload and spend—not proof that any model produced better results. OECD analysis also shows that open-weight value and self-hosting economics depend heavily on workload scale and operational capacity.</p>
+      <p>RouteLLM and FrugalGPT show why the application should test routing or cascades: a less expensive model can start suitable work, with stronger models used selectively when the task or result requires them. Their published gains apply to their evaluation settings and must not be copied into this application's forecast.</p>
+      <a href="https://www.cremornedigitalhub.com.au/blog/a-closer-look-at-the-open-weight-ai-debate/" target="_blank" rel="noreferrer">Cremorne Digital Hub article ↗</a> · <a href="https://vercel.com/blog/ai-gateway-production-index-july-2026" target="_blank" rel="noreferrer">Vercel production index ↗</a> · <a href="https://www.oecd.org/content/dam/oecd/en/publications/reports/2026/05/benefits-of-ai-openness_40eaff39/746e8c9a-en.pdf" target="_blank" rel="noreferrer">OECD analysis ↗</a> · <a href="https://arxiv.org/abs/2406.18665" target="_blank" rel="noreferrer">RouteLLM paper ↗</a> · <a href="https://arxiv.org/abs/2305.05176" target="_blank" rel="noreferrer">FrugalGPT paper ↗</a>
+    </details>`;
 }
 
 /** Keep the headline and detailed job selectors on the same choice contract. */
@@ -312,6 +385,7 @@ function roleCard(
       <small>${esc(entry.model.provider)} · ${esc(entry.model.tier)} · ${esc(entry.model.contextLabel)} context</small>
       <div class="sourcing-row">${verificationBadge(entry.model)}${priceTag(entry.model)}</div>
       ${resultReadings(entry)}
+      ${skillFitPanel(context, entry)}
       ${decisionCard(entry)}
       ${choiceControl}
       ${modelLinks(entry.model, true)}
@@ -394,6 +468,7 @@ export function renderDesign(context: DesignContext): void {
     entries.length ? `${entries.length} jobs, led by ${entries[0].model.name}` : "No team could be built",
   );
   setText("team-description", strategy.description);
+  setHtml("quality-cost-plan", qualityCostPlanPanel(plan));
   setHtml("team-evaluation", teamEvaluationPanel(context.brief, plan));
   setText("rank-range", `#1–#${catalog.length} = relative position among model variants for that job`);
 
@@ -406,6 +481,7 @@ export function renderDesign(context: DesignContext): void {
       [
         ["Model team", `${entries.length} jobs · ${new Set(entries.map((entry) => entry.model.id)).size} models`],
         ["Team requirement coverage", `${summary.covered} / ${summary.total}`],
+        ["Meets planning quality target", `${summary.qualityTargetReady} / ${entries.length}`],
         ["Lower-cost jobs", `${summary.lowerCost} / ${entries.length}`],
         ["Providers used", String(providers.size)],
         ["Downloadable choices", `${openWeight} / ${entries.length}`],
@@ -453,7 +529,7 @@ export function renderDesign(context: DesignContext): void {
           <button class="team-option-select" type="button" data-team-style="${esc(styleId)}" aria-pressed="${brief.planStyle === styleId}" aria-label="Show the ${esc(option.name)} team">
             <span>${esc(option.name)}</span>
             <strong>${esc(primary.model.name)}</strong>
-            <small>Primary · ${summary.covered}/${summary.total} team coverage · ${summary.lowerCost}/${team.entries.length} lower-cost jobs · ${teamProviders.size} providers</small>
+            <small>Primary · ${summary.covered}/${summary.total} team coverage · ${summary.qualityTargetReady}/${team.entries.length} meet planning quality target · ${summary.lowerCost}/${team.entries.length} lower-cost jobs · ${teamProviders.size} providers</small>
             <small class="team-trial-state">${esc(trialState)}</small>
           </button>
           <div class="team-preview">
@@ -501,7 +577,14 @@ export function renderDesign(context: DesignContext): void {
     "tool-list",
     recommendedTools(brief)
       .map(
-        (tool) => `<div class="tool-item"><strong>${esc(tool.name)}</strong><small>${esc(tool.reason)}</small></div>`,
+        (tool) =>
+          `<div class="tool-item"><strong>${esc(tool.name)}</strong><small>${esc(tool.reason)}</small>` +
+          (tool.links?.length
+            ? `<span class="tool-links">${tool.links
+                .map((link) => `<a href="${esc(link.url)}" target="_blank" rel="noopener">${esc(link.name)}</a>`)
+                .join("")}</span>`
+            : "") +
+          `</div>`,
       )
       .join(""),
   );

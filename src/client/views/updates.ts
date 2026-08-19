@@ -10,6 +10,30 @@ import type { Model } from "../../shared/types.js";
  */
 const CHANGES: readonly { state: string; title: string; scope: string; date: string; detail: string }[] = [
   {
+    state: "Added",
+    title: "Compact, edge and IoT choices now have a clear place",
+    scope: "Catalogue · applications · architecture",
+    date: "19 Aug 2026",
+    detail:
+      "FunctionGemma 270M and the Qwen3-VL 2B and 4B variants bring the catalogue to 112 models. The explorer now distinguishes small language models, edge language models, edge vision-language models and on-device action specialists. Real-time asset tracking, predictive maintenance and edge vision safety are new starting application types. Device runtimes, perception models, trackers, positioning and IoT platforms are shown separately as required non-model components rather than being mislabelled as language models.",
+  },
+  {
+    state: "Refined",
+    title: "Skills now explain their meaning and each model's fit",
+    scope: "Application design · recommendations · evidence",
+    date: "19 Aug 2026",
+    detail:
+      "The Skills checklist now has 37 choices under eight simple questions. Each title opens a short explanation, examples and a boundary on hover, keyboard focus or tap. The supplied capability, business-process and SFIA examples were used to find gaps—not treated as a complete standard. Every proposed team member now traces its assigned Skills to the model's stated capabilities, recorded tests and any partial gaps without presenting a stated match as measured proof.",
+  },
+  {
+    state: "Refined",
+    title: "Every job now combines a quality target with cost-aware routing",
+    scope: "Recommendations · quality · cost",
+    date: "19 Aug 2026",
+    detail:
+      "Primary, planning, specialist and checking jobs now give more weight to task-specific quality, while the routine worker gives more weight to cost and volume. A soft quality target penalises material shortfalls without hiding a model. Every job shows its route, escalation rule and useful-work measure; saved specifications retain them.",
+  },
+  {
     state: "Fixed",
     title: "Close model choices are visible in the headline teams",
     scope: "Recommendations · user choice",
@@ -135,7 +159,7 @@ const CHANGES: readonly { state: string; title: string; scope: string; date: str
     scope: "Application design · taxonomy",
     date: "18 Aug 2026",
     detail:
-      "The application list now includes product comparison, procurement, meetings, learning, sales, compliance, data insight, localisation and cybersecurity examples. A user can name another type, keep a suggested type as the starter, and adjust What it must do to build the team without pretending that the name alone determines requirements.",
+      "The application list now includes product comparison, procurement, meetings, learning, sales, compliance, data insight, localisation and cybersecurity examples. A user can name another type, keep a suggested type as the starter, and adjust its Skills to build the team without pretending that the name alone determines requirements.",
   },
   {
     state: "Rebuilt",

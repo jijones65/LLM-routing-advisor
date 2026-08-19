@@ -62,6 +62,7 @@ export function generateBlueprintSpecification(payload: AnyRecord): string {
   const evaluation = record(payload.teamEvaluation);
   const trials = records(evaluation.trials);
   const checks = records(evaluation.checks);
+  const tools = records(payload.tools);
   const created = text(payload.savedAt, new Date().toISOString());
 
   const modelTable = routing.length
@@ -70,10 +71,38 @@ export function generateBlueprintSpecification(payload: AnyRecord): string {
           const readings = record(entry.readings);
           const measured = record(readings.measuredPerformance);
           const decision = record(entry.decision);
-          return `| ${oneLine(entry.roleLabel, oneLine(entry.role))} | ${oneLine(entry.modelName)} | ${oneLine(entry.provider)} | #${oneLine(entry.rank, "—")} | ${oneLine(entry.fit, "—")}% | ${oneLine(measured.evidenceLevel, "estimated")} | ${oneLine(decision.state, "not recorded")} |`;
+          const policy = record(entry.operatingPolicy);
+          return `| ${oneLine(entry.roleLabel, oneLine(entry.role))} | ${oneLine(entry.modelName)} | ${oneLine(entry.provider)} | ${oneLine(policy.label, "Not recorded")} | ${oneLine(policy.qualityTarget, "—")}/5 | #${oneLine(entry.rank, "—")} | ${oneLine(entry.fit, "—")}% | ${oneLine(measured.evidenceLevel, "estimated")} | ${oneLine(decision.state, "not recorded")} |`;
         })
         .join("\n")
-    : "| [Fill in: team job] | [Fill in: model] | [Fill in: provider] | — | — | — | — |";
+    : "| [Fill in: team job] | [Fill in: model] | [Fill in: provider] | [Fill in: operating mode] | — | — | — | — | — |";
+
+  const operatingPolicies = routing.length
+    ? routing
+        .map((entry) => {
+          const policy = record(entry.operatingPolicy);
+          return `- **${oneLine(entry.roleLabel, oneLine(entry.role))}:** Route — ${oneLine(policy.routingRule)} Escalate — ${oneLine(policy.escalationRule)} Measure — ${oneLine(policy.successMeasure)}`;
+        })
+        .join("\n")
+    : "- [Fill in: route, escalation and useful-work measure for every team job]";
+
+  const skillFitRationales = routing.length
+    ? routing
+        .map((entry) => {
+          const fit = record(entry.skillFit);
+          const skills = records(fit.skills);
+          const skillLines = skills.length
+            ? skills
+                .map(
+                  (skill) =>
+                    `  - **${oneLine(skill.name)} — ${oneLine(skill.state, "not recorded")}.** ${oneLine(skill.reason)}`,
+                )
+                .join("\n")
+            : "  - [Fill in: skill-by-skill fit rationale]";
+          return `- **${oneLine(entry.roleLabel, oneLine(entry.role))} — ${oneLine(entry.modelName)}.** ${oneLine(fit.summary)}\n${skillLines}`;
+        })
+        .join("\n")
+    : "- [Fill in: why each candidate model is a reasonable match for the Skills assigned to its job]";
 
   const trialLines = trials.length
     ? trials
@@ -89,6 +118,17 @@ export function generateBlueprintSpecification(payload: AnyRecord): string {
         .map((check) => `- **${oneLine(check.label)} — ${oneLine(check.status)}.** ${oneLine(check.summary)}`)
         .join("\n")
     : "- [Fill in: structural team checks]";
+
+  const toolLines = tools.length
+    ? tools
+        .map((tool) => {
+          const links = records(tool.links)
+            .map((link) => `[${oneLine(link.name)}](${text(link.url)})`)
+            .join(" · ");
+          return `- **${oneLine(tool.name)}.** ${oneLine(tool.reason)}${links ? ` Sources: ${links}` : ""}`;
+        })
+        .join("\n")
+    : "- [Fill in: search, data, sensor, runtime, workflow, calculation and review components the application needs outside its language models]";
 
   const closeCalls = routing
     .map((entry) => ({ entry, decision: record(entry.decision) }))
@@ -167,9 +207,31 @@ ${capabilities.length ? capabilities.map((capability) => `- ${oneLine(capability
 
 > These are candidates selected by the advisor's current rules. They are not proven winners. Test the complete team on the same representative application tasks before making a final choice.
 
-| Team job | Candidate model | Provider | Job rank | Relative fit | Performance evidence | Decision state |
-|---|---|---|---:|---:|---|---|
+| Team job | Candidate model | Provider | Operating mode | Quality target | Job rank | Relative fit | Performance evidence | Decision state |
+|---|---|---|---|---:|---:|---:|---|---|
 ${modelTable}
+
+### Quality, cost and routing policy
+
+> High-quality output remains a requirement for every job. Cost is optimised by routing defined, repeatable work to efficient models and escalating uncertain, failed or high-impact work. The planning targets are not proof of measured quality.
+
+${operatingPolicies}
+
+- **Useful-work efficiency:** Measure successful tasks that meet the output rubric per total dollar and elapsed minute. Include model calls, tools, retries, fallbacks and human corrections. Do not use token volume alone as a quality or productivity measure.
+- **Quality target ownership:** [Fill in: who approves the task-specific quality rubric and the minimum acceptable result for each job.]
+- **Escalation budget:** [Fill in: how often a routine route may escalate before the cost or architecture must be reviewed.]
+
+### Why these models fit the selected Skills
+
+> Each rationale traces a plain-language Skill to the capability building blocks stated for the model and any recorded capability-specific tests. A stated match is not measured proof for this application.
+
+${skillFitRationales}
+
+### Required non-model components
+
+> A complete application may need sensor, positioning, perception, runtime, data, workflow and review components. They are recorded separately so a detector, tracker or device runtime is not misrepresented as a language-model team member.
+
+${toolLines}
 
 ### Close calls, tie-break choices and policy choices
 

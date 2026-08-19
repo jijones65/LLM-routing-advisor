@@ -6,8 +6,9 @@
  * `.gitignore`, which means the artefact was built and uploaded by hand and the
  * exact contents were never reproducible. This makes it one command.
  *
- * The archive root must contain `server/index.js` and `.openai/hosting.json`,
- * which is what `build.mjs` already produces, so this only tars and verifies.
+ * Sites expects the worker at `dist/server/index.js` and the hosting manifest at
+ * `.openai/hosting.json`. The build already produces both under `dist/`; this
+ * archive preserves the worker prefix while placing the manifest at its root.
  *
  *   npm run package
  */
@@ -32,8 +33,7 @@ for (const relative of REQUIRED) {
   }
 }
 
-// -C dist so paths in the archive are relative to the bundle root, not to dist/.
-await run("tar", ["-czf", archive, "-C", join(root, "dist"), "server", ".openai"]);
+await run("tar", ["-czf", archive, "-C", root, "dist/server", "-C", join(root, "dist"), ".openai"]);
 
 const { stdout } = await run("tar", ["-tzf", archive]);
 const entries = stdout.trim().split("\n");
