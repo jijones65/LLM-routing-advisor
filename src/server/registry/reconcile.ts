@@ -325,14 +325,12 @@ export function aggregateRegistry(
       excludedEndpointCount: records.length - candidates.length,
       possibleCatalogMatches: matchedCatalog.size,
       unresolvedCandidateCount: unresolved.length,
-      reviewQueue: unresolved
-        .slice(0, 60)
-        .map((group) => ({
-          key: group.key,
-          count: group.count,
-          example: group.example,
-          sourceCount: group.sources.size,
-        })),
+      reviewQueue: unresolved.slice(0, 60).map((group) => ({
+        key: group.key,
+        count: group.count,
+        example: group.example,
+        sourceCount: group.sources.size,
+      })),
       lastCheckedAt,
     },
   };

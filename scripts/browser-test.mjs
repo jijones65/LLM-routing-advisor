@@ -110,6 +110,10 @@ try {
   expect("each choice shows a price or cost class", (await page.locator(".role-card .price").count()) >= 3);
   expect("each choice separates four readings", (await page.locator(".role-card .result-reading").count()) >= 12);
   expect("plan cards show complete team previews", (await page.locator(".team-option .team-preview").count()) === 6);
+  expect(
+    "headline plan cards expose jobs with close alternatives as dropdowns",
+    (await page.locator(".team-option select[data-team-model-choice-role]").count()) > 0,
+  );
   expect("every choice shows a decision status", (await page.locator(".role-card .decision-card").count()) >= 3);
   expect("structural team checks render", (await page.locator(".team-check").count()) >= 7);
   expect("the shared team trial worksheet has five trials", (await page.locator(".team-trial").count()) === 5);
@@ -272,13 +276,13 @@ try {
   // --- saving a plan -------------------------------------------------------
   await page.locator('[data-tab="design"]').click();
   await page.waitForTimeout(250);
-  const primaryChoice = page.locator('.primary-role select[data-model-choice-role="primary"]');
-  expect("the primary job offers models inside the three-point choice band", await primaryChoice.isVisible());
-  expect("the choice band contains alternatives", (await primaryChoice.locator("option").count()) > 2);
+  const primaryChoice = page.locator('.team-option.active select[data-team-model-choice-role="primary"]');
+  expect("the headline primary job offers models inside the three-point choice band", await primaryChoice.isVisible());
+  expect("the headline choice band contains alternatives", (await primaryChoice.locator("option").count()) > 2);
   await primaryChoice.selectOption({ index: 2 });
   await page.waitForTimeout(180);
   expect(
-    "a user override is labelled explicitly",
+    "a headline-card override updates the detailed job and is labelled explicitly",
     /selected by you/i.test((await page.textContent(".primary-role")) ?? ""),
   );
   // The trial list is inside a collapsed <details>, so its buttons are in the DOM

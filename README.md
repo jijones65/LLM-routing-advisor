@@ -16,7 +16,7 @@ Live site: [llm-routing-advisor.ji-jones.chatgpt.site](https://llm-routing-advis
 - **No hidden exclusions** — missing capabilities and deployment preferences lower fit and remain visible; only withdrawn models leave current rankings
 - **Four separate readings** for model fit, source confidence, ecosystem visibility and measured performance
 - **Visible close-call tie-breakers** — raw-score gaps below one point keep their raw order while measured evidence, application specialisation and then ecosystem reach provide an explicit candidate choice
-- **User choice inside a three-point band** — every team job offers a dropdown of models less than three raw-score points from the leader; an override is labelled, saved and never presented as a scoring win
+- **User choice inside a three-point band** — every eligible job offers the same dropdown in both the six headline team cards and the detailed job cards; an override is labelled, saved and never presented as a scoring win
 - **Provider-concentration warning** — when one provider leads most headline plans, the interface explains that this is a pattern in the current inputs rather than measured proof of general superiority
 - **Complete-team validation** — structural checks plus recordable trials for hand-offs, conflicts, provider failure, cost, latency and peak load
 - **Durable Saved plans** — reopen a brief, compare up to three teams, edit the plan name and draft specification, export it as Markdown, or delete it after confirmation

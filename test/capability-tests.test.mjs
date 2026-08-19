@@ -84,10 +84,18 @@ test("tools-enabled and tools-disabled runs are separate protocols", () => {
 test("protocol bands are ordered and cover the whole range", () => {
   for (const protocol of BENCHMARK_PROTOCOLS) {
     const thresholds = protocol.bands.map(([minimum]) => minimum);
-    assert.deepEqual(thresholds, [...thresholds].sort((a, b) => b - a), `${protocol.id}: bands are not descending`);
+    assert.deepEqual(
+      thresholds,
+      [...thresholds].sort((a, b) => b - a),
+      `${protocol.id}: bands are not descending`,
+    );
     assert.equal(thresholds.at(-1), 0, `${protocol.id}: bands must have a floor at 0`);
     const scores = protocol.bands.map(([, score]) => score);
-    assert.deepEqual(scores, [...scores].sort((a, b) => b - a), `${protocol.id}: band scores are not descending`);
+    assert.deepEqual(
+      scores,
+      [...scores].sort((a, b) => b - a),
+      `${protocol.id}: band scores are not descending`,
+    );
     for (const score of scores) assert.ok(score >= 1 && score <= 5, `${protocol.id}: band score out of range`);
   }
 });
@@ -158,7 +166,10 @@ test("an outlier is recorded rather than dropped or averaged in", () => {
   const reasoning = CATALOG.find((model) => model.id === "claude-fable-5").capabilityTests.reasoning;
   const gpqa = reasoning.sources.find((source) => source.protocolId === "gpqa-diamond-no-tools");
   assert.ok(gpqa.rawScore > 90, `majority cluster should win, got ${gpqa.rawScore}`);
-  assert.ok(gpqa.disagreements?.some((entry) => entry.rawScore === 55.56), "the outlier must stay on the record");
+  assert.ok(
+    gpqa.disagreements?.some((entry) => entry.rawScore === 55.56),
+    "the outlier must stay on the record",
+  );
 });
 
 test("resolution never invents a value no source reported", () => {

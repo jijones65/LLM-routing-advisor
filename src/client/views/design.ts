@@ -273,6 +273,16 @@ function teamSummary(
   };
 }
 
+/** Keep the headline and detailed job selectors on the same choice contract. */
+function modelChoiceOptions(entry: PlanEntry, selectedOverride: string): string {
+  return `<option value="">Use advisor choice — ${esc(entry.advisorChoice.model.name)}</option>${entry.choiceCandidates
+    .map(
+      (candidate) =>
+        `<option value="${esc(candidate.model.id)}" ${selectedOverride === candidate.model.id ? "selected" : ""}>#${candidate.rank} ${esc(candidate.model.name)} · ${candidate.score.toFixed(2)}</option>`,
+    )
+    .join("")}`;
+}
+
 function roleCard(
   context: DesignContext,
   entry: PlanEntry,
@@ -287,14 +297,7 @@ function roleCard(
   const selectedOverride = modelChoiceOverrides.get(choiceKey) ?? "";
   const choiceControl =
     entry.choiceCandidates.length > 1
-      ? `<label class="model-choice-control"><span>Choose among models within 3 raw-score points</span><select data-model-choice-role="${esc(entry.role.id)}"><option value="">Use advisor choice — ${esc(entry.advisorChoice.model.name)}</option>${entry.choiceCandidates
-          .map(
-            (candidate) =>
-              `<option value="${esc(candidate.model.id)}" ${selectedOverride === candidate.model.id ? "selected" : ""}>#${candidate.rank} ${esc(candidate.model.name)} · ${candidate.score.toFixed(2)}</option>`,
-          )
-          .join(
-            "",
-          )}</select><small>Choosing here records a user override. It does not change the raw score or prove that the model is better.</small></label>`
+      ? `<label class="model-choice-control"><span>Choose among models within 3 raw-score points</span><select data-model-choice-role="${esc(entry.role.id)}">${modelChoiceOptions(entry, selectedOverride)}</select><small>Choosing here records a user override. It does not change the raw score or prove that the model is better.</small></label>`
       : "";
 
   return `<article class="role-card ${entry.role.id === "primary" ? "primary-role" : ""}">
@@ -436,16 +439,28 @@ export function renderDesign(context: DesignContext): void {
           const summary = teamSummary(team.entries, brief.cases);
           const teamEvaluation = evaluateTeam(team.entries, brief);
           const trialState = outcomeSummary(context.brief, styleId, teamEvaluation.trials);
+          const closeChoiceCount = team.entries.filter((entry) => entry.choiceCandidates.length > 1).length;
           const roster = team.entries
-            .map((entry) => `<span><b>${esc(entry.role.label)}</b><em>${esc(entry.model.name)}</em></span>`)
+            .map((entry) => {
+              const selectedOverride =
+                modelChoiceOverrides.get(modelChoiceKey(context.brief, styleId, entry.role.id)) ?? "";
+              return entry.choiceCandidates.length > 1
+                ? `<label class="team-preview-choice"><b>${esc(entry.role.label)}</b><select data-team-model-choice-role="${esc(entry.role.id)}" data-team-style="${esc(styleId)}" aria-label="Choose the ${esc(entry.role.label)} model for the ${esc(option.name)} plan">${modelChoiceOptions(entry, selectedOverride)}</select></label>`
+                : `<span><b>${esc(entry.role.label)}</b><em>${esc(entry.model.name)}</em></span>`;
+            })
             .join("");
-          return `<button class="team-option ${brief.planStyle === styleId ? "active" : ""}" data-team-style="${esc(styleId)}">
-          <span>${esc(option.name)}</span>
-          <strong>${esc(primary.model.name)}</strong>
-          <small>Primary · ${summary.covered}/${summary.total} team coverage · ${summary.lowerCost}/${team.entries.length} lower-cost jobs · ${teamProviders.size} providers</small>
-          <small class="team-trial-state">${esc(trialState)}</small>
-          <div class="team-preview">${roster}</div>
-        </button>`;
+          return `<article class="team-option ${brief.planStyle === styleId ? "active" : ""}">
+          <button class="team-option-select" type="button" data-team-style="${esc(styleId)}" aria-pressed="${brief.planStyle === styleId}" aria-label="Show the ${esc(option.name)} team">
+            <span>${esc(option.name)}</span>
+            <strong>${esc(primary.model.name)}</strong>
+            <small>Primary · ${summary.covered}/${summary.total} team coverage · ${summary.lowerCost}/${team.entries.length} lower-cost jobs · ${teamProviders.size} providers</small>
+            <small class="team-trial-state">${esc(trialState)}</small>
+          </button>
+          <div class="team-preview">
+            ${closeChoiceCount ? `<small class="team-choice-summary">${closeChoiceCount} ${closeChoiceCount === 1 ? "job has" : "jobs have"} close alternatives. Choose any model less than 3 raw-score points from that job's leader.</small>` : ""}
+            ${roster}
+          </div>
+        </article>`;
         })
         .join(""),
   );

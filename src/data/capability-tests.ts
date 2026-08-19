@@ -205,7 +205,10 @@ export function resolveCapabilityTests(reports: readonly TestReport[] = parseTes
     for (const [capability, sources] of byCapability) {
       const ordered = [...sources].sort((a, b) => TIER_RANK[b.sourceTier] - TIER_RANK[a.sourceTier]);
       const mean = ordered.reduce((total, source) => total + source.normalised, 0) / ordered.length;
-      const latest = ordered.map((source) => source.asOf).sort().at(-1)!;
+      const latest = ordered
+        .map((source) => source.asOf)
+        .sort()
+        .at(-1)!;
       const saturated = ordered.every((source) => source.saturated);
       tests[capability] = {
         score: Math.round(mean * 100) / 100,

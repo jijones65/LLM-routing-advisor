@@ -10,6 +10,14 @@ import type { Model } from "../../shared/types.js";
  */
 const CHANGES: readonly { state: string; title: string; scope: string; date: string; detail: string }[] = [
   {
+    state: "Fixed",
+    title: "Close model choices are visible in the headline teams",
+    scope: "Recommendations · user choice",
+    date: "19 Aug 2026",
+    detail:
+      "Every job with two or more models less than three raw-score points from its leader now shows its dropdown directly in all six headline team cards as well as in the detailed job card. A headline choice opens that plan style, updates both views, preserves the advisor score and clears trials recorded against the previous roster.",
+  },
+  {
     state: "Added",
     title: "Measured performance now has data behind it",
     scope: "Data · measured performance",

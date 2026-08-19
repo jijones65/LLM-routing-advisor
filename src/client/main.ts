@@ -127,10 +127,25 @@ byId("primary-styles").addEventListener("click", (event) => {
 });
 
 byId("team-compare").addEventListener("click", (event) => {
-  const option = (event.target as HTMLElement).closest<HTMLElement>(".team-option");
+  const option = (event.target as HTMLElement).closest<HTMLElement>(".team-option-select");
   if (!option?.dataset.teamStyle) return;
   brief.planStyle = option.dataset.teamStyle;
   refresh();
+});
+
+byId("team-compare").addEventListener("change", (event) => {
+  const select = (event.target as HTMLElement).closest<HTMLSelectElement>("select[data-team-model-choice-role]");
+  const roleId = select?.dataset.teamModelChoiceRole;
+  const styleId = select?.dataset.teamStyle;
+  if (!select || !roleId || !styleId) return;
+  const key = modelChoiceKey(brief, styleId, roleId);
+  if (select.value) modelChoiceOverrides.set(key, select.value);
+  else modelChoiceOverrides.delete(key);
+  const trialPrefix = `${trialScopeKey(brief, styleId)}::`;
+  for (const trialKey of trialOutcomes.keys()) if (trialKey.startsWith(trialPrefix)) trialOutcomes.delete(trialKey);
+  brief.planStyle = styleId;
+  refresh();
+  toast("Model choice updated — record new trials for the changed team");
 });
 
 byId<HTMLSelectElement>("other-style").addEventListener("change", (event) => {

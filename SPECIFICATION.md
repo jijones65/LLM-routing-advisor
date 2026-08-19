@@ -1,7 +1,7 @@
 # LLM Application Routing Advisor — Product and Implementation Specification
 
-**Specification version:** 1.5
-**Current implementation baseline:** 18 August 2026 · catalogue `2026.08.18-2` · scoring `2026.08.18-4` · taxonomy `2026.08.18-2`
+**Specification version:** 1.6
+**Current implementation baseline:** 19 August 2026 · catalogue `2026.08.18-2` · scoring `2026.08.18-4` · taxonomy `2026.08.18-2`
 **Status:** Living specification for refinement, maintenance, and future rebuilds
 
 ## 1. Purpose
@@ -440,6 +440,13 @@ There is also a wider **user-choice band** for models less than three raw-score 
 
 The three-point band is a choice boundary, not another claim that all candidates are equal. The sub-one-point band remains the automatic close-call rule.
 
+Every eligible job dropdown must be visible in both places where a team is presented:
+
+- Inside each of the six headline plan cards, next to that job
+- Inside the selected plan's detailed job card
+
+Changing a dropdown in a headline card selects that plan style, immediately updates its headline roster and detailed job cards, and uses the same saved override and trial-clearing rules as the detailed dropdown. A user must not have to scroll past the headline comparison to discover that close alternatives can be chosen.
+
 The interface must:
 
 - Label a resolved result **Close-call tie-break applied** and an unresolved result **Too close to call**
@@ -820,7 +827,7 @@ The deployed source and the GitHub repository must be kept aligned after each pu
 
 ## 18. Open refinements
 
-1. Populate the capability-test schema with representative independent and application-owned evaluations.
+1. Expand capability-test coverage beyond the current published benchmark sample and add representative application-owned evaluations.
 2. Develop representative evaluation sets for each application type and job.
 3. Measure complete specialist teams against broad-model teams.
 4. Refine binary capability records into stated, reviewed, and tested evidence states.
