@@ -1,4 +1,4 @@
-import { completeBrief, DIVERSITY_FIT_THRESHOLD, planFor } from "../engine/planning.js";
+import { completeBrief, DIVERSITY_FIT_THRESHOLD, planFor, recommendedTools } from "../engine/planning.js";
 import { jobRequirements } from "../engine/scoring.js";
 import { withSignals } from "../engine/signals.js";
 import { evaluateTeam } from "../engine/team-evaluation.js";
@@ -218,7 +218,7 @@ for (const [elementId, key] of [
 // Explorer interactions
 // ---------------------------------------------------------------------------
 
-for (const id of ["model-search", "provider-filter", "case-filter", "deployment-filter"]) {
+for (const id of ["model-search", "provider-filter", "case-filter", "deployment-filter", "model-profile-filter"]) {
   byId(id).addEventListener(id === "model-search" ? "input" : "change", () => renderModels(boot, catalog));
 }
 
@@ -347,6 +347,7 @@ byId("save-blueprint").addEventListener("click", async () => {
             outcome: trialOutcomes.get(`${trialScope}::${trial.id}`) ?? "not-tested",
           })),
         },
+        tools: recommendedTools(complete),
         catalogVersion: boot.catalogVersion,
         scoringVersion: boot.scoringVersion,
         taxonomyVersion: boot.taxonomyVersion,

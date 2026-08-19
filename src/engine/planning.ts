@@ -411,9 +411,75 @@ export function planFor(
 export function recommendedTools(brief: Brief): ToolRecommendation[] {
   const items: ToolRecommendation[] = [];
   const has = (...needs: string[]): boolean => needs.some((need) => brief.needs.includes(need));
-  const add = (id: string, name: string, reason: string): void => {
-    if (!items.some((item) => item.id === id)) items.push({ id, name, reason });
+  const add = (
+    id: string,
+    name: string,
+    reason: string,
+    links?: readonly { readonly name: string; readonly url: string }[],
+  ): void => {
+    if (!items.some((item) => item.id === id)) items.push({ id, name, reason, ...(links ? { links } : {}) });
   };
+
+  if (has("sensor-streams", "physical-edge-systems", "field-mobile")) {
+    add(
+      "edge-runtime",
+      "Edge AI runtime and model delivery",
+      "Runs, updates and measures compact models on approved phones, gateways or edge computers; deployment must be tested on the exact hardware.",
+      [
+        { name: "Google AI Edge Gallery", url: "https://developers.google.com/edge/gallery" },
+        { name: "Qualcomm AI Hub", url: "https://aihub.qualcomm.com/models" },
+        {
+          name: "Qwen3-VL 4B on Qualcomm IoT",
+          url: "https://aihub.qualcomm.com/iot/models/qwen3_vl_4b_instruct",
+        },
+        { name: "NVIDIA Jetson", url: "https://developer.nvidia.com/embedded/develop/software" },
+        {
+          name: "Intel OpenVINO",
+          url: "https://docs.openvino.ai/2025/documentation/compatibility-and-support/supported-models.html",
+        },
+      ],
+    );
+  }
+  if (has("computer-vision") && has("sensor-streams", "physical-edge-systems", "monitor-events", "field-mobile")) {
+    add(
+      "edge-perception",
+      "Real-time perception and tracking",
+      "Detects, classifies or tracks objects and events before a vision-language model explains them. These specialist models are supporting tools, not language-model team members.",
+      [
+        { name: "NVIDIA Metropolis", url: "https://developer.nvidia.com/metropolis-microservices" },
+        { name: "Qualcomm AI Hub models", url: "https://aihub.qualcomm.com/models" },
+        {
+          name: "OpenVINO model support",
+          url: "https://docs.openvino.ai/2025/documentation/compatibility-and-support/supported-models.html",
+        },
+        { name: "Ultralytics tracking", url: "https://docs.ultralytics.com/modes/track/" },
+      ],
+    );
+  }
+  if (has("sensor-streams", "monitor-events")) {
+    add(
+      "iot-platform",
+      "IoT device, event and model-management platform",
+      "Collects device events, handles connectivity and deploys approved inference components without relying on a language model for transport or device control.",
+      [
+        {
+          name: "AWS IoT Greengrass ML",
+          url: "https://docs.aws.amazon.com/greengrass/v2/developerguide/machine-learning-components.html",
+        },
+        {
+          name: "Azure IoT Edge inference",
+          url: "https://learn.microsoft.com/en-us/azure/architecture/guide/iot/machine-learning-inference-iot-edge",
+        },
+      ],
+    );
+  }
+  if (has("sensor-streams") && has("geospatial", "monitor-events")) {
+    add(
+      "asset-identity",
+      "Asset identity and positioning",
+      "Uses authoritative RFID, BLE, UWB, GNSS or camera-derived identifiers and positions. A model can explain exceptions, but must not invent an asset's identity or location.",
+    );
+  }
 
   if (has("documents", "internal-knowledge", "memory-context")) {
     add(
@@ -494,5 +560,5 @@ export function recommendedTools(brief: Brief): ToolRecommendation[] {
       "Tests real examples and sends high-impact decisions to a responsible person.",
     );
   }
-  return items.slice(0, 7);
+  return items.slice(0, 10);
 }

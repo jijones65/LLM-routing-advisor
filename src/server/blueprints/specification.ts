@@ -62,6 +62,7 @@ export function generateBlueprintSpecification(payload: AnyRecord): string {
   const evaluation = record(payload.teamEvaluation);
   const trials = records(evaluation.trials);
   const checks = records(evaluation.checks);
+  const tools = records(payload.tools);
   const created = text(payload.savedAt, new Date().toISOString());
 
   const modelTable = routing.length
@@ -117,6 +118,17 @@ export function generateBlueprintSpecification(payload: AnyRecord): string {
         .map((check) => `- **${oneLine(check.label)} — ${oneLine(check.status)}.** ${oneLine(check.summary)}`)
         .join("\n")
     : "- [Fill in: structural team checks]";
+
+  const toolLines = tools.length
+    ? tools
+        .map((tool) => {
+          const links = records(tool.links)
+            .map((link) => `[${oneLine(link.name)}](${text(link.url)})`)
+            .join(" · ");
+          return `- **${oneLine(tool.name)}.** ${oneLine(tool.reason)}${links ? ` Sources: ${links}` : ""}`;
+        })
+        .join("\n")
+    : "- [Fill in: search, data, sensor, runtime, workflow, calculation and review components the application needs outside its language models]";
 
   const closeCalls = routing
     .map((entry) => ({ entry, decision: record(entry.decision) }))
@@ -214,6 +226,12 @@ ${operatingPolicies}
 > Each rationale traces a plain-language Skill to the capability building blocks stated for the model and any recorded capability-specific tests. A stated match is not measured proof for this application.
 
 ${skillFitRationales}
+
+### Required non-model components
+
+> A complete application may need sensor, positioning, perception, runtime, data, workflow and review components. They are recorded separately so a detector, tracker or device runtime is not misrepresented as a language-model team member.
+
+${toolLines}
 
 ### Close calls, tie-break choices and policy choices
 

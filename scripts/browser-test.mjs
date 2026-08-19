@@ -210,6 +210,10 @@ try {
   await page.waitForTimeout(250);
   expect("the deployment filter applies", (await page.locator(".model-row").count()) < allRows);
   await page.selectOption("#deployment-filter", "all");
+  await page.selectOption("#model-profile-filter", "edge-vision-language-model");
+  await page.waitForTimeout(250);
+  expect("the edge vision-language filter applies", (await page.locator(".model-row").count()) === 10);
+  await page.selectOption("#model-profile-filter", "all");
 
   // --- live registry -------------------------------------------------------
   await page.locator('[data-tab="registry"]').click();

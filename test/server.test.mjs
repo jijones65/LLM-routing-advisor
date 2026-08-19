@@ -54,9 +54,9 @@ test("the D1 catalogue projection is aligned with the bundled release", async ()
 
   await syncCatalog(db);
   const rows = await db.prepare("SELECT data_json FROM catalog_models ORDER BY id").all();
-  assert.equal(rows.results.length, 109);
+  assert.equal(rows.results.length, 112);
   assert.ok(
-    rows.results.every((row) => JSON.parse(row.data_json).catalogVersion === "2026.08.18-2"),
+    rows.results.every((row) => JSON.parse(row.data_json).catalogVersion === "2026.08.19-1"),
     "every stored catalogue row should use the current version",
   );
   db.close();
@@ -146,6 +146,11 @@ test("GET / renders a complete page", async () => {
     "provider-filter",
     "case-filter",
     "deployment-filter",
+    "model-profile-filter",
+    "small-model-count",
+    "edge-model-count",
+    "edge-vision-model-count",
+    "device-action-model-count",
     "endpoint-list",
     "registry-summary",
     "registry-queue",
@@ -187,7 +192,8 @@ test("the planning client renders accessible Skill help and model-fit rationales
 test("the Skills taxonomy is complete, explained and versioned", () => {
   assert.equal(NEED_GROUPS.length, 8);
   assert.equal(NEED_GROUPS.flatMap((group) => group.items).length, 37);
-  assert.equal(TAXONOMY_VERSION, "2026.08.19-2");
+  assert.equal(TAXONOMY_VERSION, "2026.08.19-3");
+  assert.equal(ARCHETYPES.length, 25);
 
   const ids = new Set();
   for (const group of NEED_GROUPS) {
@@ -357,6 +363,14 @@ test("saving a plan validates the payload", async () => {
         },
       ],
     },
+    tools: [
+      {
+        id: "edge-runtime",
+        name: "Edge AI runtime and model delivery",
+        reason: "Runs approved compact models on edge computers.",
+        links: [{ name: "Google AI Edge Gallery", url: "https://github.com/google-ai-edge/gallery" }],
+      },
+    ],
     catalogVersion: "catalog-test",
     scoringVersion: "scoring-test",
     taxonomyVersion: "taxonomy-test",
@@ -381,6 +395,8 @@ test("saving a plan validates the payload", async () => {
   assert.match(stored.specificationMarkdown, /Why these models fit the selected Skills/);
   assert.match(stored.specificationMarkdown, /Search current sources/);
   assert.match(stored.specificationMarkdown, /not measured proof for this application/);
+  assert.match(stored.specificationMarkdown, /Required non-model components/);
+  assert.match(stored.specificationMarkdown, /Google AI Edge Gallery/);
   assert.match(stored.specificationMarkdown, /\[Fill in:/);
 
   const detail = await (await worker.fetch(request(`/api/blueprints/${id}`), { DB: db })).json();
@@ -618,7 +634,7 @@ test("the evidence projection removes superseded source rows", async () => {
     .run();
 
   const audit = await getAudit(db);
-  assert.equal(audit.evidence.length, 27);
+  assert.equal(audit.evidence.length, 30);
   assert.ok(!audit.evidence.some((source) => source.id === "legacy-example"));
   db.close();
 });

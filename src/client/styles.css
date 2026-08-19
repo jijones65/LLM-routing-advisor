@@ -670,7 +670,7 @@ p {
 }
 .filters {
   display: grid;
-  grid-template-columns: 1.8fr repeat(3, 1fr);
+  grid-template-columns: 1.8fr repeat(4, 1fr);
   gap: 9px;
   margin-bottom: 16px;
 }
@@ -2795,9 +2795,85 @@ p {
   color: var(--muted);
   font-size: 8px;
 }
+.edge-coverage {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.85fr) minmax(260px, 1fr);
+  gap: 14px;
+  margin: 0 0 18px;
+  padding: 18px 20px;
+  border: 1px solid #bdd5d6;
+  border-radius: 14px;
+  background: #f3f9f8;
+}
+.edge-coverage h2 {
+  margin: 6px 0 5px;
+  color: var(--navy);
+  font-size: 19px;
+}
+.edge-coverage p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.55;
+}
+.edge-coverage-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+.edge-coverage-stats div {
+  display: grid;
+  align-content: center;
+  min-height: 62px;
+  padding: 9px 11px;
+  border-radius: 9px;
+  background: #fff;
+}
+.edge-coverage-stats strong {
+  color: var(--navy);
+  font-size: 22px;
+}
+.edge-coverage-stats span {
+  color: var(--muted);
+  font-size: 8px;
+}
+.edge-layer-table {
+  grid-column: 1/-1;
+  display: grid;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--line);
+}
+.edge-layer-table > div {
+  display: grid;
+  grid-template-columns: 0.8fr 1.5fr 1fr;
+  gap: 1px;
+}
+.edge-layer-table span,
+.edge-layer-table strong {
+  padding: 7px 9px;
+  background: #fff;
+  font-size: 8px;
+}
+.edge-layer-table strong {
+  color: var(--navy);
+  background: #e5efeb;
+}
+.profile-tags span {
+  background: #dceee9;
+  color: #285f60;
+}
 @media (max-width: 900px) {
   .term-grid {
     grid-template-columns: 1fr 1fr;
+  }
+  .edge-coverage {
+    grid-template-columns: 1fr;
+  }
+  .edge-layer-table {
+    grid-column: auto;
   }
 }
 @media (max-width: 760px) {
@@ -3715,6 +3791,17 @@ p {
 .tool-item small {
   color: var(--muted);
   font-size: 8px;
+}
+.tool-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.tool-links a {
+  color: #23656d;
+  font-size: 7px;
+  font-weight: 850;
 }
 .framework-panel {
   display: grid;

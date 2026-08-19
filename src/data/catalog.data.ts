@@ -51,6 +51,7 @@ gemma-4-26b-a4b|Gemma 4 26B-A4B|Google|Open / local|4|4|256000|local:1|k,c,g,v,p
 gemma-4-12b|Gemma 4 12B|Google|Open / local|3|4|256000|local:1|k,c,g,v,p,a|worker,private|w,p|t,i,a|c|Unified 12B Gemma 4 with text, image and audio input.
 gemma-4-e4b|Gemma 4 E4B|Google|Open / local|3|5|128000|local:1|k,g,v,p,a|worker,private|w,p,e|t,i,a|c|4.5B effective parameters for laptops and high-end phones.
 gemma-4-e2b|Gemma 4 E2B|Google|Open / local|2|5|128000|local:1|k,p,a|worker,private|w,e|t,i,a|c|2.3B effective parameters: the smallest Gemma 4 for on-device work.
+functiongemma-270m|FunctionGemma 270M|Google|Specialist|2|5|32000|local:1|a,p,t|worker,private|w,e|t|c|Tiny function-calling base for fine-tuned private device actions; it is not a general chat model.
 grok-4-6|Grok 4.6|xAI|Frontier|5|4|500000|2/6|r,k,c,g,s,a,m,t|planner,primary,coder,worker|h|t|c|xAI's flagship: agentic tool calling with configurable reasoning depth.
 deepseek-v4-pro|DeepSeek V4 Pro|DeepSeek|Frontier|5|3|1000000|1.32/3.96|r,k,c,g,s,m,t|planner,primary,coder,validator|h|t|c|Frontier-class reasoning at a fraction of Western frontier pricing.
 deepseek-v4-flash|DeepSeek V4 Flash|DeepSeek|Efficient|4|5|1000000|0.44/1.32|k,c,g,a,m,t|worker,primary,coder|h|t|c|The most heavily routed model on OpenRouter: cheap, fast, capable.
@@ -81,6 +82,8 @@ qwen-3-7-plus|Qwen 3.7 Plus|Alibaba|Balanced|4|4|256000|~2|r,k,c,g,v,a,m,t|prima
 qwen-3-6-flash|Qwen 3.6 Flash|Alibaba|Efficient|4|5|128000|~1|k,c,g,a,m|worker|h,p|t,i|u|Cheapest hosted Qwen tier for high-volume tasks.
 qwen-3-5-397b-a17b|Qwen 3.5 397B-A17B|Alibaba|Open / local|4|3|128000|local:3|r,k,c,g,p,m,t|planner,primary,private|w,p|t|u|Large open mixture-of-experts Qwen with 17B active parameters.
 qwen-3-5-9b|Qwen 3.5 9B|Alibaba|Open / local|3|5|128000|local:1|k,c,g,p,m,a|worker,private|w,p,e|t|u|Small open Qwen for local multilingual work.
+qwen3-vl-2b|Qwen3-VL 2B Instruct|Alibaba|Open / local|2|5|256000|local:1|k,v,p,a,t|vision,worker,private|w,p,e|t,i,v|c|Compact open vision-language model for private image, video and text work from edge to cloud.
+qwen3-vl-4b|Qwen3-VL 4B Instruct|Alibaba|Open / local|3|5|256000|local:1|r,k,v,p,a,t|vision,worker,private|w,p,e|t,i,v|c|Compact open vision-language model for spatial, visual and video tasks from edge to cloud.
 mimo-v2-5|MiMo-V2.5|Xiaomi|Balanced|4|5|256000|~1|r,k,c,g,a,m,t|primary,worker,coder|h,w,p|t,i|c|Xiaomi's open model, fourth by routed tokens on OpenRouter despite low profile.
 seed-2|Seed 2.0|ByteDance|Frontier|5|3|256000|~3|r,k,c,g,v,m,t|planner,primary,coder|h,p|t,i|u|ByteDance's frontier Seed tier for reasoning and multimodal work.
 seed-1-8|Seed 1.8|ByteDance|Balanced|4|4|256000|~2|k,c,g,v,a,m,t|primary,worker|h,p|t,i|u|Balanced Seed tier for production applications.

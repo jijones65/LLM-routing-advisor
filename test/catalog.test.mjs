@@ -24,6 +24,28 @@ test("model ids are unique", () => {
   assert.equal(new Set(ids).size, ids.length);
 });
 
+test("compact and edge profiles are explicit and first-party sourced", () => {
+  assert.equal(CATALOG.length, 112);
+  assert.equal(CATALOG.filter((model) => model.profiles.includes("small-language-model")).length, 26);
+  assert.equal(CATALOG.filter((model) => model.profiles.includes("edge-language-model")).length, 26);
+  assert.equal(CATALOG.filter((model) => model.profiles.includes("edge-vision-language-model")).length, 10);
+
+  const functionGemma = CATALOG.find((model) => model.id === "functiongemma-270m");
+  assert.ok(functionGemma);
+  assert.ok(functionGemma.profiles.includes("device-action-model"));
+  assert.ok(functionGemma.deployments.includes("edge"));
+  assert.match(functionGemma.sourceUrl, /ai\.google\.dev\/gemma\/docs\/functiongemma\/model_card/);
+  assert.match(functionGemma.summary, /not a general chat model/i);
+
+  for (const id of ["qwen3-vl-2b", "qwen3-vl-4b"]) {
+    const model = CATALOG.find((entry) => entry.id === id);
+    assert.ok(model, `${id} is missing`);
+    assert.ok(model.profiles.includes("edge-vision-language-model"));
+    assert.ok(model.modalities.includes("video"));
+    assert.match(model.sourceUrl, /huggingface\.co\/Qwen\/Qwen3-VL/);
+  }
+});
+
 test("a drifted entry must explain the drift", () => {
   for (const model of CATALOG) {
     if (model.verification === "drifted") assert.ok(model.driftNote, `${model.id} is drifted with no note`);

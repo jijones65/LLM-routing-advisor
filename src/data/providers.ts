@@ -5,10 +5,10 @@
  */
 
 /** The date the catalogue was last reviewed against official provider pages. */
-export const VERIFIED_AT = "2026-08-18";
+export const VERIFIED_AT = "2026-08-19";
 
 /** Bumped whenever catalogue facts or scoring behaviour change. */
-export const CATALOG_VERSION = "2026.08.18-2";
+export const CATALOG_VERSION = "2026.08.19-1";
 
 /**
  * Official documentation page per provider. These are the pages the evidence
@@ -42,6 +42,13 @@ export const PROVIDER_SOURCES: Readonly<Record<string, string>> = {
   "LG AI": "https://huggingface.co/LGAI-EXAONE",
   NAVER: "https://huggingface.co/naver-hyperclovax",
   TII: "https://huggingface.co/tiiuae",
+};
+
+/** Official model-specific pages where the provider's general list is too broad. */
+export const MODEL_SOURCE_OVERRIDES: Readonly<Record<string, string>> = {
+  "functiongemma-270m": "https://ai.google.dev/gemma/docs/functiongemma/model_card",
+  "qwen3-vl-2b": "https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct",
+  "qwen3-vl-4b": "https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct",
 };
 
 /**

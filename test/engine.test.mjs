@@ -631,7 +631,27 @@ test("tools outside the model team are recommended from the brief", () => {
   assert.ok(ids.includes("gis"));
   assert.ok(ids.includes("search"));
   assert.ok(ids.includes("privacy"));
-  assert.ok(tools.length <= 7);
+  assert.ok(tools.length <= 10);
+});
+
+test("edge and IoT applications recommend the non-model layers they need", () => {
+  const application = brief({
+    archetype: "real-time-asset-tracking",
+    needs: ["sensor-streams", "geospatial", "computer-vision", "monitor-events", "field-mobile", "validate"],
+  });
+  const plan = planFor(catalog, application, "balanced");
+  assert.ok(plan.entries.length >= 2);
+
+  const tools = recommendedTools(application);
+  for (const id of ["edge-runtime", "edge-perception", "iot-platform", "asset-identity"]) {
+    assert.ok(
+      tools.some((tool) => tool.id === id),
+      `${id} is missing`,
+    );
+  }
+  assert.ok(tools.find((tool) => tool.id === "edge-runtime").links.some((link) => /AI Edge Gallery/.test(link.name)));
+  assert.ok(tools.find((tool) => tool.id === "edge-runtime").links.some((link) => /Qualcomm IoT/.test(link.name)));
+  assert.ok(tools.find((tool) => tool.id === "edge-perception").reason.includes("not language-model team members"));
 });
 
 test("capability range is bounded", () => {

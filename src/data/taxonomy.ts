@@ -1,7 +1,7 @@
 import type { Capability } from "../shared/types.js";
 
 /** Bumped when application types, needs or context categories change. */
-export const TAXONOMY_VERSION = "2026.08.19-2";
+export const TAXONOMY_VERSION = "2026.08.19-3";
 
 /** One thing the application must be able to do, and what it implies. */
 export interface Need {
@@ -597,6 +597,51 @@ export const ARCHETYPES: readonly Archetype[] = [
     name: "Geospatial planning assistant",
     description: "Combines maps, location data, field information and operational decisions.",
     needs: ["geospatial", "field-mobile", "sensor-streams", "optimise-resources", "forecast-scenarios", "validate"],
+  },
+  {
+    id: "real-time-asset-tracking",
+    name: "Real-time asset tracking",
+    description:
+      "Combines device identities, location events and camera or sensor evidence to track assets and explain exceptions.",
+    needs: [
+      "sensor-streams",
+      "geospatial",
+      "computer-vision",
+      "monitor-events",
+      "detect-anomalies",
+      "field-mobile",
+      "validate",
+    ],
+  },
+  {
+    id: "predictive-maintenance",
+    name: "Predictive maintenance and condition monitoring",
+    description:
+      "Monitors equipment data, finds unusual patterns and helps people plan maintenance before failures occur.",
+    needs: [
+      "sensor-streams",
+      "monitor-events",
+      "detect-anomalies",
+      "forecast-scenarios",
+      "optimise-resources",
+      "field-mobile",
+      "validate",
+    ],
+  },
+  {
+    id: "edge-vision-safety",
+    name: "Edge vision and safety monitoring",
+    description:
+      "Uses cameras and local processing to detect events quickly, while language models explain and route reviewed alerts.",
+    needs: [
+      "computer-vision",
+      "physical-edge-systems",
+      "monitor-events",
+      "detect-anomalies",
+      "field-mobile",
+      "human-review",
+      "validate",
+    ],
   },
 ];
 

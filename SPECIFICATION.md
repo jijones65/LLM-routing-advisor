@@ -1,7 +1,7 @@
 # LLM Application Routing Advisor — Product and Implementation Specification
 
-**Specification version:** 1.8
-**Current implementation baseline:** 19 August 2026 · catalogue `2026.08.18-2` · scoring `2026.08.19-1` · taxonomy `2026.08.19-2`
+**Specification version:** 1.9
+**Current implementation baseline:** 19 August 2026 · catalogue `2026.08.19-1` · scoring `2026.08.19-1` · taxonomy `2026.08.19-3`
 **Status:** Living specification for refinement, maintenance, and future rebuilds
 
 ## 1. Purpose
@@ -37,6 +37,9 @@ Preferred terminology:
 - **Provider product:** a user-facing product, such as ChatGPT, that may offer several model variants.
 - **Official provider documentation:** a first-party page that supports the model's name, status, and stated capabilities.
 - **Rule-based shortlist:** a ranked comparison produced by documented rules, not proof of real-world superiority.
+- **Small language model (SLM):** an officially described compact language model or a reviewed variant with roughly ten billion parameters or fewer. “Small” describes footprint, not proven quality.
+- **Edge language model:** a language model whose official material supports local use on a phone, gateway, industrial computer or other edge computer. It does not imply that the model fits on a tiny sensor.
+- **Edge vision-language model:** an edge-capable language model that can interpret images or video as well as text. It is not automatically a real-time detector or tracker.
 
 ## 3. Product principles
 
@@ -52,6 +55,7 @@ Preferred terminology:
 10. **Complete teams must be tested.** Specialist scores do not simply add together; routing and coordination can introduce cost, latency, and failure.
 11. **High-quality output and cost optimisation belong together.** Every job has a soft output-quality target. Cost is reduced through job-specific routing and escalation, not by giving every task to the cheapest model.
 12. **Throughput means useful completed work.** Measure successful tasks meeting the output rubric per total cost and elapsed time, including tools, retries, fallbacks and human correction. Token volume alone is not quality or productivity.
+13. **An edge application has several layers.** Sensors and identity, device runtimes, perception models, language or vision-language models, workflows and people remain separate so each part is chosen for its real job.
 
 ## 4. Main product areas
 
@@ -93,7 +97,7 @@ Required features:
 
 - Clear total count
 - Search by model, provider, family, summary, and capability
-- Filters for provider, capability, and deployment method
+- Filters for provider, capability, deployment method, SLMs, edge language models, edge vision-language models and device-action models
 - Provider website link for every model
 - Ollama link when the model is available on Ollama
 - Status, context, modalities, deployment methods, stated capabilities, and usual jobs
@@ -185,6 +189,9 @@ The baseline application types include:
 - Scientific research assistant
 - Art and design studio assistant
 - Geospatial planning assistant
+- Real-time asset tracking
+- Predictive maintenance and condition monitoring
+- Edge vision and safety monitoring
 
 The taxonomy is extensible. Each application type provides a starting set of requirements that the user can modify.
 
@@ -649,7 +656,7 @@ These sources support testing routing and cascades. Their gateway shares, qualit
 
 ## 11. Catalogue contract
 
-The current baseline contains 109 distinct model variants across 27 providers. The count is a release fact, not a permanent product limit.
+The current baseline contains 112 distinct model variants across 27 providers. The count is a release fact, not a permanent product limit.
 
 Each catalogue record requires:
 
@@ -665,6 +672,7 @@ stated capabilities[]
 usual jobs[]
 deployment methods[]
 modalities[]
+profiles[]
 quality estimate
 speed estimate
 cost estimate
@@ -682,6 +690,20 @@ Admission rules:
 - A useful language-model role in an application
 - One main record for each distinct model variant
 - Dated releases and gateway aliases grouped when they do not represent a materially different choice
+
+### 11.1 Compact, edge and IoT boundary
+
+The catalogue includes 26 reviewed SLMs, 26 edge-capable language models and 10 edge vision-language models. These groups overlap; they are discovery labels, not performance scores. A model belongs only when an official source supports the distinct variant and its language-model role.
+
+An edge application must be planned as connected layers:
+
+1. sensors, authoritative device identity and positioning;
+2. device runtime and model delivery;
+3. specialist perception, detection, classification or tracking;
+4. language or vision-language interpretation and approved action selection;
+5. workflow controls, audit, fallback and human responsibility.
+
+Image-only, video-only, sensor-only, detection and tracking models remain outside the language-model count. Where the selected Skills need them, the advisor must recommend first-party runtimes or specialist tools and save those non-model components in the draft specification. Hardware compatibility must be checked on the exact target chipset, memory, power budget and runtime; an “edge” label alone is insufficient.
 
 Current exclusion categories:
 
@@ -836,7 +858,10 @@ Interface requirements:
 
 ### Catalogue
 
-- The published baseline contains exactly 109 distinct model variants across 27 providers.
+- The published baseline contains exactly 112 distinct model variants across 27 providers.
+- The explorer reports 26 SLMs, 26 edge language models, 10 edge vision-language models and one on-device action specialist.
+- FunctionGemma and Qwen3-VL compact variants link to model-specific first-party pages.
+- Perception models, trackers, runtimes and IoT platforms are recommended separately from language-model team members.
 - Every model has an official provider link.
 - Ollama links appear only where available.
 - Unsupported or stale model names are removed through a migration without leaving duplicate records.
@@ -890,6 +915,7 @@ Interface requirements:
 - Saving returns a direct Markdown download link.
 - The generated Markdown contains the application type, every selected model and all required specification sections.
 - The generated Markdown explains why each model is a candidate for its assigned Skills and preserves partial gaps and evidence limitations.
+- The generated Markdown preserves required non-model components and their official source links.
 - Unknown application decisions remain explicit fill-in fields rather than generated claims.
 - Reopening restores the saved brief and recorded trial outcomes to Application design.
 - Two or three plans can be compared side by side.
@@ -913,7 +939,7 @@ This is a regression test for scoring behaviour, not a permanent claim that Clau
 
 ### Persistent projections
 
-- The D1 catalogue projection contains exactly the same 109 variants and catalogue version as the bundled release.
+- The D1 catalogue projection contains exactly the same 112 variants and catalogue version as the bundled release.
 - The official-source projection contains one current row per evidence source and no rows from superseded scope versions.
 - Catalogue and evidence alignment preserves saved application plans and the six discovery-source snapshots.
 

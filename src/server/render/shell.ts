@@ -309,6 +309,26 @@ export const BODY_MARKUP = `<header class="topbar">
 </div>
 </div>
 </section>
+<section class="edge-coverage" aria-labelledby="edge-coverage-title">
+<div class="edge-coverage-copy">
+<div class="eyebrow">Compact and edge coverage</div>
+<h2 id="edge-coverage-title">Language models are one layer of an edge system.</h2>
+<p>These labels help find models that can run near the data. “Edge” can mean a phone, gateway, industrial computer or accelerator—not necessarily a tiny sensor. A detector or tracker may find an object; a vision-language model can describe the scene; device software must still provide identity, position, timing and control.</p>
+</div>
+<div class="edge-coverage-stats">
+<div><strong id="small-model-count">—</strong><span>small language models</span></div>
+<div><strong id="edge-model-count">—</strong><span>edge language models</span></div>
+<div><strong id="edge-vision-model-count">—</strong><span>edge vision-language models</span></div>
+<div><strong id="device-action-model-count">—</strong><span>device-action specialists</span></div>
+</div>
+<div class="edge-layer-table" role="table" aria-label="Layers of an edge AI application">
+<div role="row"><strong role="columnheader">Layer</strong><strong role="columnheader">What it does</strong><strong role="columnheader">Examples</strong></div>
+<div role="row"><span role="cell">Sensors and identity</span><span role="cell">Produces authoritative events, positions and identifiers</span><span role="cell">RFID, BLE, UWB, GNSS, cameras</span></div>
+<div role="row"><span role="cell">Runtime and perception</span><span role="cell">Runs models; detects, classifies and tracks</span><span role="cell">LiteRT, OpenVINO, Jetson, YOLO</span></div>
+<div role="row"><span role="cell">Language or vision-language model</span><span role="cell">Explains, reasons, calls approved actions or coordinates work</span><span role="cell">Gemma, Qwen3-VL, Phi, compact GPT</span></div>
+<div role="row"><span role="cell">Workflow and people</span><span role="cell">Applies rules, approvals, fallbacks and human review</span><span role="cell">IoT platform, alerting, audit and operators</span></div>
+</div>
+</section>
 <div class="filters">
 <input class="search" id="model-search" placeholder="Search model, provider, family or capability" aria-label="Search models">
 <select class="select" id="provider-filter">
@@ -321,6 +341,13 @@ export const BODY_MARKUP = `<header class="topbar">
 <option value="open-weight">Downloadable (open-weight)</option>
 <option value="private cloud">Private cloud</option>
 <option value="edge">On-device / edge</option>
+</select>
+<select class="select" id="model-profile-filter">
+<option value="all">All compact and edge profiles</option>
+<option value="small-language-model">Small language models (SLMs)</option>
+<option value="edge-language-model">Language models for edge devices</option>
+<option value="edge-vision-language-model">Vision-language models for edge devices</option>
+<option value="device-action-model">On-device action models</option>
 </select>
 </div>
 <div class="model-list" id="model-list">

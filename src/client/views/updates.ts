@@ -10,6 +10,14 @@ import type { Model } from "../../shared/types.js";
  */
 const CHANGES: readonly { state: string; title: string; scope: string; date: string; detail: string }[] = [
   {
+    state: "Added",
+    title: "Compact, edge and IoT choices now have a clear place",
+    scope: "Catalogue · applications · architecture",
+    date: "19 Aug 2026",
+    detail:
+      "FunctionGemma 270M and the Qwen3-VL 2B and 4B variants bring the catalogue to 112 models. The explorer now distinguishes small language models, edge language models, edge vision-language models and on-device action specialists. Real-time asset tracking, predictive maintenance and edge vision safety are new starting application types. Device runtimes, perception models, trackers, positioning and IoT platforms are shown separately as required non-model components rather than being mislabelled as language models.",
+  },
+  {
     state: "Refined",
     title: "Skills now explain their meaning and each model's fit",
     scope: "Application design · recommendations · evidence",

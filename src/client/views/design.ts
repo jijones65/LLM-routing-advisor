@@ -577,7 +577,14 @@ export function renderDesign(context: DesignContext): void {
     "tool-list",
     recommendedTools(brief)
       .map(
-        (tool) => `<div class="tool-item"><strong>${esc(tool.name)}</strong><small>${esc(tool.reason)}</small></div>`,
+        (tool) =>
+          `<div class="tool-item"><strong>${esc(tool.name)}</strong><small>${esc(tool.reason)}</small>` +
+          (tool.links?.length
+            ? `<span class="tool-links">${tool.links
+                .map((link) => `<a href="${esc(link.url)}" target="_blank" rel="noopener">${esc(link.name)}</a>`)
+                .join("")}</span>`
+            : "") +
+          `</div>`,
       )
       .join(""),
   );

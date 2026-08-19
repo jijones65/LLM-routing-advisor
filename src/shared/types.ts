@@ -26,6 +26,10 @@ export type Deployment = "hosted" | "open-weight" | "private cloud" | "edge";
 /** What the model can read and write. */
 export type Modality = "text" | "image" | "audio" | "video";
 
+/** A plain-language deployment profile used to find compact and edge models. */
+export type ModelProfile =
+  "small-language-model" | "edge-language-model" | "edge-vision-language-model" | "device-action-model";
+
 /** The job a model is being considered for inside a plan. */
 export type RoleId =
   "primary" | "planner" | "worker" | "validator" | "researcher" | "coder" | "vision" | "voice" | "private";
@@ -157,6 +161,8 @@ export interface Model {
   readonly roles: readonly RoleId[];
   readonly deployments: readonly Deployment[];
   readonly modalities: readonly Modality[];
+  /** Audited discovery labels; these do not replace capability or performance evidence. */
+  readonly profiles?: readonly ModelProfile[];
   readonly summary: string;
   readonly sourceUrl: string;
   readonly ollamaUrl: string | null;
@@ -346,4 +352,5 @@ export interface ToolRecommendation {
   readonly id: string;
   readonly name: string;
   readonly reason: string;
+  readonly links?: readonly { readonly name: string; readonly url: string }[];
 }
