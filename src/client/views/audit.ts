@@ -21,6 +21,36 @@ export interface AuditResponse {
   exclusions: { name: string; reason: string }[];
   evidence: EvidenceView[];
   verification: { confirmed: number; unconfirmed: number; drifted: number; total: number };
+  capabilityEvidence: {
+    models: number;
+    capabilities: number;
+    protocols: number;
+    reports: number;
+    contestedCount: number;
+    saturatedOnly: number;
+    catalogueSize: number;
+    coveredShare: number;
+    biasNote: string;
+    protocolList: {
+      id: string;
+      benchmark: string;
+      datasetVersion: string;
+      capability: string;
+      conditions: string;
+      saturated: boolean;
+      url: string;
+      caveat: string;
+    }[];
+    contested: {
+      modelId: string;
+      modelName: string;
+      capability: string;
+      benchmark: string;
+      spread: number;
+      tolerance: number;
+      reports: { rawScore: number; sourceName: string; sourceUrl: string; sourceTier: string }[];
+    }[];
+  };
   checkResult: { sourceId: string; status: string } | null;
   registry: {
     sources: { id: string; name: string; endpointCount: number; evidenceClass: string; status: string }[];
@@ -82,9 +112,13 @@ export function renderAudit(boot: Bootstrap, data: AuditResponse, catalogSize: n
         ["Model variants in total", verification.total],
       ] as [string, number][]
     )
-      .map(([label, value]) => `<div><strong>${num(value)}</strong><span>${esc(label)}</span></div>`)
+      .map(
+        ([label, value]) => `<div class="coverage-stat"><strong>${num(value)}</strong><span>${esc(label)}</span></div>`,
+      )
       .join(""),
   );
+
+  renderCapabilityEvidence(data);
 
   const statuses = data.evidence.map((source) => effectiveStatus(source));
   const checkedCount = data.evidence.filter((source) => source.lastCheckedAt).length;
@@ -104,7 +138,9 @@ export function renderAudit(boot: Bootstrap, data: AuditResponse, catalogSize: n
         ["Unreachable", statuses.filter((status) => status === "error").length],
       ] as [string, number][]
     )
-      .map(([label, value]) => `<div><strong>${num(value)}</strong><span>${esc(label)}</span></div>`)
+      .map(
+        ([label, value]) => `<div class="coverage-stat"><strong>${num(value)}</strong><span>${esc(label)}</span></div>`,
+      )
       .join(""),
   );
 
@@ -166,7 +202,7 @@ function renderRegistryPanel(data: AuditResponse, catalogSize: number): void {
       "Possible catalogue match",
       "Needs review",
     ]
-      .map((label) => `<div><strong>—</strong><span>${esc(label)}</span></div>`)
+      .map((label) => `<div class="coverage-stat"><strong>—</strong><span>${esc(label)}</span></div>`)
       .join("");
     queue.innerHTML = "";
     status.textContent = "No saved source listings are available yet. Refresh the sources to build the comparison.";
@@ -184,7 +220,9 @@ function renderRegistryPanel(data: AuditResponse, catalogSize: number): void {
       ["Needs review", summary.unresolvedCandidateCount],
     ] as [string, unknown][]
   )
-    .map(([label, value]) => `<div><strong>${num(value)}</strong><span>${esc(label)}</span></div>`)
+    .map(
+      ([label, value]) => `<div class="coverage-stat"><strong>${num(value)}</strong><span>${esc(label)}</span></div>`,
+    )
     .join("");
 
   const sourceTags = data.registry.sources.map(
@@ -212,4 +250,71 @@ function renderRegistryPanel(data: AuditResponse, catalogSize: number): void {
     `${num(summary.crossReferencedIdentityCount)} model names (${Number(summary.overlapRate ?? 0)}%) appear in at least two sources. ` +
     `Agreement between lists is not the same as confirmation on an official provider page — ` +
     `${num(summary.possibleCatalogMatches)} of them line up with the ${num(catalogSize)} catalogue variants.`;
+}
+
+/**
+ * Render the measured-performance coverage block.
+ *
+ * Leads with how little of the catalogue is covered, because the natural reading
+ * of "measured performance" is that the tool has tested these models, and it has
+ * not — it has collected what other people published about a fraction of them.
+ */
+function renderCapabilityEvidence(data: AuditResponse): void {
+  const evidence = data.capabilityEvidence;
+  if (!evidence) return;
+
+  setHtml(
+    "evidence-summary",
+    (
+      [
+        ["Models with any published result", `${evidence.models} of ${evidence.catalogueSize}`],
+        ["Share of the catalogue", `${evidence.coveredShare}%`],
+        ["Capability results in use", evidence.capabilities],
+        ["Published figures collected", evidence.reports],
+        ["Benchmarks accepted", evidence.protocols],
+        ["Excluded as contested", evidence.contested.length],
+        ["Confirming but not ranking", evidence.saturatedOnly],
+      ] as [string, string | number][]
+    )
+      .map(
+        ([label, value]) => `<div class="coverage-stat"><strong>${esc(value)}</strong><span>${esc(label)}</span></div>`,
+      )
+      .join(""),
+  );
+
+  setHtml(
+    "evidence-bias-note",
+    `<div class="unfilled"><strong>What this coverage does and does not mean</strong><small>${esc(evidence.biasNote)}</small></div>`,
+  );
+
+  setHtml(
+    "protocol-list",
+    evidence.protocolList
+      .map(
+        (protocol) => `<article class="team-check">
+      <span>${esc(protocol.capability)}${protocol.saturated ? " · saturated" : ""}</span>
+      <strong>${esc(protocol.benchmark)}</strong>
+      <p><b>Version:</b> ${esc(protocol.datasetVersion)}<br><b>Conditions:</b> ${esc(protocol.conditions)}</p>
+      <p>${esc(protocol.caveat)}</p>
+      <a href="${esc(protocol.url)}" target="_blank" rel="noreferrer">Open benchmark ↗</a>
+    </article>`,
+      )
+      .join(""),
+  );
+
+  setHtml(
+    "contested-list",
+    evidence.contested.length === 0
+      ? '<div class="empty">No published figures currently disagree beyond their benchmark\'s tolerance.</div>'
+      : evidence.contested
+          .map(
+            (entry) => `<div class="retired-item">
+        <div><strong>${esc(entry.modelName)}</strong><small>${esc(entry.benchmark)} · ${esc(entry.capability)}</small></div>
+        <small>Reported figures differ by ${entry.spread} points, beyond the ${entry.tolerance}-point tolerance for this benchmark, so no measured result is recorded. ${entry.reports
+          .map((report) => `${report.rawScore} (${esc(report.sourceName)}, ${esc(report.sourceTier)})`)
+          .join(" versus ")}.</small>
+      </div>`,
+          )
+          .join(""),
+  );
 }

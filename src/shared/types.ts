@@ -57,7 +57,35 @@ export interface Pricing {
   readonly note?: string;
 }
 
-/** A capability-specific evaluation that can replace the general quality estimate for one job. */
+/** One published figure behind a capability test, with where it came from. */
+export interface CapabilityTestSource {
+  readonly protocolId: string;
+  readonly benchmark: string;
+  /** The figure as published, in the protocol's own units. */
+  readonly rawScore: number;
+  /** That figure mapped onto the catalogue's 1-5 scale by the protocol's bands. */
+  readonly normalised: number;
+  readonly sourceTier: "benchmark" | "independent" | "provider" | "aggregator";
+  readonly sourceName: string;
+  readonly sourceUrl: string;
+  readonly harness: string;
+  readonly asOf: string;
+  /** True when this protocol cannot separate current frontier models. */
+  readonly saturated: boolean;
+  /** Other reported figures for the same model and protocol that disagreed. */
+  readonly disagreements?: readonly { rawScore: number; sourceName: string; sourceUrl: string }[];
+}
+
+/**
+ * A capability-specific evaluation that can replace the general quality estimate
+ * for one job.
+ *
+ * Only present when at least one published figure survived conflict resolution.
+ * A capability whose reported figures disagree beyond the protocol's tolerance
+ * gets no test at all — it stays an estimate, and `contested` records why, because
+ * "two reputable sources disagree by sixteen points" is information a reader needs
+ * rather than an average to be split.
+ */
 export interface CapabilityTest {
   /** Normalised 1-5 result so it can use the existing strategy weights. */
   readonly score: number;
@@ -67,6 +95,21 @@ export interface CapabilityTest {
   readonly sampleSize?: number;
   readonly evaluator?: string;
   readonly notes?: string;
+  /** Every figure that contributed, so the claim can be checked. */
+  readonly sources?: readonly CapabilityTestSource[];
+  /** True when every contributing protocol is saturated at the top. */
+  readonly saturated?: boolean;
+}
+
+/** A model and capability whose published figures disagree too much to use. */
+export interface ContestedResult {
+  readonly modelId: string;
+  readonly capability: Capability;
+  readonly protocolId: string;
+  readonly benchmark: string;
+  readonly spread: number;
+  readonly tolerance: number;
+  readonly reports: readonly { rawScore: number; sourceName: string; sourceUrl: string; sourceTier: string }[];
 }
 
 /** Adoption and ecosystem signals attached to a model at request time. */

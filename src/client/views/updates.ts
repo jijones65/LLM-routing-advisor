@@ -11,6 +11,46 @@ import type { Model } from "../../shared/types.js";
 const CHANGES: readonly { state: string; title: string; scope: string; date: string; detail: string }[] = [
   {
     state: "Added",
+    title: "Measured performance now has data behind it",
+    scope: "Data · measured performance",
+    date: "19 Aug 2026",
+    detail:
+      "Published benchmark results were collected for 19 of the 109 catalogue models across seven benchmarks, so the measured-performance reading and the evidence tie-break are live rather than inert. Coverage, and the fact that it reflects which vendors publish evaluations rather than which models are better, is reported in the coverage check.",
+  },
+  {
+    state: "Added",
+    title: "Benchmarks are recorded as protocols, not just names",
+    scope: "Data · methodology",
+    date: "19 Aug 2026",
+    detail:
+      "Each accepted benchmark pins its version and run conditions. Humanity's Last Exam with tools enabled and without are separate protocols because the same models score 10 to 14 points apart, and Terminal-Bench was excluded entirely because its results move 15 to 20 points with the agent scaffold rather than the model.",
+  },
+  {
+    state: "Added",
+    title: "Disagreeing sources produce no result rather than an average",
+    scope: "Data · measured performance",
+    date: "19 Aug 2026",
+    detail:
+      "Vals AI and BenchLM report DeepSeek V4 Pro at 96.4% and 80.6% on the same SWE-bench snapshot. Rather than splitting the difference, no coding result is recorded and the disagreement is shown. Where several sources agree and one is far out, the majority is used and the outlier stays on the record.",
+  },
+  {
+    state: "Added",
+    title: "Saturated benchmarks confirm a capability without ranking it",
+    scope: "Recommendations",
+    date: "19 Aug 2026",
+    detail:
+      "Frontier models sit between 88% and 95% on GPQA Diamond, a spread narrower than the benchmark's own variance. Results are mapped through coarse bands so every saturated model lands level and the tie-break sequence moves on, instead of an order being invented from the last decimal place.",
+  },
+  {
+    state: "Fixed",
+    title: "Summary tiles lost their layout",
+    scope: "Interface",
+    date: "19 Aug 2026",
+    detail:
+      "The coverage, sourcing and registry summary rows render tiles through a class the stylesheet expected but the views were not applying, so values and labels ran together. The grid also now fits whatever number of tiles a row carries.",
+  },
+  {
+    state: "Added",
     title: "Users can choose another model inside a three-point band",
     scope: "Recommendations · user choice",
     date: "18 Aug 2026",

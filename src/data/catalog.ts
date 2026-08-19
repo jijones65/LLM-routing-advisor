@@ -9,6 +9,7 @@ import type {
   Tier,
   VerificationState,
 } from "../shared/types.js";
+import { CAPABILITY_TESTS } from "./capability-tests.js";
 import { CATALOG_TABLE, RETIRED_TABLE } from "./catalog.data.js";
 import { CATALOG_VERSION, OLLAMA_LIBRARY, PROVIDER_SOURCES, VERIFIED_AT } from "./providers.js";
 
@@ -258,6 +259,10 @@ export function parseCatalog(table: string = CATALOG_TABLE): Model[] {
       contextTokens,
       contextLabel,
       cases: decode(row, "capability", CASE_CODES, cases),
+      // Published benchmark results, where any survived conflict resolution.
+      // Attached here rather than stored in the catalogue table so a model's facts
+      // and its measured evidence stay separately sourced and separately dated.
+      ...(CAPABILITY_TESTS.byModel.has(id) ? { capabilityTests: CAPABILITY_TESTS.byModel.get(id) } : {}),
       roles: roleList,
       deployments: decode(row, "deployment", DEPLOYMENT_CODES, deployments),
       modalities: decode(row, "modality", MODALITY_CODES, modalities),

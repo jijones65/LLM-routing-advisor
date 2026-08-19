@@ -902,7 +902,10 @@ p {
 }
 .coverage-summary {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  /* auto-fit rather than a fixed six columns: these rows carry between four and
+     seven tiles depending on which summary is being shown, and a fixed count
+     leaves the last row stretched or orphaned. */
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
   gap: 1px;
   overflow: hidden;
   margin-bottom: 18px;
@@ -3481,4 +3484,10 @@ p {
   justify-self: end;
   padding-top: 4px;
   border-top: 1px solid var(--line);
+}
+
+/* Retired and contested rows put a name above its qualifier, not beside it. */
+.retired-item > div > small {
+  display: block;
+  margin-top: 2px;
 }

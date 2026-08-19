@@ -474,6 +474,23 @@ export const BODY_MARKUP = `<header class="topbar">
 <div class="coverage-summary" id="verification-summary">
 </div>
 </section>
+  <section class="scope-card" style="margin: 0 0 18px">
+<div class="eyebrow">Measured performance evidence</div>
+<h2>Published benchmark results, and who has them</h2>
+<p class="lede">Where a credible published benchmark result exists for a model, it replaces the general quality estimate for that job and carries more weight in the ranking. Coverage is thin and uneven, and the reason matters: a model has published results because its vendor ran and published them, not because it is better. Read the coverage figures below as a map of who publishes benchmarks, not of who performs well.</p>
+<div class="coverage-summary" id="evidence-summary">
+</div>
+<div id="evidence-bias-note"></div>
+<details>
+<summary>Which benchmarks are accepted, and what each one cannot show</summary>
+<div class="team-check-grid" id="protocol-list"></div>
+</details>
+<details>
+<summary>Results excluded because published figures disagree</summary>
+<p class="trial-note">When two credible sources report materially different figures for the same model on the same benchmark, no measured result is recorded. The disagreement is shown here instead of being averaged into a number nobody published.</p>
+<div class="retired-list" id="contested-list"></div>
+</details>
+</section>
   <div class="coverage-summary" id="coverage-summary">
 </div>
 <div class="coverage-matrix" id="coverage-matrix">

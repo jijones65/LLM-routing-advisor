@@ -222,6 +222,34 @@ try {
   await page.locator('[data-tab="audit-layer"]').click();
   await page.waitForTimeout(1500);
   expect("sourcing confidence is reported", (await page.locator("#verification-summary div").count()) === 4);
+
+  // Measured-performance coverage. The count assertions are deliberately loose —
+  // the point is that coverage is reported at all, and that the bias note and the
+  // benchmark caveats are present, not that the numbers hold a particular value.
+  expect("benchmark coverage is reported", (await page.locator("#evidence-summary div").count()) >= 6);
+  const evidenceText = (await page.textContent("#evidence-summary")) ?? "";
+  expect("coverage names the share of the catalogue covered", /%/.test(evidenceText), evidenceText.slice(0, 120));
+  expect(
+    "the coverage bias is stated, not just the coverage",
+    /which vendors run and publish/i.test((await page.textContent("#evidence-bias-note")) ?? ""),
+  );
+  const protocolDisclosure = page.locator("#audit-layer-page details", { has: page.locator("#protocol-list") });
+  await protocolDisclosure.locator("summary").click();
+  await page.waitForTimeout(150);
+  expect("each accepted benchmark is listed", (await page.locator("#protocol-list article").count()) >= 5);
+  expect(
+    "each benchmark states what it cannot show",
+    /saturated|does not measure|narrow proxy/i.test((await page.textContent("#protocol-list")) ?? ""),
+  );
+  const contestedDisclosure = page.locator("#audit-layer-page details", { has: page.locator("#contested-list") });
+  await contestedDisclosure.locator("summary").click();
+  await page.waitForTimeout(150);
+  expect(
+    "disagreeing figures are shown rather than averaged",
+    /points, beyond the|No published figures currently disagree/i.test(
+      (await page.textContent("#contested-list")) ?? "",
+    ),
+  );
   expect("every provider source is listed", (await page.locator(".coverage-row").count()) > 20);
   expect("the watchlist is shown", (await page.locator("#watchlist-grid div").count()) > 0);
 

@@ -1,6 +1,8 @@
 import type { Model } from "../../shared/types.js";
 import { CATALOG } from "../../data/catalog.js";
 import { EVIDENCE, EXCLUSION_POLICY, SCOPE, WATCHLIST } from "../../data/evidence.js";
+import { BENCHMARK_PROTOCOLS } from "../../data/benchmarks.js";
+import { CAPABILITY_TESTS, testCoverage } from "../../data/capability-tests.js";
 import { VERIFIED_AT } from "../../data/providers.js";
 import { withSignals } from "../../engine/signals.js";
 import { CatalogMatcher } from "../registry/normalize.js";
@@ -242,6 +244,44 @@ export function staticEvidence(): EvidenceView[] {
   }));
 }
 
+/**
+ * Benchmark-evidence coverage, including the part that is uncomfortable.
+ *
+ * `coveredShare` is reported next to the plan-slot figures on purpose. Models with
+ * published results fill more plan slots than their share of the catalogue would
+ * suggest, because the evidence factor rewards having been measured. That is the
+ * documented scoring design working as specified, but it means the ranking partly
+ * tracks which vendors publish benchmarks. Stating it is the only honest option.
+ */
+export function capabilityEvidenceSummary(): Record<string, unknown> {
+  const coverage = testCoverage();
+  return {
+    ...coverage,
+    catalogueSize: CATALOG.length,
+    coveredShare: Math.round((coverage.models / CATALOG.length) * 1000) / 10,
+    protocolList: BENCHMARK_PROTOCOLS.map((protocol) => ({
+      id: protocol.id,
+      benchmark: protocol.benchmark,
+      datasetVersion: protocol.datasetVersion,
+      capability: protocol.capability,
+      conditions: protocol.conditions,
+      saturated: protocol.saturated,
+      url: protocol.url,
+      caveat: protocol.caveat,
+    })),
+    // Resolved to the display name here, where the catalogue is in scope, so the
+    // interface never has to show a reader a raw slug.
+    contested: CAPABILITY_TESTS.contested.map((entry) => ({
+      ...entry,
+      modelName: CATALOG.find((model) => model.id === entry.modelId)?.name ?? entry.modelId,
+    })),
+    biasNote:
+      "Benchmark coverage reflects which vendors run and publish evaluations, not which models suit an application. " +
+      "Because a measured result carries more ranking weight than an estimate, well-benchmarked models are favoured " +
+      "beyond their share of the catalogue. Treat an untested model as unmeasured, not as worse.",
+  };
+}
+
 /** Counts of how well sourced the catalogue actually is. */
 export function verificationSummary(): { confirmed: number; unconfirmed: number; drifted: number; total: number } {
   const counts = { confirmed: 0, unconfirmed: 0, drifted: 0, total: CATALOG.length };
@@ -360,6 +400,7 @@ export async function getAudit(
     watchlist: WATCHLIST,
     exclusions: EXCLUSION_POLICY,
     verification: verificationSummary(),
+    capabilityEvidence: capabilityEvidenceSummary(),
     verifiedAt: VERIFIED_AT,
   };
 

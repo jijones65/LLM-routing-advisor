@@ -181,3 +181,44 @@ That review corrected several entries:
 Withdrawn models are listed in **Update centre** rather than silently dropped, so a falling count stays explainable.
 
 Pricing is published for 10 entries so far. Where a provider publishes per-token pricing the cost class is derived from it; elsewhere it is an estimate, the interface says so, and the cost term is discounted in scoring. Extending the published-pricing coverage is the highest-value data work remaining.
+
+### Measured performance
+
+`src/data/capability-tests.data.ts` holds published benchmark results, one row per
+figure, each with the source that published it. As of 19 August 2026 that is 65
+figures covering 19 of the 109 models across seven benchmarks. Where a result
+exists it replaces the general quality estimate for that job and earns a higher
+evidence factor in the ranking; where none exists the model is scored as an
+estimate and the interface says so.
+
+Read the coverage as a map of which vendors publish evaluations, not of which
+models are good. Because a measured result carries more ranking weight than an
+estimate, well-benchmarked models fill more plan slots than their 17% share of the
+catalogue would suggest. The coverage check states this outright.
+
+Three rules keep the layer honest, and each has tests:
+
+- **Benchmarks are recorded as protocols**, meaning a benchmark plus its version
+  and run conditions. Humanity's Last Exam with and without tools are separate
+  protocols because the same models score 10-14 points apart. Terminal-Bench was
+  investigated and excluded entirely: its results move 15-20 points with the agent
+  scaffold rather than the model, so a cross-model table built from it would be
+  comparing harnesses. Aider Polyglot and LiveCodeBench were dropped for lack of
+  any current data.
+- **Disagreement produces no result.** Vals AI and BenchLM report DeepSeek V4 Pro
+  at 96.4% and 80.6% on the same SWE-bench snapshot. Averaging those to 88.5%
+  would invent a figure nobody published, so no coding result is recorded and the
+  disagreement is shown in the coverage check. Where several sources agree and one
+  is far out — Claude Fable 5's GPQA is reported at 93.18, 92.6 and 55.56 — the
+  majority is used and the outlier stays on the record.
+- **Saturated benchmarks confirm without ranking.** Frontier models sit between
+  88% and 95% on GPQA Diamond, a spread narrower than the benchmark's own variance
+  on 198 questions. Raw figures are mapped through five coarse bands, so saturated
+  models land level and the close-call tie-break moves on to something that
+  actually separates them rather than inventing an order from a decimal place.
+
+To add a result: append a row to `capability-tests.data.ts` and, if the benchmark
+is new, add a protocol to `src/data/benchmarks.ts` with its bands and a caveat
+saying what it does not show. The parser rejects a row with a missing source, a
+non-HTTPS URL, an unknown protocol or an empty note, so a careless addition fails
+`npm test` rather than shipping.
