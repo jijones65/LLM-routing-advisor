@@ -85,6 +85,24 @@ export function generateBlueprintSpecification(payload: AnyRecord): string {
         .join("\n")
     : "- [Fill in: route, escalation and useful-work measure for every team job]";
 
+  const skillFitRationales = routing.length
+    ? routing
+        .map((entry) => {
+          const fit = record(entry.skillFit);
+          const skills = records(fit.skills);
+          const skillLines = skills.length
+            ? skills
+                .map(
+                  (skill) =>
+                    `  - **${oneLine(skill.name)} — ${oneLine(skill.state, "not recorded")}.** ${oneLine(skill.reason)}`,
+                )
+                .join("\n")
+            : "  - [Fill in: skill-by-skill fit rationale]";
+          return `- **${oneLine(entry.roleLabel, oneLine(entry.role))} — ${oneLine(entry.modelName)}.** ${oneLine(fit.summary)}\n${skillLines}`;
+        })
+        .join("\n")
+    : "- [Fill in: why each candidate model is a reasonable match for the Skills assigned to its job]";
+
   const trialLines = trials.length
     ? trials
         .map(
@@ -190,6 +208,12 @@ ${operatingPolicies}
 - **Useful-work efficiency:** Measure successful tasks that meet the output rubric per total dollar and elapsed minute. Include model calls, tools, retries, fallbacks and human corrections. Do not use token volume alone as a quality or productivity measure.
 - **Quality target ownership:** [Fill in: who approves the task-specific quality rubric and the minimum acceptable result for each job.]
 - **Escalation budget:** [Fill in: how often a routine route may escalate before the cost or architecture must be reviewed.]
+
+### Why these models fit the selected Skills
+
+> Each rationale traces a plain-language Skill to the capability building blocks stated for the model and any recorded capability-specific tests. A stated match is not measured proof for this application.
+
+${skillFitRationales}
 
 ### Close calls, tie-break choices and policy choices
 

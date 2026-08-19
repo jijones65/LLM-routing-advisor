@@ -1,7 +1,7 @@
 import type { Capability, Model, PlanEntry } from "../../shared/types.js";
 import { completeBrief, planFor, recommendedTools, type Plan } from "../../engine/planning.js";
 import { evaluateTeam, type TeamTrial } from "../../engine/team-evaluation.js";
-import { explainPlan } from "../../engine/explain.js";
+import { explainPlan, skillFitSummary } from "../../engine/explain.js";
 import { byId, esc, num, setHtml, setText } from "../dom.js";
 import {
   expandedBreakdowns,
@@ -158,6 +158,31 @@ function decisionCard(entry: PlanEntry): string {
   return `<section class="decision-card ${tested ? "tested-lead" : "estimated-lead"}">
     <div><span>Decision status</span><strong>${tested ? "Test-supported lead" : "Estimated lead"}</strong><small>${esc(gap)} ahead</small></div>
     <p>${esc(decision.reason)} ${esc(decision.recommendedTest)}</p>
+  </section>`;
+}
+
+/** Trace the selected Skills through this job to the model's stated and tested evidence. */
+function skillFitPanel(context: DesignContext, entry: PlanEntry): string {
+  const fit = skillFitSummary(entry, completeBrief(context.brief));
+  if (fit.skills.length === 0) return "";
+  const rows = fit.skills
+    .map((skill) => {
+      const label =
+        skill.state === "stated-match" ? "Stated match" : skill.state === "partial-match" ? "Partial match" : "Gap";
+      return `<article class="skill-fit-row ${esc(skill.state)}">
+        <div><strong>${esc(skill.name)}</strong><span>${esc(label)}</span></div>
+        <p>${esc(skill.reason)}</p>
+      </article>`;
+    })
+    .join("");
+
+  return `<section class="skill-fit-rationale">
+    <div class="skill-fit-rationale-head"><span>Skill-fit rationale</span><strong>Why ${esc(entry.model.name)} is a candidate for this job</strong></div>
+    <p>${esc(fit.summary)}</p>
+    <details>
+      <summary>See ${fit.skills.length} skill-by-skill reason${fit.skills.length === 1 ? "" : "s"}</summary>
+      <div class="skill-fit-list">${rows}</div>
+    </details>
   </section>`;
 }
 
@@ -360,6 +385,7 @@ function roleCard(
       <small>${esc(entry.model.provider)} · ${esc(entry.model.tier)} · ${esc(entry.model.contextLabel)} context</small>
       <div class="sourcing-row">${verificationBadge(entry.model)}${priceTag(entry.model)}</div>
       ${resultReadings(entry)}
+      ${skillFitPanel(context, entry)}
       ${decisionCard(entry)}
       ${choiceControl}
       ${modelLinks(entry.model, true)}

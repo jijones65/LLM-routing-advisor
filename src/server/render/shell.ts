@@ -55,13 +55,14 @@ export const BODY_MARKUP = `<header class="topbar">
 <small id="case-count">
 </small>
 </div>
-<p class="skills-intro">Choose only the skills required for a successful result. Work through inputs, knowledge, analysis, outputs, actions, assurance and operating environment. The starting application type is a suggestion—you can add or remove any skill.</p>
+<p class="skills-intro">Choose only the skills required for a successful result. Roll over, focus or tap a title to see when to use it, examples and its boundary. The starting application type is a suggestion—you can add or remove any skill.</p>
 <div class="capability-groups" id="capabilities">
 </div>
 <details class="taxonomy-note skill-taxonomy-note">
 <summary>How skills affect the model team</summary>
 <p>Skills create the jobs and requirements used to compare models. Industry and knowledge area change the test context, not a model's facts. A missing skill lowers model fit but does not automatically hide a model.</p>
 <p>This is a plain-language application taxonomy informed by the OECD AI-system classification, NIST AI Risk Management Framework, ISO/IEC 22989 terminology and SFIA's task-oriented skills. It is not an official combined standard.</p>
+<p>Illustrative AI-capability, business-process automation and SFIA process-reengineering examples were also reviewed for gaps. Specialised workflows appear as examples unless the model catalogue can genuinely distinguish them; people, change and governance work is not mislabelled as a model skill.</p>
 <a href="https://www.oecd.org/en/publications/oecd-framework-for-the-classification-of-ai-systems_cb6d9eca-en.html" target="_blank" rel="noreferrer">OECD classification ↗</a> · <a href="https://airc.nist.gov/airmf-resources/airmf/5-sec-core/" target="_blank" rel="noreferrer">NIST AI RMF ↗</a> · <a href="https://www.iso.org/standard/74296.html" target="_blank" rel="noreferrer">ISO terminology ↗</a> · <a href="https://sfia-online.org/en/tools-and-resources/ai-skills-framework/ai-skills-framework-home" target="_blank" rel="noreferrer">SFIA AI skills ↗</a>
 </details>
 </section>
@@ -736,7 +737,7 @@ export const BODY_MARKUP = `<header class="topbar">
 <thead><tr><th>Choice or evidence</th><th>What it changes</th><th>What it does not prove</th></tr></thead>
 <tbody>
 <tr><th>Starting application type</th><td>Suggests a useful first set of Skills.</td><td>That the suggestion is complete or fixed.</td></tr>
-<tr><th>Selected Skills</th><td>Creates the jobs and requirements used for model fit.</td><td>That a model has measured performance for your work.</td></tr>
+<tr><th>Selected Skills</th><td>Creates the jobs and requirements used for model fit. Each team member traces those Skills to stated capabilities, recorded tests and visible gaps.</td><td>That a stated match is measured performance for your work.</td></tr>
 <tr><th>Job quality and cost policy</th><td>Sets a soft quality target and gives routine work more cost weight than difficult, specialist or checking work.</td><td>That token volume alone equals useful or high-quality work.</td></tr>
 <tr><th>Context and risk</th><td>Changes the examples, checks, controls and human review needed.</td><td>That one model is generally best for an industry.</td></tr>
 <tr><th>Plan style</th><td>Changes the importance of quality, cost, visibility, breadth or specialisation.</td><td>That a small score difference is meaningful.</td></tr>
@@ -749,8 +750,8 @@ export const BODY_MARKUP = `<header class="topbar">
 <section class="about-skills" aria-labelledby="about-skills-title">
 <div class="about-skills-intro">
 <div class="eyebrow">A structured Skills checklist</div>
-<h2 id="about-skills-title">Choose Skills by asking seven simple questions.</h2>
-<p>The list is organised around the work an application must complete—not an industry label or a favourite model. Start with the suggested Skills, remove anything unnecessary, and add anything needed for a successful result.</p>
+<h2 id="about-skills-title">Choose Skills by asking eight simple questions.</h2>
+<p>The list is organised around the work an application must complete—not an industry label or a favourite model. Start with the suggested Skills, remove anything unnecessary, and add anything needed for a successful result. Hover, focus or tap each title for a definition, examples and a boundary.</p>
 </div>
 <div class="about-skill-map">
 <article><strong>Understand inputs</strong><span>What information will it receive?</span><small>Text, documents, images, video, voice or structured data</small></article>
@@ -758,10 +759,11 @@ export const BODY_MARKUP = `<header class="topbar">
 <article><strong>Analyse and decide</strong><span>What judgement or calculation is required?</span><small>Reasoning, scenarios, numbers, classification, ranking or recommendations</small></article>
 <article><strong>Create and communicate</strong><span>What must it produce?</span><small>Explanations, languages, code, visual interpretation or creative support</small></article>
 <article><strong>Take action</strong><span>What must happen beyond an answer?</span><small>Tools, workflows, repeated work, monitoring or alerts</small></article>
+<article><strong>Improve and operate</strong><span>How will it improve a process and remain dependable?</span><small>Process improvement, data quality, lineage, testing, drift and service monitoring</small></article>
 <article><strong>Verify and protect</strong><span>What must be checked or controlled?</span><small>Claims, rules, standards, sensitive data, exceptions or escalation</small></article>
 <article><strong>Work in place</strong><span>Does location or connectivity change the work?</span><small>Maps, routes, field work, mobile use, edge devices or offline operation</small></article>
 </div>
-<p class="about-framework-note">This plain-language structure is informed by the <a href="https://www.oecd.org/en/publications/oecd-framework-for-the-classification-of-ai-systems_cb6d9eca-en.html" target="_blank" rel="noreferrer">OECD AI-system classification</a>, <a href="https://airc.nist.gov/airmf-resources/airmf/5-sec-core/" target="_blank" rel="noreferrer">NIST AI Risk Management Framework</a>, <a href="https://www.iso.org/standard/74296.html" target="_blank" rel="noreferrer">ISO/IEC 22989 terminology</a> and <a href="https://sfia-online.org/en/tools-and-resources/ai-skills-framework/ai-skills-framework-home" target="_blank" rel="noreferrer">SFIA's task-oriented skills</a>. It is an application-specific synthesis, not an official standard or certification.</p>
+<p class="about-framework-note">This plain-language structure is informed by the <a href="https://www.oecd.org/en/publications/oecd-framework-for-the-classification-of-ai-systems_cb6d9eca-en.html" target="_blank" rel="noreferrer">OECD AI-system classification</a>, <a href="https://airc.nist.gov/airmf-resources/airmf/5-sec-core/" target="_blank" rel="noreferrer">NIST AI Risk Management Framework</a>, <a href="https://www.iso.org/standard/74296.html" target="_blank" rel="noreferrer">ISO/IEC 22989 terminology</a> and <a href="https://sfia-online.org/en/tools-and-resources/ai-skills-framework/ai-skills-framework-home" target="_blank" rel="noreferrer">SFIA's task-oriented skills</a>. The supplied AI-capability matrix, business-process automation examples and SFIA process-reengineering map were reviewed for missing application behaviours. They are examples, not a complete standard. Specialised domain activities remain examples until the catalogue has evidence that can distinguish models for them.</p>
 </section>
 <section class="about-workflow" aria-labelledby="about-workflow-title">
 <div>

@@ -1,5 +1,86 @@
-import type { PlanEntry, ScoreTerm } from "../shared/types.js";
+import type { Brief, Capability, PlanEntry, ScoreTerm } from "../shared/types.js";
+import { CAPABILITY_LABELS } from "../data/catalog.js";
 import { STRATEGIES } from "../data/strategies.js";
+import { NEED_INDEX } from "../data/taxonomy.js";
+import { jobRequirements } from "./scoring.js";
+
+export interface SkillFitReading {
+  readonly id: string;
+  readonly name: string;
+  readonly relevantCapabilities: readonly Capability[];
+  readonly matchedCapabilities: readonly Capability[];
+  readonly missingCapabilities: readonly Capability[];
+  readonly testedCapabilities: readonly Capability[];
+  readonly state: "stated-match" | "partial-match" | "gap";
+  readonly reason: string;
+}
+
+export interface SkillFitSummary {
+  readonly skills: readonly SkillFitReading[];
+  readonly relevantCapabilities: readonly Capability[];
+  readonly matchedCapabilities: readonly Capability[];
+  readonly missingCapabilities: readonly Capability[];
+  readonly evidenceLevel: PlanEntry["readings"]["measuredPerformance"]["evidenceLevel"];
+  readonly summary: string;
+}
+
+function capabilityNames(capabilities: readonly Capability[]): string {
+  return capabilities.map((capability) => CAPABILITY_LABELS[capability]).join(", ");
+}
+
+/**
+ * Trace a selected application's plain-language Skills to one team job and its
+ * chosen model. A stated capability is kept separate from test evidence so the
+ * explanation cannot accidentally turn a catalogue claim into proof.
+ */
+export function skillFitSummary(entry: PlanEntry, brief: Brief): SkillFitSummary {
+  const jobCapabilities = new Set(jobRequirements(entry.role.role, brief));
+  const skills = brief.needs
+    .map((id) => NEED_INDEX[id])
+    .filter((need): need is NonNullable<typeof need> => Boolean(need))
+    .map((need): SkillFitReading | null => {
+      const relevantCapabilities = need.cases.filter((capability) => jobCapabilities.has(capability));
+      if (relevantCapabilities.length === 0) return null;
+      const matchedCapabilities = relevantCapabilities.filter((capability) => entry.model.cases.includes(capability));
+      const missingCapabilities = relevantCapabilities.filter((capability) => !entry.model.cases.includes(capability));
+      const testedCapabilities = matchedCapabilities.filter((capability) =>
+        Boolean(entry.model.capabilityTests?.[capability]),
+      );
+      const state =
+        missingCapabilities.length === 0 ? "stated-match" : matchedCapabilities.length > 0 ? "partial-match" : "gap";
+      const capabilityReason =
+        state === "stated-match"
+          ? `The provider-stated record covers ${capabilityNames(matchedCapabilities)}.`
+          : state === "partial-match"
+            ? `The record covers ${capabilityNames(matchedCapabilities)}, but does not state ${capabilityNames(missingCapabilities)}.`
+            : `The record does not state the ${capabilityNames(missingCapabilities)} needed for this skill.`;
+      const evidenceReason =
+        testedCapabilities.length > 0
+          ? `Capability-specific test evidence is recorded for ${capabilityNames(testedCapabilities)}; the remaining fit still needs application testing.`
+          : matchedCapabilities.length > 0
+            ? "This is a stated capability match, not measured proof for this application."
+            : "No capability-specific test evidence resolves this gap; another model, tool or human may be needed.";
+      return {
+        id: need.id,
+        name: need.name,
+        relevantCapabilities,
+        matchedCapabilities,
+        missingCapabilities,
+        testedCapabilities,
+        state,
+        reason: `${capabilityReason} ${evidenceReason}`,
+      };
+    })
+    .filter((reading): reading is SkillFitReading => reading !== null);
+
+  const relevantCapabilities = [...new Set(skills.flatMap((skill) => skill.relevantCapabilities))];
+  const matchedCapabilities = relevantCapabilities.filter((capability) => entry.model.cases.includes(capability));
+  const missingCapabilities = relevantCapabilities.filter((capability) => !entry.model.cases.includes(capability));
+  const evidenceLevel = entry.readings.measuredPerformance.evidenceLevel;
+  const summary = `${entry.model.name} has a provider-stated match for ${matchedCapabilities.length} of ${relevantCapabilities.length} capability building blocks behind ${skills.length} selected skill${skills.length === 1 ? "" : "s"} for this job. Its performance reading is ${evidenceLevel}; the explanation is a testable rationale, not proof that it will perform well.`;
+
+  return { skills, relevantCapabilities, matchedCapabilities, missingCapabilities, evidenceLevel, summary };
+}
 
 /**
  * Turn a score breakdown into the sentence a person actually wants.

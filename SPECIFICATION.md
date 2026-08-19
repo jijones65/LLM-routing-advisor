@@ -1,7 +1,7 @@
 # LLM Application Routing Advisor — Product and Implementation Specification
 
-**Specification version:** 1.7
-**Current implementation baseline:** 19 August 2026 · catalogue `2026.08.18-2` · scoring `2026.08.19-1` · taxonomy `2026.08.19-1`
+**Specification version:** 1.8
+**Current implementation baseline:** 19 August 2026 · catalogue `2026.08.18-2` · scoring `2026.08.19-1` · taxonomy `2026.08.19-2`
 **Status:** Living specification for refinement, maintenance, and future rebuilds
 
 ## 1. Purpose
@@ -78,6 +78,7 @@ Outputs:
 - Alternative model teams for six main plan styles
 - Complete list of jobs and selected models for every team
 - Detailed recommendation for the selected plan
+- A skill-fit rationale for every proposed team member, including partial gaps and the distinction between stated capabilities and measured evidence
 - Three fallback choices for every job
 - Separate fit, source, visibility, and performance readings
 - Provider and Ollama links where applicable
@@ -193,13 +194,14 @@ The UI also accepts a plain-language custom application type of up to 100 charac
 
 Skills describe the work the application must complete. They are not model names, job titles, industry labels or claims of measured model performance. The starting application type suggests a first set; the user can add or remove any Skill before the team is built.
 
-The baseline choices are grouped around seven plain-language questions:
+The baseline contains 37 choices grouped around eight plain-language questions:
 
 1. **Understand inputs — What information will the application receive?**
    - Read text and documents
    - Understand images or video
    - Listen and speak
    - Work with tables and structured data
+   - Use sensor or IoT data
 2. **Find and remember — What knowledge must it reach or retain?**
    - Use private knowledge
    - Search current sources
@@ -208,26 +210,45 @@ The baseline choices are grouped around seven plain-language questions:
    - Make complex decisions
    - Compare or forecast scenarios
    - Calculate and analyse numbers
-   - Classify, rank or recommend
+   - Classify, match or prioritise
+   - Personalise or recommend
+   - Detect anomalies, fraud or threats
+   - Optimise routes, schedules or resources
+   - Model or simulate systems
 4. **Create and communicate — What must it produce for a person or another system?**
    - Write and explain
    - Work in many languages
    - Write and test code
-   - Support art and design work
+   - Create images, media or designs
+   - Create synthetic or test data
 5. **Take action — What must happen beyond producing an answer?**
    - Use software and tools
    - Coordinate many steps
+   - Run workflows and approvals
+   - Connect systems and data
    - Repeat work at high volume
    - Monitor events and spot changes
-6. **Verify and protect — What must be checked, controlled or escalated?**
+6. **Improve and operate — How will it improve a process and remain dependable?**
+   - Find and improve process steps
+   - Check data quality and lineage
+   - Test and monitor AI operation
+7. **Verify and protect — What must be checked, controlled or escalated?**
    - Check claims and outputs
    - Apply policies, rules or standards
    - Handle sensitive data
-7. **Work in place — Do location, mobility or offline operation change the work?**
+   - Support human review and escalation
+8. **Work in place — Do location, mobility or offline operation change the work?**
    - Use maps or geospatial data
    - Work in the field or offline
+   - Support physical or edge systems
 
 These user-facing choices map to internal capabilities such as reasoning, knowledge work, coding, retrieval, research, vision, voice, automation, private deployment, multilingual work, software agents, and safety/checking.
+
+Every Skill control must show only its short title in the checklist. Hover, keyboard focus and tap must open an accessible pop-up containing:
+
+- a short test for when to choose the Skill;
+- concrete application examples; and
+- a boundary that distinguishes it from a nearby Skill or states where a specialised tool, control or human remains necessary.
 
 The taxonomy is an application-specific, plain-language synthesis informed by:
 
@@ -236,9 +257,17 @@ The taxonomy is an application-specific, plain-language synthesis informed by:
 - ISO/IEC 22989 terminology and concepts for AI systems; and
 - SFIA's task-oriented approach to describing skills and responsibility.
 
+The project owner's supplied reference examples add three further design inputs:
+
+- an AI-capabilities matrix spanning technical and domain examples;
+- business-process automation activities across common organisational functions; and
+- an illustrative SFIA-oriented map covering process, operations, people, data, technology and governance.
+
+These supplied files are examples rather than instructions, a complete list or an authoritative standard. Use them to identify missing transferable application behaviours. Do not automatically turn every industry workflow, scientific field or named technology into a Skill. Domain-specific activities remain examples unless the model catalogue contains evidence that can distinguish variants for that activity. People, change management, accountability and governance remain implementation responsibilities and context requirements rather than model Skills.
+
 The advisor does not claim that this combined taxonomy is an official standard or certification. It uses the sources as design references and keeps context, risk, model facts, estimated fit, source confidence and measured performance separate.
 
-The About tab must show both the seven-question Skills structure and a visual decision map. The decision map must explain how the brief creates team jobs, how each current model variant is scored separately for each job, how model fit, source confidence, ecosystem visibility and measured performance remain separate, how close calls are handled, how the complete team is checked, and why real trials are required before a final choice.
+The About tab must show both the eight-question Skills structure and a visual decision map. The decision map must explain how the brief creates team jobs, how each current model variant is scored separately for each job, how model fit, source confidence, ecosystem visibility and measured performance remain separate, how close calls are handled, how the complete team is checked, and why real trials are required before a final choice.
 
 ### 5.3 Context frameworks
 
@@ -321,6 +350,16 @@ Every recommendation must display four distinct results:
 4. **Measured performance:** capability-specific evaluation results, or a clear “not measured yet” state.
 
 Only the documented ranking calculation determines the shortlist. The four readings explain different aspects of that result and must not be presented as equivalent.
+
+Every selected team member must also show a **skill-fit rationale**. The rationale traces:
+
+1. each selected plain-language Skill relevant to the assigned job;
+2. the internal capability building blocks implied by that Skill;
+3. which of those capabilities the model's catalogue record states;
+4. which relevant capabilities are missing or only partially covered; and
+5. whether any capability-specific test result is recorded.
+
+The rationale explains why the model is a reasonable candidate for the job; it does not add a new score or prove that the model will perform well. Provider-stated capabilities, source confidence and capability-specific tests must remain visibly distinct. If no relevant performance test exists, the explanation must say that the match is stated or estimated and still requires application testing.
 
 ### 8.2 Baseline scoring formula
 
@@ -770,6 +809,7 @@ Interface requirements:
 - Keyboard-operable controls
 - Clear active states
 - Accessible labels
+- Title-only Skill controls whose definition, examples and boundary appear on hover, keyboard focus and tap
 - Sufficient colour contrast
 - No reliance on colour alone
 - Complete team previews on all plan cards
@@ -823,6 +863,16 @@ Interface requirements:
 - Untested quality estimates receive less weight than complete relevant capability tests.
 - Provider job labels contribute less than one matched capability.
 - A provider-policy override is distinguished from the raw score leader.
+- Every recommended team member shows the selected Skills relevant to its job, the implied capability building blocks, stated matches, visible gaps and any recorded capability-specific tests.
+- A Skill rationale never describes a provider-stated capability as measured proof for the application.
+
+### Skills taxonomy and interface
+
+- The baseline contains 37 unique Skills under eight guiding questions.
+- Every Skill has a short title, selection guidance, examples, a boundary and at least one internal capability mapping.
+- The checklist shows only the short title until hover, keyboard focus or tap opens the accessible explanation.
+- Every starting application type uses valid Skill identifiers.
+- The supplied capability, business-process and SFIA-oriented reference files are treated as illustrative design inputs, not a complete or authoritative taxonomy.
 
 ### Team validation
 
@@ -835,10 +885,11 @@ Interface requirements:
 
 ### Saved plans and specifications
 
-- A saved plan contains its brief, model team, job operating policies, evidence readings, close-call guidance, team checks, trial outcomes and version stamps.
+- A saved plan contains its brief, model team, job operating policies, evidence readings, skill-fit rationales, close-call guidance, team checks, trial outcomes and version stamps.
 - A saved plan records whether a model was selected by the user and retains the advisor's automatic choice for comparison.
 - Saving returns a direct Markdown download link.
 - The generated Markdown contains the application type, every selected model and all required specification sections.
+- The generated Markdown explains why each model is a candidate for its assigned Skills and preserves partial gaps and evidence limitations.
 - Unknown application decisions remain explicit fill-in fields rather than generated claims.
 - Reopening restores the saved brief and recorded trial outcomes to Application design.
 - Two or three plans can be compared side by side.
@@ -923,8 +974,10 @@ A rebuild is complete only when:
 - A non-specialist user can understand every major term.
 - The application brief determines the team jobs and job-specific requirements.
 - A custom application label can produce a complete team after the user confirms or adjusts its Skills.
+- The Skills checklist uses eight plain-language questions and accessible title explanations rather than exposing a dense technical capability matrix.
 - Every current catalogue model remains visible in every job ranking; missing capabilities and technical preferences change fit rather than silently excluding it.
 - Each recommendation separates fit, source confidence, ecosystem visibility, and measured performance.
+- Each team member has a skill-by-skill rationale that distinguishes provider-stated capability, missing coverage and recorded performance tests.
 - Near-equal numerical results keep their raw order and show the explicit measured-evidence, application-specialisation and ecosystem-reach tie-break sequence.
 - Proposed teams expose structural cautions and cannot become validated until the complete roster is trialled.
 - Public visibility is never described as users, reliability, market share, or proof of quality.

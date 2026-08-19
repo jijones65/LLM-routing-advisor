@@ -21,7 +21,7 @@ import {
   rankForRole,
   scoreModel,
 } from "../build/engine/scoring.js";
-import { explainEntry, explainPlan, tradeOffs } from "../build/engine/explain.js";
+import { explainEntry, explainPlan, skillFitSummary, tradeOffs } from "../build/engine/explain.js";
 import { evaluateTeam } from "../build/engine/team-evaluation.js";
 
 const catalog = withSignals(CATALOG);
@@ -57,6 +57,23 @@ test("a custom application label keeps the starter needs and builds a team", () 
   assert.equal(custom.customApplicationType, "Supplier comparison for a school");
   assert.ok(custom.cases.includes("knowledge"));
   assert.ok(planFor(catalog, custom, "balanced").entries.length >= 2);
+});
+
+test("a model recommendation traces relevant Skills to stated and tested evidence", () => {
+  const application = brief({
+    archetype: "software-agent",
+    needs: ["code-build", "system-integration", "service-monitoring", "validate"],
+  });
+  const plan = planFor(catalog, application, "balanced");
+  const coding = plan.entries.find((entry) => entry.role.id === "coder") ?? plan.entries[0];
+  const rationale = skillFitSummary(coding, application);
+
+  assert.ok(rationale.skills.length > 0);
+  assert.ok(rationale.skills.some((skill) => skill.id === "code-build"));
+  assert.ok(rationale.skills.every((skill) => ["stated-match", "partial-match", "gap"].includes(skill.state)));
+  assert.ok(rationale.skills.every((skill) => skill.reason.includes("record")));
+  assert.doesNotMatch(rationale.summary, /proven winner|demonstrably better/i);
+  assert.match(rationale.summary, /testable rationale, not proof/i);
 });
 
 test("every plan style produces a complete team", () => {

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { FakeD1, stubFetch } from "./fake-d1.mjs";
 import worker from "../build/server/index.js";
@@ -14,7 +15,7 @@ import {
 } from "../build/server/db/repo.js";
 import { loadSnapshots, refreshSource } from "../build/server/registry/refresh.js";
 import { REGISTRY_SOURCES } from "../build/data/registry-sources.js";
-import { NEED_GROUPS, TAXONOMY_VERSION } from "../build/data/taxonomy.js";
+import { ARCHETYPES, NEED_GROUPS, TAXONOMY_VERSION } from "../build/data/taxonomy.js";
 import { ensureSchema } from "../build/server/db/index.js";
 
 /** A fresh in-memory database. The schema is applied lazily, per binding. */
@@ -103,7 +104,8 @@ test("GET / renders a complete page", async () => {
   }
   assert.match(html, /What each tab does—and what it cannot prove/);
   assert.match(html, /id="about-decision-flow"/);
-  assert.match(html, /Choose Skills by asking seven simple questions/);
+  assert.match(html, /Choose Skills by asking eight simple questions/);
+  assert.match(html, /Improve and operate/);
   for (const label of ["Model fit", "Source confidence", "ecosystem visibility", "measured performance"]) {
     assert.match(html, new RegExp(label, "i"), `the decision guide is missing ${label}`);
   }
@@ -171,10 +173,21 @@ test("GET / renders a complete page", async () => {
   db.close();
 });
 
+test("the planning client renders accessible Skill help and model-fit rationales", () => {
+  const main = readFileSync(new URL("../build/client/main.js", import.meta.url), "utf8");
+  const design = readFileSync(new URL("../build/client/views/design.js", import.meta.url), "utf8");
+  assert.match(main, /skill-popover/);
+  assert.match(main, /role="tooltip"/);
+  assert.match(main, /When to choose it/);
+  assert.match(main, /Examples/);
+  assert.match(design, /Skill-fit rationale/);
+  assert.match(design, /skill-by-skill reason/);
+});
+
 test("the Skills taxonomy is complete, explained and versioned", () => {
-  assert.equal(NEED_GROUPS.length, 7);
-  assert.equal(NEED_GROUPS.flatMap((group) => group.items).length, 24);
-  assert.equal(TAXONOMY_VERSION, "2026.08.19-1");
+  assert.equal(NEED_GROUPS.length, 8);
+  assert.equal(NEED_GROUPS.flatMap((group) => group.items).length, 37);
+  assert.equal(TAXONOMY_VERSION, "2026.08.19-2");
 
   const ids = new Set();
   for (const group of NEED_GROUPS) {
@@ -183,9 +196,17 @@ test("the Skills taxonomy is complete, explained and versioned", () => {
     for (const skill of group.items) {
       assert.ok(skill.name.trim(), `${skill.id} needs a plain-language name`);
       assert.ok(skill.guidance.length >= 30, `${skill.id} needs useful selection guidance`);
+      assert.ok(skill.examples.length >= 30, `${skill.id} needs concrete examples`);
+      assert.ok(skill.boundary.length >= 30, `${skill.id} needs a useful boundary`);
       assert.ok(skill.cases.length > 0, `${skill.id} must affect at least one internal capability`);
       assert.ok(!ids.has(skill.id), `duplicate Skill id: ${skill.id}`);
       ids.add(skill.id);
+    }
+  }
+
+  for (const archetype of ARCHETYPES) {
+    for (const skillId of archetype.needs) {
+      assert.ok(ids.has(skillId), `${archetype.id} uses unknown Skill ${skillId}`);
     }
   }
 });
@@ -298,6 +319,18 @@ test("saving a plan validates the payload", async () => {
         rank: 1,
         fit: 100,
         readings: { measuredPerformance: { evidenceLevel: "estimated" } },
+        skillFit: {
+          summary:
+            "Claude Fable 5 has a provider-stated match for the capability building blocks behind this selected Skill; it still needs application testing.",
+          skills: [
+            {
+              name: "Search current sources",
+              state: "stated-match",
+              reason:
+                "The provider-stated record covers research and retrieval. This is a stated capability match, not measured proof for this application.",
+            },
+          ],
+        },
         decision: { state: "too-close", reason: "Two candidates are close.", recommendedTest: "Run ten tasks." },
         operatingPolicy: {
           mode: "adaptive",
@@ -345,6 +378,9 @@ test("saving a plan validates the payload", async () => {
   assert.match(stored.specificationMarkdown, /Quality, cost and routing policy/);
   assert.match(stored.specificationMarkdown, /Adaptive quality route/);
   assert.match(stored.specificationMarkdown, /Successful tasks meeting the output rubric/);
+  assert.match(stored.specificationMarkdown, /Why these models fit the selected Skills/);
+  assert.match(stored.specificationMarkdown, /Search current sources/);
+  assert.match(stored.specificationMarkdown, /not measured proof for this application/);
   assert.match(stored.specificationMarkdown, /\[Fill in:/);
 
   const detail = await (await worker.fetch(request(`/api/blueprints/${id}`), { DB: db })).json();

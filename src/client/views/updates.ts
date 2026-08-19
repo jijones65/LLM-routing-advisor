@@ -11,6 +11,14 @@ import type { Model } from "../../shared/types.js";
 const CHANGES: readonly { state: string; title: string; scope: string; date: string; detail: string }[] = [
   {
     state: "Refined",
+    title: "Skills now explain their meaning and each model's fit",
+    scope: "Application design · recommendations · evidence",
+    date: "19 Aug 2026",
+    detail:
+      "The Skills checklist now has 37 choices under eight simple questions. Each title opens a short explanation, examples and a boundary on hover, keyboard focus or tap. The supplied capability, business-process and SFIA examples were used to find gaps—not treated as a complete standard. Every proposed team member now traces its assigned Skills to the model's stated capabilities, recorded tests and any partial gaps without presenting a stated match as measured proof.",
+  },
+  {
+    state: "Refined",
     title: "Every job now combines a quality target with cost-aware routing",
     scope: "Recommendations · quality · cost",
     date: "19 Aug 2026",

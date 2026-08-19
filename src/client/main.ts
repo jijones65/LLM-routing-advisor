@@ -2,6 +2,7 @@ import { completeBrief, DIVERSITY_FIT_THRESHOLD, planFor } from "../engine/plann
 import { jobRequirements } from "../engine/scoring.js";
 import { withSignals } from "../engine/signals.js";
 import { evaluateTeam } from "../engine/team-evaluation.js";
+import { skillFitSummary } from "../engine/explain.js";
 import { byId, esc, fillSelect, setHtml, toast } from "./dom.js";
 import {
   clearModelChoicesFor,
@@ -58,10 +59,10 @@ setHtml(
     .map(
       (group) =>
         `<div class="capability-group"><div class="capability-group-title"><strong>${esc(group.name)}</strong><small>${esc(group.prompt)}</small></div><div class="cap-grid">${group.items
-          .map(
-            (need) =>
-              `<button class="cap" type="button" data-need="${esc(need.id)}" aria-pressed="false"><span><b>${esc(need.name)}</b><small>${esc(need.guidance)}</small></span><i>+</i></button>`,
-          )
+          .map((need) => {
+            const helpId = `skill-help-${need.id}`;
+            return `<button class="cap" type="button" data-need="${esc(need.id)}" aria-pressed="false" aria-describedby="${esc(helpId)}"><b>${esc(need.name)}</b><i aria-hidden="true">+</i><span class="skill-popover" id="${esc(helpId)}" role="tooltip"><strong>When to choose it</strong><span>${esc(need.guidance)}</span><strong>Examples</strong><span>${esc(need.examples)}</span><small>${esc(need.boundary)}</small></span></button>`;
+          })
           .join("")}</div></div>`,
     )
     .join(""),
@@ -334,6 +335,7 @@ byId("save-blueprint").addEventListener("click", async () => {
           rank: entry.rank,
           fit: entry.fit,
           readings: entry.readings,
+          skillFit: skillFitSummary(entry, complete),
           operatingPolicy: entry.operatingPolicy,
           decision: entry.decision,
           userSelected: entry.userSelected,
