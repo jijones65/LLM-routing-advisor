@@ -386,11 +386,18 @@ export function recommendedTools(brief: Brief): ToolRecommendation[] {
     if (!items.some((item) => item.id === id)) items.push({ id, name, reason });
   };
 
-  if (has("documents", "internal-knowledge")) {
+  if (has("documents", "internal-knowledge", "memory-context")) {
     add(
       "knowledge",
       "Search and knowledge store",
       "Keeps trusted documents, permissions and citations outside the model.",
+    );
+  }
+  if (has("memory-context")) {
+    add(
+      "memory",
+      "Approved memory and state store",
+      "Keeps selected facts, preferences and work in progress outside the model so they can be reviewed or removed.",
     );
   }
   if (has("current-research")) {
@@ -399,7 +406,7 @@ export function recommendedTools(brief: Brief): ToolRecommendation[] {
   if (has("geospatial")) {
     add("gis", "GIS, maps and spatial database", "Performs real distance, boundary, route and location calculations.");
   }
-  if (has("software-tools", "high-volume", "coordinate-work", "code-build")) {
+  if (has("software-tools", "high-volume", "coordinate-work", "code-build", "monitor-events")) {
     add(
       "workflow",
       "Tool access and workflow controls",
@@ -413,17 +420,35 @@ export function recommendedTools(brief: Brief): ToolRecommendation[] {
       "Provides OCR, file parsing or specialist image-generation tools where needed.",
     );
   }
+  if (has("monitor-events")) {
+    add(
+      "events",
+      "Event stream, thresholds and alerting",
+      "Detects new records and changes reliably before a model interprets or explains them.",
+    );
+  }
   if (has("listen-speak", "field-mobile")) {
     add("speech", "Speech input and output", "Handles audio capture, transcription, playback and interruptions.");
   }
   if (has("sensitive-data") || brief.dataControl) {
     add("privacy", "Identity, access and private storage", "Controls who can see data and where it is stored.");
   }
-  if (has("forecast-scenarios") || brief.industry === "financial" || brief.domain === "finance") {
+  if (
+    has("structured-data", "quantitative-analysis", "forecast-scenarios") ||
+    brief.industry === "financial" ||
+    brief.domain === "finance"
+  ) {
     add(
       "calculation",
       "Trusted data and calculation engine",
       "Keeps important figures and calculations reproducible outside free-form text.",
+    );
+  }
+  if (has("apply-policies")) {
+    add(
+      "policy",
+      "Versioned rules and audit trail",
+      "Keeps authoritative rules, exceptions, approvals and decision records explicit instead of relying on model memory.",
     );
   }
   if (brief.industry === "science" || ["health", "physical", "earth"].includes(brief.domain)) {

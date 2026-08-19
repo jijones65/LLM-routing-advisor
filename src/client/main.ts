@@ -57,10 +57,10 @@ setHtml(
   boot.needGroups
     .map(
       (group) =>
-        `<div class="capability-group"><strong>${esc(group.name)}</strong><div class="cap-grid">${group.items
+        `<div class="capability-group"><div class="capability-group-title"><strong>${esc(group.name)}</strong><small>${esc(group.prompt)}</small></div><div class="cap-grid">${group.items
           .map(
             (need) =>
-              `<button class="cap" type="button" data-need="${esc(need.id)}" aria-pressed="false"><span>${esc(need.name)}</span><i>+</i></button>`,
+              `<button class="cap" type="button" data-need="${esc(need.id)}" aria-pressed="false"><span><b>${esc(need.name)}</b><small>${esc(need.guidance)}</small></span><i>+</i></button>`,
           )
           .join("")}</div></div>`,
     )

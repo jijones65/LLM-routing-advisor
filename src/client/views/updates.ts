@@ -135,7 +135,7 @@ const CHANGES: readonly { state: string; title: string; scope: string; date: str
     scope: "Application design · taxonomy",
     date: "18 Aug 2026",
     detail:
-      "The application list now includes product comparison, procurement, meetings, learning, sales, compliance, data insight, localisation and cybersecurity examples. A user can name another type, keep a suggested type as the starter, and adjust What it must do to build the team without pretending that the name alone determines requirements.",
+      "The application list now includes product comparison, procurement, meetings, learning, sales, compliance, data insight, localisation and cybersecurity examples. A user can name another type, keep a suggested type as the starter, and adjust its Skills to build the team without pretending that the name alone determines requirements.",
   },
   {
     state: "Rebuilt",

@@ -14,6 +14,7 @@ import {
 } from "../build/server/db/repo.js";
 import { loadSnapshots, refreshSource } from "../build/server/registry/refresh.js";
 import { REGISTRY_SOURCES } from "../build/data/registry-sources.js";
+import { NEED_GROUPS, TAXONOMY_VERSION } from "../build/data/taxonomy.js";
 import { ensureSchema } from "../build/server/db/index.js";
 
 /** A fresh in-memory database. The schema is applied lazily, per binding. */
@@ -101,6 +102,19 @@ test("GET / renders a complete page", async () => {
     assert.match(html, new RegExp(`<h2>${tab}</h2>`), `the About guide is missing ${tab}`);
   }
   assert.match(html, /What each tab does—and what it cannot prove/);
+  assert.match(html, /id="about-decision-flow"/);
+  assert.match(html, /Choose Skills by asking seven simple questions/);
+  for (const label of ["Model fit", "Source confidence", "ecosystem visibility", "measured performance"]) {
+    assert.match(html, new RegExp(label, "i"), `the decision guide is missing ${label}`);
+  }
+  for (const framework of [
+    "OECD AI-system classification",
+    "NIST AI Risk Management Framework",
+    "ISO/IEC 22989",
+    "SFIA",
+  ]) {
+    assert.match(html, new RegExp(framework), `the Skills guide is missing ${framework}`);
+  }
   assert.equal((html.match(/class="about-card"/g) ?? []).length, 6);
   assert.equal((html.match(/class="tab(?: active)?" data-tab=/g) ?? []).length, 7);
   for (const label of [
@@ -154,6 +168,25 @@ test("GET / renders a complete page", async () => {
     assert.match(html, new RegExp(`id="${id}"`), `the shell is missing #${id}`);
   }
   db.close();
+});
+
+test("the Skills taxonomy is complete, explained and versioned", () => {
+  assert.equal(NEED_GROUPS.length, 7);
+  assert.equal(NEED_GROUPS.flatMap((group) => group.items).length, 24);
+  assert.equal(TAXONOMY_VERSION, "2026.08.19-1");
+
+  const ids = new Set();
+  for (const group of NEED_GROUPS) {
+    assert.ok(group.name.trim());
+    assert.ok(group.prompt.endsWith("?"), `${group.name} needs a guiding question`);
+    for (const skill of group.items) {
+      assert.ok(skill.name.trim(), `${skill.id} needs a plain-language name`);
+      assert.ok(skill.guidance.length >= 30, `${skill.id} needs useful selection guidance`);
+      assert.ok(skill.cases.length > 0, `${skill.id} must affect at least one internal capability`);
+      assert.ok(!ids.has(skill.id), `duplicate Skill id: ${skill.id}`);
+      ids.add(skill.id);
+    }
+  }
 });
 
 test("the rendered page has balanced tags and no unsubstituted placeholders", async () => {

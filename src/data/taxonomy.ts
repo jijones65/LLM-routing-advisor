@@ -1,12 +1,14 @@
 import type { Capability } from "../shared/types.js";
 
 /** Bumped when application types, needs or context categories change. */
-export const TAXONOMY_VERSION = "2026.08.18-2";
+export const TAXONOMY_VERSION = "2026.08.19-1";
 
 /** One thing the application must be able to do, and what it implies. */
 export interface Need {
   readonly id: string;
   readonly name: string;
+  /** A short test for whether the user should select this skill. */
+  readonly guidance: string;
   /** Capabilities this need requires of the model team. */
   readonly cases: readonly Capability[];
 }
@@ -14,61 +16,196 @@ export interface Need {
 /** Needs grouped the way a person thinks about an application. */
 export interface NeedGroup {
   readonly name: string;
+  /** The question this group answers in an application brief. */
+  readonly prompt: string;
   readonly items: readonly Need[];
 }
 
 export const NEED_GROUPS: readonly NeedGroup[] = [
   {
-    name: "Read and understand",
+    name: "Understand inputs",
+    prompt: "What information will the application receive?",
     items: [
-      { id: "documents", name: "Read text and documents", cases: ["knowledge", "rag"] },
-      { id: "computer-vision", name: "Computer vision — images or video", cases: ["vision"] },
-      { id: "listen-speak", name: "Listen and speak", cases: ["voice"] },
+      {
+        id: "documents",
+        name: "Read text and documents",
+        guidance: "Choose this for reports, forms, PDFs, contracts or long written material.",
+        cases: ["knowledge", "rag"],
+      },
+      {
+        id: "computer-vision",
+        name: "Understand images or video",
+        guidance: "Choose this when meaning must be found in photographs, diagrams, scans or video frames.",
+        cases: ["vision"],
+      },
+      {
+        id: "listen-speak",
+        name: "Listen and speak",
+        guidance: "Choose this for spoken input, transcription, live conversation or spoken output.",
+        cases: ["voice"],
+      },
+      {
+        id: "structured-data",
+        name: "Work with tables and structured data",
+        guidance: "Choose this for spreadsheets, database records, measurements or other fixed fields.",
+        cases: ["knowledge", "reasoning", "automation"],
+      },
     ],
   },
   {
-    name: "Find information",
+    name: "Find and remember",
+    prompt: "What knowledge must it reach or retain?",
     items: [
-      { id: "internal-knowledge", name: "Use private knowledge", cases: ["knowledge", "rag"] },
-      { id: "current-research", name: "Search current sources", cases: ["research", "rag"] },
+      {
+        id: "internal-knowledge",
+        name: "Use private knowledge",
+        guidance: "Choose this when answers must be grounded in your organisation's approved information.",
+        cases: ["knowledge", "rag"],
+      },
+      {
+        id: "current-research",
+        name: "Search current sources",
+        guidance: "Choose this when the answer can change and needs current external evidence.",
+        cases: ["research", "rag"],
+      },
+      {
+        id: "memory-context",
+        name: "Keep context across interactions",
+        guidance: "Choose this when the application must remember approved facts, preferences or work in progress.",
+        cases: ["knowledge", "rag"],
+      },
     ],
   },
   {
-    name: "Reason and check",
+    name: "Analyse and decide",
+    prompt: "What judgement, comparison or calculation is required?",
     items: [
-      { id: "complex-decisions", name: "Make complex decisions", cases: ["reasoning"] },
-      { id: "forecast-scenarios", name: "Compare or forecast scenarios", cases: ["reasoning", "knowledge"] },
-      { id: "validate", name: "Check claims and outputs", cases: ["safety", "reasoning"] },
+      {
+        id: "complex-decisions",
+        name: "Make complex decisions",
+        guidance: "Choose this when several constraints, trade-offs or uncertain facts must be considered together.",
+        cases: ["reasoning"],
+      },
+      {
+        id: "forecast-scenarios",
+        name: "Compare or forecast scenarios",
+        guidance: "Choose this for alternatives, plans, forecasts, simulations or what-if questions.",
+        cases: ["reasoning", "knowledge"],
+      },
+      {
+        id: "quantitative-analysis",
+        name: "Calculate and analyse numbers",
+        guidance: "Choose this when numerical accuracy, formulas, statistics or measurement affect success.",
+        cases: ["reasoning", "knowledge"],
+      },
+      {
+        id: "classify-prioritise",
+        name: "Classify, rank or recommend",
+        guidance: "Choose this when items must be sorted, matched, prioritised or recommended using stated criteria.",
+        cases: ["reasoning", "knowledge", "safety"],
+      },
     ],
   },
   {
-    name: "Create",
+    name: "Create and communicate",
+    prompt: "What must it produce for a person or another system?",
     items: [
-      { id: "write-explain", name: "Write and explain", cases: ["knowledge"] },
-      { id: "code-build", name: "Write and test code", cases: ["coding", "agents"] },
-      { id: "creative-design", name: "Support art and design work", cases: ["vision", "knowledge"] },
+      {
+        id: "write-explain",
+        name: "Write and explain",
+        guidance: "Choose this for drafting, summarising, teaching or adapting information for an audience.",
+        cases: ["knowledge"],
+      },
+      {
+        id: "many-languages",
+        name: "Work in many languages",
+        guidance: "Choose this when understanding, translation or output is required in more than one language.",
+        cases: ["multilingual"],
+      },
+      {
+        id: "code-build",
+        name: "Write and test code",
+        guidance: "Choose this for software changes, debugging, tests, scripts or technical implementation.",
+        cases: ["coding", "agents"],
+      },
+      {
+        id: "creative-design",
+        name: "Support art and design work",
+        guidance: "Choose this for visual interpretation, creative direction or design development.",
+        cases: ["vision", "knowledge"],
+      },
     ],
   },
   {
     name: "Take action",
+    prompt: "What must happen beyond producing an answer?",
     items: [
-      { id: "software-tools", name: "Use software and tools", cases: ["agents", "automation"] },
-      { id: "high-volume", name: "Repeat work at high volume", cases: ["automation"] },
-      { id: "coordinate-work", name: "Coordinate many steps", cases: ["agents", "reasoning"] },
+      {
+        id: "software-tools",
+        name: "Use software and tools",
+        guidance: "Choose this when the application must search, calculate, update records or take an external action.",
+        cases: ["agents", "automation"],
+      },
+      {
+        id: "coordinate-work",
+        name: "Coordinate many steps",
+        guidance: "Choose this for plans with dependencies, hand-offs, specialist jobs or approval steps.",
+        cases: ["agents", "reasoning"],
+      },
+      {
+        id: "high-volume",
+        name: "Repeat work at high volume",
+        guidance: "Choose this when the same task must run reliably across many items or requests.",
+        cases: ["automation"],
+      },
+      {
+        id: "monitor-events",
+        name: "Monitor events and spot changes",
+        guidance: "Choose this when new records, exceptions, trends or unusual activity must trigger attention.",
+        cases: ["automation", "reasoning", "safety"],
+      },
     ],
   },
   {
-    name: "Location and field work",
+    name: "Verify and protect",
+    prompt: "What must be checked, controlled or escalated?",
     items: [
-      { id: "geospatial", name: "Use maps or geospatial data", cases: ["vision", "reasoning", "automation"] },
-      { id: "field-mobile", name: "Work in the field or offline", cases: ["voice", "vision", "private"] },
+      {
+        id: "validate",
+        name: "Check claims and outputs",
+        guidance: "Choose this when evidence, corrections, independent review or reliable citations matter.",
+        cases: ["safety", "reasoning"],
+      },
+      {
+        id: "apply-policies",
+        name: "Apply policies, rules or standards",
+        guidance: "Choose this when work must be compared with explicit requirements and exceptions recorded.",
+        cases: ["knowledge", "reasoning", "safety"],
+      },
+      {
+        id: "sensitive-data",
+        name: "Handle sensitive data",
+        guidance: "Choose this when privacy, access control, local processing or careful data handling is required.",
+        cases: ["private", "safety"],
+      },
     ],
   },
   {
-    name: "Language and protection",
+    name: "Work in place",
+    prompt: "Do location, mobility or offline operation change the work?",
     items: [
-      { id: "many-languages", name: "Work in many languages", cases: ["multilingual"] },
-      { id: "sensitive-data", name: "Handle sensitive data", cases: ["private", "safety"] },
+      {
+        id: "geospatial",
+        name: "Use maps or geospatial data",
+        guidance: "Choose this when location, distance, routes, boundaries or spatial patterns affect the answer.",
+        cases: ["vision", "reasoning", "automation"],
+      },
+      {
+        id: "field-mobile",
+        name: "Work in the field or offline",
+        guidance: "Choose this when connectivity, mobile devices, edge deployment or hands-free use matters.",
+        cases: ["voice", "vision", "private"],
+      },
     ],
   },
 ];
@@ -91,7 +228,7 @@ export const ARCHETYPES: readonly Archetype[] = [
     id: "knowledge-assistant",
     name: "Knowledge assistant",
     description: "Answers questions using trusted internal information and shows where answers came from.",
-    needs: ["internal-knowledge", "write-explain", "validate"],
+    needs: ["internal-knowledge", "memory-context", "write-explain", "validate"],
   },
   {
     id: "support-copilot",
@@ -103,7 +240,7 @@ export const ARCHETYPES: readonly Archetype[] = [
     id: "document-intelligence",
     name: "Document intelligence",
     description: "Reads, sorts and checks forms, reports, images and tables.",
-    needs: ["documents", "computer-vision", "high-volume", "validate"],
+    needs: ["documents", "computer-vision", "structured-data", "classify-prioritise", "high-volume", "validate"],
   },
   {
     id: "software-agent",
@@ -133,19 +270,28 @@ export const ARCHETYPES: readonly Archetype[] = [
     id: "operations-excellence",
     name: "Business process improvement",
     description: "Finds delays, improves processes and supports reliable day-to-day work.",
-    needs: ["high-volume", "forecast-scenarios", "software-tools", "validate"],
+    needs: ["structured-data", "forecast-scenarios", "monitor-events", "high-volume", "software-tools", "validate"],
   },
   {
     id: "product-comparison",
     name: "Product comparison tool",
     description: "Collects product facts, compares options against clear criteria and explains the trade-offs.",
-    needs: ["documents", "current-research", "complex-decisions", "write-explain", "validate"],
+    needs: ["documents", "current-research", "classify-prioritise", "complex-decisions", "write-explain", "validate"],
   },
   {
     id: "procurement-analyst",
     name: "Procurement and supplier analyst",
     description: "Compares suppliers, contracts, risks, costs and evidence for purchasing decisions.",
-    needs: ["documents", "forecast-scenarios", "current-research", "sensitive-data", "validate"],
+    needs: [
+      "documents",
+      "structured-data",
+      "quantitative-analysis",
+      "forecast-scenarios",
+      "current-research",
+      "apply-policies",
+      "sensitive-data",
+      "validate",
+    ],
   },
   {
     id: "meeting-actions",
@@ -169,13 +315,13 @@ export const ARCHETYPES: readonly Archetype[] = [
     id: "compliance-review",
     name: "Compliance and policy review assistant",
     description: "Compares documents with rules, records evidence and sends important decisions for human review.",
-    needs: ["documents", "internal-knowledge", "sensitive-data", "validate"],
+    needs: ["documents", "internal-knowledge", "apply-policies", "sensitive-data", "validate"],
   },
   {
     id: "data-insight",
     name: "Data insight and reporting assistant",
     description: "Explains trusted data, compares scenarios and prepares clear reports for decisions.",
-    needs: ["documents", "forecast-scenarios", "write-explain", "validate"],
+    needs: ["structured-data", "quantitative-analysis", "forecast-scenarios", "write-explain", "validate"],
   },
   {
     id: "content-localization",
@@ -187,25 +333,48 @@ export const ARCHETYPES: readonly Archetype[] = [
     id: "cybersecurity-triage",
     name: "Cybersecurity triage assistant",
     description: "Reviews technical evidence, helps investigate events and checks proposed actions before use.",
-    needs: ["code-build", "current-research", "complex-decisions", "sensitive-data", "validate"],
+    needs: [
+      "code-build",
+      "current-research",
+      "monitor-events",
+      "classify-prioritise",
+      "complex-decisions",
+      "sensitive-data",
+      "validate",
+    ],
   },
   {
     id: "retail-experience",
     name: "Retail and commerce assistant",
     description: "Supports product discovery, service, content and store or online operations.",
-    needs: ["internal-knowledge", "many-languages", "software-tools", "high-volume"],
+    needs: ["internal-knowledge", "classify-prioritise", "many-languages", "software-tools", "high-volume"],
   },
   {
     id: "finance-insight",
     name: "Financial analysis assistant",
     description: "Compares scenarios, explains results and checks calculations and sources.",
-    needs: ["documents", "forecast-scenarios", "current-research", "validate", "sensitive-data"],
+    needs: [
+      "documents",
+      "structured-data",
+      "quantitative-analysis",
+      "forecast-scenarios",
+      "current-research",
+      "validate",
+      "sensitive-data",
+    ],
   },
   {
     id: "science-research",
     name: "Scientific research assistant",
     description: "Finds literature, works with technical evidence and supports reproducible analysis.",
-    needs: ["current-research", "complex-decisions", "documents", "validate"],
+    needs: [
+      "current-research",
+      "structured-data",
+      "quantitative-analysis",
+      "complex-decisions",
+      "documents",
+      "validate",
+    ],
   },
   {
     id: "creative-studio",

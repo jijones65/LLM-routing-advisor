@@ -46,17 +46,24 @@ export const BODY_MARKUP = `<header class="topbar">
 <div class="custom-type">
 <label class="label" for="custom-application">Or name your own application type</label>
 <input class="search" id="custom-application" maxlength="100" autocomplete="off" aria-describedby="custom-application-help" placeholder="For example: supplier comparison for a school">
-<p class="help" id="custom-application-help">This name appears in the plan. The starting type above supplies common needs; adjust <strong>What it must do</strong> below to build the AI model team.</p>
+<p class="help" id="custom-application-help">This name appears in the plan. The starting type above suggests common skills; adjust <strong>Skills</strong> below to build the AI model team.</p>
 </div>
 </section>
 <section class="brief-section">
 <div class="brief-section-head">
-<span class="label">What it must do</span>
+<span class="label">Skills</span>
 <small id="case-count">
 </small>
 </div>
+<p class="skills-intro">Choose only the skills required for a successful result. Work through inputs, knowledge, analysis, outputs, actions, assurance and operating environment. The starting application type is a suggestion—you can add or remove any skill.</p>
 <div class="capability-groups" id="capabilities">
 </div>
+<details class="taxonomy-note skill-taxonomy-note">
+<summary>How skills affect the model team</summary>
+<p>Skills create the jobs and requirements used to compare models. Industry and knowledge area change the test context, not a model's facts. A missing skill lowers model fit but does not automatically hide a model.</p>
+<p>This is a plain-language application taxonomy informed by the OECD AI-system classification, NIST AI Risk Management Framework, ISO/IEC 22989 terminology and SFIA's task-oriented skills. It is not an official combined standard.</p>
+<a href="https://www.oecd.org/en/publications/oecd-framework-for-the-classification-of-ai-systems_cb6d9eca-en.html" target="_blank" rel="noreferrer">OECD classification ↗</a> · <a href="https://airc.nist.gov/airmf-resources/airmf/5-sec-core/" target="_blank" rel="noreferrer">NIST AI RMF ↗</a> · <a href="https://www.iso.org/standard/74296.html" target="_blank" rel="noreferrer">ISO terminology ↗</a> · <a href="https://sfia-online.org/en/tools-and-resources/ai-skills-framework/ai-skills-framework-home" target="_blank" rel="noreferrer">SFIA AI skills ↗</a>
+</details>
 </section>
 <section class="brief-section">
 <div class="brief-section-head">
@@ -653,7 +660,7 @@ export const BODY_MARKUP = `<header class="topbar">
 <span class="about-number">01</span>
 <div>
 <h2>Application design</h2>
-<p>Describe the application, choose what it must do, add its context and compare six main plan styles. This tab builds candidate teams, explains close calls, lets you choose another model inside the three-point choice band, and gives you team checks and trials to complete.</p>
+<p>Describe the application, choose the Skills it needs, add its context and compare six main plan styles. This tab builds candidate teams, explains close calls, lets you choose another model inside the three-point choice band, and gives you team checks and trials to complete.</p>
 <small><strong>It cannot prove:</strong> that a candidate team is the best one before you test the whole team on your own tasks.</small>
 </div>
 </article>
@@ -698,13 +705,68 @@ export const BODY_MARKUP = `<header class="topbar">
 </div>
 </article>
 </div>
+<section class="about-decision" id="about-decision-flow" aria-labelledby="about-decision-title">
+<div class="about-decision-head">
+<div>
+<div class="eyebrow">How model choices are made</div>
+<h2 id="about-decision-title">The application brief changes the shortlist.</h2>
+<p>No provider or model is the default winner. The advisor compares every current model variant separately for each job, then asks the user to test the most suitable candidates.</p>
+</div>
+<span>Shortlist → compare → trial → decide</span>
+</div>
+<div class="decision-flow" aria-label="Model choice decision flow">
+<article><b>1</b><strong>Describe the application</strong><small>Starting type, selected Skills, context, risk, limits and plan style</small></article>
+<i aria-hidden="true">→</i>
+<article><b>2</b><strong>Define the jobs</strong><small>Primary, planning, routine work, specialists, checking and fallback</small></article>
+<i aria-hidden="true">→</i>
+<article><b>3</b><strong>Score each job</strong><small>All current model variants are compared against that job's requirements</small></article>
+<i aria-hidden="true">→</i>
+<article><b>4</b><strong>Keep readings separate</strong><small>Model fit, source confidence, ecosystem visibility and measured performance</small></article>
+<i aria-hidden="true">→</i>
+<article><b>5</b><strong>Explain close choices</strong><small>Visible tie-breakers below 1 point; user choice below 3 points</small></article>
+<i aria-hidden="true">→</i>
+<article><b>6</b><strong>Check the whole team</strong><small>Coverage, overlap, provider concentration, hand-offs, routing and failures</small></article>
+<i aria-hidden="true">→</i>
+<article><b>7</b><strong>Trial before deciding</strong><small>Use the same real examples to compare quality, cost, speed, safety and reliability</small></article>
+</div>
+<div class="decision-table-wrap">
+<table class="decision-table">
+<thead><tr><th>Choice or evidence</th><th>What it changes</th><th>What it does not prove</th></tr></thead>
+<tbody>
+<tr><th>Starting application type</th><td>Suggests a useful first set of Skills.</td><td>That the suggestion is complete or fixed.</td></tr>
+<tr><th>Selected Skills</th><td>Creates the jobs and requirements used for model fit.</td><td>That a model has measured performance for your work.</td></tr>
+<tr><th>Context and risk</th><td>Changes the examples, checks, controls and human review needed.</td><td>That one model is generally best for an industry.</td></tr>
+<tr><th>Plan style</th><td>Changes the importance of quality, cost, visibility, breadth or specialisation.</td><td>That a small score difference is meaningful.</td></tr>
+<tr><th>Sources and measurements</th><td>Change confidence, ecosystem visibility and measured-performance readings.</td><td>That public visibility equals users, reliability or quality.</td></tr>
+<tr><th>Whole-team trials</th><td>Provide the evidence needed for the final decision.</td><td>That results will stay the same when the work or models change.</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+<section class="about-skills" aria-labelledby="about-skills-title">
+<div class="about-skills-intro">
+<div class="eyebrow">A structured Skills checklist</div>
+<h2 id="about-skills-title">Choose Skills by asking seven simple questions.</h2>
+<p>The list is organised around the work an application must complete—not an industry label or a favourite model. Start with the suggested Skills, remove anything unnecessary, and add anything needed for a successful result.</p>
+</div>
+<div class="about-skill-map">
+<article><strong>Understand inputs</strong><span>What information will it receive?</span><small>Text, documents, images, video, voice or structured data</small></article>
+<article><strong>Find and remember</strong><span>What knowledge must it reach or retain?</span><small>Private knowledge, current sources or approved memory</small></article>
+<article><strong>Analyse and decide</strong><span>What judgement or calculation is required?</span><small>Reasoning, scenarios, numbers, classification, ranking or recommendations</small></article>
+<article><strong>Create and communicate</strong><span>What must it produce?</span><small>Explanations, languages, code, visual interpretation or creative support</small></article>
+<article><strong>Take action</strong><span>What must happen beyond an answer?</span><small>Tools, workflows, repeated work, monitoring or alerts</small></article>
+<article><strong>Verify and protect</strong><span>What must be checked or controlled?</span><small>Claims, rules, standards, sensitive data, exceptions or escalation</small></article>
+<article><strong>Work in place</strong><span>Does location or connectivity change the work?</span><small>Maps, routes, field work, mobile use, edge devices or offline operation</small></article>
+</div>
+<p class="about-framework-note">This plain-language structure is informed by the <a href="https://www.oecd.org/en/publications/oecd-framework-for-the-classification-of-ai-systems_cb6d9eca-en.html" target="_blank" rel="noreferrer">OECD AI-system classification</a>, <a href="https://airc.nist.gov/airmf-resources/airmf/5-sec-core/" target="_blank" rel="noreferrer">NIST AI Risk Management Framework</a>, <a href="https://www.iso.org/standard/74296.html" target="_blank" rel="noreferrer">ISO/IEC 22989 terminology</a> and <a href="https://sfia-online.org/en/tools-and-resources/ai-skills-framework/ai-skills-framework-home" target="_blank" rel="noreferrer">SFIA's task-oriented skills</a>. It is an application-specific synthesis, not an official standard or certification.</p>
+</section>
 <section class="about-workflow" aria-labelledby="about-workflow-title">
 <div>
 <div class="eyebrow">A useful workflow</div>
 <h2 id="about-workflow-title">From idea to a tested model team</h2>
 </div>
 <ol>
-<li><strong>Describe</strong><span>Start with the application, the work it must do and its operating limits.</span></li>
+<li><strong>Describe</strong><span>Start with the application, the Skills it needs and its operating limits.</span></li>
 <li><strong>Compare</strong><span>Review the candidate teams and inspect any models that are too close to call.</span></li>
 <li><strong>Check</strong><span>Use the explorer, registry and coverage tabs to inspect sources, links and gaps.</span></li>
 <li><strong>Trial</strong><span>Run the same five team trials for every serious candidate, including hand-offs and failures.</span></li>

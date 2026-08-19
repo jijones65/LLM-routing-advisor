@@ -185,32 +185,58 @@ The baseline application types include:
 
 The taxonomy is extensible. Each application type provides a starting set of requirements that the user can modify.
 
-The UI also accepts a plain-language custom application type of up to 100 characters. A custom name is a label, not an inferred capability claim. The selected suggested type continues to provide the starting needs, and the user adjusts **What it must do** before the model team is built. The custom label, starter type, selected needs, derived requirements, and taxonomy version are saved together.
+The UI also accepts a plain-language custom application type of up to 100 characters. A custom name is a label, not an inferred capability claim. The selected suggested type continues to provide the starting Skills, and the user adjusts those Skills before the model team is built. The custom label, starter type, selected Skills, derived requirements, and taxonomy version are saved together.
 
-### 5.2 “What it must do” categories
+### 5.2 Skills
 
-The baseline capability choices are grouped for readability:
+Skills describe the work the application must complete. They are not model names, job titles, industry labels or claims of measured model performance. The starting application type suggests a first set; the user can add or remove any Skill before the team is built.
 
-- Read text and documents
-- Computer vision for images or video
-- Listen and speak
-- Use private knowledge
-- Search current sources
-- Make complex decisions
-- Compare or forecast scenarios
-- Check claims and outputs
-- Write and explain
-- Write and test code
-- Support art and design work
-- Use software and tools
-- Repeat work at high volume
-- Coordinate many steps
-- Use maps or geospatial data
-- Work in the field or offline
-- Work in many languages
-- Handle sensitive data
+The baseline choices are grouped around seven plain-language questions:
+
+1. **Understand inputs — What information will the application receive?**
+   - Read text and documents
+   - Understand images or video
+   - Listen and speak
+   - Work with tables and structured data
+2. **Find and remember — What knowledge must it reach or retain?**
+   - Use private knowledge
+   - Search current sources
+   - Keep context across interactions
+3. **Analyse and decide — What judgement, comparison or calculation is required?**
+   - Make complex decisions
+   - Compare or forecast scenarios
+   - Calculate and analyse numbers
+   - Classify, rank or recommend
+4. **Create and communicate — What must it produce for a person or another system?**
+   - Write and explain
+   - Work in many languages
+   - Write and test code
+   - Support art and design work
+5. **Take action — What must happen beyond producing an answer?**
+   - Use software and tools
+   - Coordinate many steps
+   - Repeat work at high volume
+   - Monitor events and spot changes
+6. **Verify and protect — What must be checked, controlled or escalated?**
+   - Check claims and outputs
+   - Apply policies, rules or standards
+   - Handle sensitive data
+7. **Work in place — Do location, mobility or offline operation change the work?**
+   - Use maps or geospatial data
+   - Work in the field or offline
 
 These user-facing choices map to internal capabilities such as reasoning, knowledge work, coding, retrieval, research, vision, voice, automation, private deployment, multilingual work, software agents, and safety/checking.
+
+The taxonomy is an application-specific, plain-language synthesis informed by:
+
+- OECD Framework for the Classification of AI Systems, especially the distinction between context, data/input, model, and task/output;
+- NIST AI Risk Management Framework, especially the iterative Govern, Map, Measure, and Manage functions;
+- ISO/IEC 22989 terminology and concepts for AI systems; and
+- SFIA's task-oriented approach to describing skills and responsibility.
+
+The advisor does not claim that this combined taxonomy is an official standard or certification. It uses the sources as design references and keeps context, risk, model facts, estimated fit, source confidence and measured performance separate.
+
+The About tab must show both the seven-question Skills structure and a visual decision map. The decision map must explain how the brief creates team jobs, how each current model variant is scored separately for each job, how model fit, source confidence, ecosystem visibility and measured performance remain separate, how close calls are handled, how the complete team is checked, and why real trials are required before a final choice.
 
 ### 5.3 Context frameworks
 
@@ -846,7 +872,7 @@ A rebuild is complete only when:
 
 - A non-specialist user can understand every major term.
 - The application brief determines the team jobs and job-specific requirements.
-- A custom application label can produce a complete team after the user confirms or adjusts what it must do.
+- A custom application label can produce a complete team after the user confirms or adjusts its Skills.
 - Every current catalogue model remains visible in every job ranking; missing capabilities and technical preferences change fit rather than silently excluding it.
 - Each recommendation separates fit, source confidence, ecosystem visibility, and measured performance.
 - Near-equal numerical results keep their raw order and show the explicit measured-evidence, application-specialisation and ecosystem-reach tie-break sequence.
