@@ -4,7 +4,7 @@ Plan the application first. Choose models second.
 
 The advisor turns an application brief into alternative model teams. It separates what the application must do from its business goal, industry, knowledge area, risk and operating limits, then proposes leading candidates for the primary model, supporting jobs, checkers, fallbacks and the non-model tools the application will also need.
 
-Live site: [llm-routing-advisor.ji-jones.chatgpt.site](https://llm-routing-advisor.ji-jones.chatgpt.site)
+Live site: [llm-application-routing-advisor.jeff-jones-7064.chatgpt.site](https://llm-application-routing-advisor.jeff-jones-7064.chatgpt.site)
 
 ## What it does
 
@@ -131,7 +131,7 @@ That writes `site.tar.gz` containing exactly what the Sites project expects:
 
 ```
 server/index.js
-.openai/hosting.json          # d1: DB, project_id: appgprj_6a826bc4cb…
+.openai/hosting.json          # d1: DB, project_id: appgprj_6a851a9f65…
 .openai/drizzle/0001_initial.sql
 .openai/drizzle/0002_align_catalog_and_evidence.sql
 ```
