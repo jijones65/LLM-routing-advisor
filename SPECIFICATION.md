@@ -1,7 +1,7 @@
 # LLM Application Routing Advisor — Product and Implementation Specification
 
-**Specification version:** 1.6
-**Current implementation baseline:** 19 August 2026 · catalogue `2026.08.18-2` · scoring `2026.08.18-4` · taxonomy `2026.08.18-2`
+**Specification version:** 1.7
+**Current implementation baseline:** 19 August 2026 · catalogue `2026.08.18-2` · scoring `2026.08.19-1` · taxonomy `2026.08.19-1`
 **Status:** Living specification for refinement, maintenance, and future rebuilds
 
 ## 1. Purpose
@@ -50,6 +50,8 @@ Preferred terminology:
 8. **Provider diversity is enabled by default.** Its current threshold is provisional and must be visible and versioned.
 9. **Estimates can improve.** Quality, speed, cost, capabilities, and thresholds must be versioned so they can be replaced by better measurements.
 10. **Complete teams must be tested.** Specialist scores do not simply add together; routing and coordination can introduce cost, latency, and failure.
+11. **High-quality output and cost optimisation belong together.** Every job has a soft output-quality target. Cost is reduced through job-specific routing and escalation, not by giving every task to the cheapest model.
+12. **Throughput means useful completed work.** Measure successful tasks meeting the output rubric per total cost and elapsed time, including tools, retries, fallbacks and human correction. Token volume alone is not quality or productivity.
 
 ## 4. Main product areas
 
@@ -60,7 +62,7 @@ The user defines an application and receives alternative model teams.
 Inputs:
 
 - Application type
-- What the application must do
+- Skills the application needs
 - Business goal
 - Industry context
 - Knowledge or scientific domain
@@ -289,9 +291,9 @@ These mappings are versioned configuration, not permanent truths.
 
 ### 7.1 Six main styles
 
-1. **Quality First:** prioritises the best available quality estimate for each job.
-2. **Balanced:** balances quality, estimated cost, and estimated speed.
-3. **Cost First:** prefers efficient models for routine work while retaining stronger models where required.
+1. **Quality First:** sets the highest planning quality target for every job, while still reporting price, speed and lower-cost routes.
+2. **Balanced:** uses job-specific quality targets, then balances quality, estimated cost and estimated speed.
+3. **Cost Optimised:** starts defined, repeatable work with efficient models while retaining stronger models and checking for difficult, uncertain or high-impact jobs.
 4. **Visible Ecosystem Reach:** starts with requirement fit, then modestly favours models visible across more public sources and deployment channels.
 5. **Broad Capability Range:** tests whether fewer versatile models can cover more of the application.
 6. **Focused Specialist Team:** assembles several focused, lower-cost models and tests whether the complete team can match a broader model.
@@ -328,8 +330,9 @@ For each model and job:
 score =
   job capability fit
   usual-job evidence
-  job quality value × plan quality weight
-  lower-cost estimate × plan cost weight × 0.75
+  job quality value × plan quality weight × job quality multiplier
+  quality-target shortfall penalty
+  lower-cost estimate × plan cost weight × job cost multiplier × 0.75
   speed estimate × plan speed weight × 0.65
   ecosystem visibility × plan visibility weight
   breadth or focus adjustment
@@ -369,14 +372,44 @@ Constraint adjustments:
 | ----------------------- | ------: | ---: | ----: | ---------: | ----------- |
 | Quality First           |       8 | 0.25 |  0.25 |       0.01 | —           |
 | Balanced                |       3 |    3 |     2 |       0.03 | —           |
-| Cost First              |       1 |    8 |     1 |       0.01 | —           |
+| Cost Optimised          |       1 |    8 |     1 |       0.01 | —           |
 | Visible Ecosystem Reach |       3 |    1 |     1 |       0.08 | —           |
 | Broad Capability Range  |       2 |    2 |     2 |       0.02 | Breadth 1.6 |
 | Focused Specialist Team |       2 |    4 |     2 |       0.02 | Focus 2.2   |
 
 All weights are configuration values tied to a scoring-version identifier. They must be treated as hypotheses and refined through evaluation.
 
-### 8.4 Quality, speed, and cost
+### 8.4 Job-specific quality and cost policy
+
+Plan-style weights are adjusted by the job because a routine extraction call, a specialist analysis and an independent check do not have the same consequences.
+
+| Job               | Operating mode                    | Base quality target | Quality multiplier | Cost multiplier |
+| ----------------- | --------------------------------- | ------------------: | -----------------: | --------------: |
+| Primary           | Adaptive lead                     |              4.00/5 |               1.25 |            0.75 |
+| Planner           | Quality-critical coordination     |              4.10/5 |               1.30 |            0.70 |
+| Routine worker    | High-throughput first route       |              3.50/5 |               1.00 |            1.50 |
+| Quality checker   | Assurance gate                    |              4.25/5 |               1.35 |            0.55 |
+| Research/evidence | Evidence-sensitive specialist     |              4.10/5 |               1.25 |            0.75 |
+| Coding            | Task-specific specialist          |              4.10/5 |               1.25 |            0.80 |
+| Vision            | Task-specific specialist          |              4.00/5 |               1.20 |            0.85 |
+| Voice             | Responsive adaptive route         |              3.90/5 |               1.15 |            0.90 |
+| Private/local     | Controlled quality-critical route |              3.90/5 |               1.20 |            0.85 |
+
+Quality First raises each target by 0.25. High risk raises each target by 0.25. Cost Optimised lowers only the routine-worker target by 0.25. Low risk lowers only the routine-worker target by 0.15. Targets remain between 3.25 and 4.75.
+
+A model below the target receives a versioned penalty proportional to the shortfall and the evidence factor. The model remains visible because the quality value may be estimated or incomplete. Meeting a target is not proof of quality; it is a planning state that must be tested.
+
+Every selected job records:
+
+- operating mode and target;
+- effective quality and cost weights;
+- default routing rule;
+- escalation rule; and
+- useful-work measure.
+
+The interface and saved specification must show these job policies. Cost optimisation should normally route defined, repeatable work to an efficient worker and escalate uncertainty, failed checks, unusual inputs and high-impact decisions to a stronger model, checker or human.
+
+### 8.5 Quality, speed, and cost
 
 Current quality, speed, and cost values are versioned 1–5 estimates. They are not presented as independently tested facts.
 
@@ -404,7 +437,7 @@ Evidence factors limit the influence of untested quality values:
 
 When only some relevant capability tests exist, tested scores are combined with the general estimate for the untested requirements. A partial test must not be presented as complete measured performance. When no relevant test exists, the UI shows “Estimated only.”
 
-### 8.5 Capability evolution
+### 8.6 Capability evolution
 
 Capabilities remain binary in the baseline catalogue because false precision would be worse than a clear limitation. The schema should evolve without breaking old records by allowing an optional capability profile:
 
@@ -421,7 +454,7 @@ Capabilities remain binary in the baseline catalogue because false precision wou
 
 This supports gradual refinement from “stated” to “tested” without inventing unsupported numeric detail.
 
-### 8.6 Ecosystem visibility
+### 8.7 Ecosystem visibility
 
 Ecosystem visibility is the rounded average of:
 
@@ -436,13 +469,13 @@ Required warning:
 
 Correlated signals should be identified and reduced over time. Platform-specific top-ten cut-offs should be replaced by fuller distributions when reliable data becomes available.
 
-### 8.7 Relative rank and percentage
+### 8.8 Relative rank and percentage
 
 - Rank #1 means the highest score for this job, brief, plan style, catalogue version, and scoring version.
 - The displayed percentage is the model's relative position from the lowest to the highest score in the current ranked set. The top position is 100%; the lowest is 0%.
 - It is not a probability, confidence interval, or claim that the model will succeed.
 
-### 8.8 Close calls and decision guidance
+### 8.9 Close calls and decision guidance
 
 A difference of less than one score point is inside the close-call band. The raw rank and score remain visible but are not treated as meaningful evidence of a better model.
 
@@ -561,6 +594,19 @@ The interface must not claim that members work well together from catalogue fact
 5. End-to-end cost, latency and peak-load behaviour
 
 Trial outcomes are user-recorded observations: Pass, Needs work or Fail. The advisor does not claim it ran model APIs. A saved plan retains structural checks, trial instructions, outcomes, catalogue version, scoring version and brief.
+
+The load trial must report **useful-work efficiency**: successful tasks that meet the agreed output rubric per total dollar and elapsed minute. It must include model calls, tools, retries, fallbacks and human corrections. A cheaper route fails the comparison if its lower apparent price is created by more failures, corrections or escalations.
+
+### Research basis and limits
+
+The quality-and-cost routing hypothesis is informed by:
+
+- [Vercel's July 2026 AI Gateway Production Index](https://vercel.com/blog/ai-gateway-production-index-july-2026), which observed open-weight models handling 29% of gateway tokens on under 4% of spend while high-stakes spend remained concentrated in frontier models;
+- [OECD's 2026 _Benefits of AI Openness_](https://www.oecd.org/content/dam/oecd/en/publications/reports/2026/05/benefits-of-ai-openness_40eaff39/746e8c9a-en.pdf), which reports stronger quality-to-price ratios for many open-weight models while showing that self-hosting economics depend heavily on workload scale and operational capacity;
+- [RouteLLM](https://arxiv.org/abs/2406.18665), which learns when to route between stronger and weaker models using preference data; and
+- [FrugalGPT](https://arxiv.org/abs/2305.05176), which studies cascades that escalate selectively between models.
+
+These sources support testing routing and cascades. Their gateway shares, quality ratios and reported savings must not be copied into an application forecast. They describe particular datasets, periods, gateways, models and evaluation settings.
 
 ## 11. Catalogue contract
 
@@ -760,6 +806,9 @@ Interface requirements:
 - Every catalogue variant receives a finite score for every job.
 - Missing capabilities reduce the score but do not exclude a model.
 - Specialists are scored against job-specific requirements.
+- Every job has a visible operating policy, soft quality target, effective quality and cost weights, routing rule, escalation rule and useful-work measure.
+- Primary, planning, specialist and checking jobs weight quality more strongly than cost; the routine worker gives more weight to cost and throughput.
+- A model below the job-quality target is penalised but remains visible.
 - Visible ecosystem reach cannot overpower materially stronger requirement coverage.
 - Quality, Balanced, Cost, Ecosystem, Broad, and Focused styles can produce different teams without forcing artificial differences.
 - Full team membership is visible before a user selects a plan.
@@ -777,15 +826,16 @@ Interface requirements:
 
 ### Team validation
 
-- Structural checks cover requirement coverage, assigned-job fit, complementarity, duplication, checker independence, routing complexity and fallback independence.
+- Structural checks cover requirement coverage, assigned-job fit, job-quality targets, quality-and-cost routing, complementarity, duplication, checker independence, routing complexity and fallback independence.
 - Coordination quality and end-to-end operation always require a real trial until an outcome is recorded.
 - The same five trial definitions are available for every plan style.
+- The load trial measures successful rubric-meeting tasks per total dollar and elapsed minute, including tools, retries, fallbacks and human corrections.
 - Recording Pass, Needs work or Fail updates the selected team's validation state.
 - Saved plans retain the recorded trial outcomes without claiming the advisor ran the models.
 
 ### Saved plans and specifications
 
-- A saved plan contains its brief, model team, evidence readings, close-call guidance, team checks, trial outcomes and version stamps.
+- A saved plan contains its brief, model team, job operating policies, evidence readings, close-call guidance, team checks, trial outcomes and version stamps.
 - A saved plan records whether a model was selected by the user and retains the advisor's automatic choice for comparison.
 - Saving returns a direct Markdown download link.
 - The generated Markdown contains the application type, every selected model and all required specification sections.

@@ -177,6 +177,8 @@ export const BODY_MARKUP = `<header class="topbar">
 </p>
 </div>
 </div>
+<section class="quality-cost-plan" id="quality-cost-plan" aria-live="polite">
+</section>
 <section class="team-evaluation" id="team-evaluation" aria-live="polite">
 </section>
 <div class="ranking-key">
@@ -719,7 +721,7 @@ export const BODY_MARKUP = `<header class="topbar">
 <i aria-hidden="true">→</i>
 <article><b>2</b><strong>Define the jobs</strong><small>Primary, planning, routine work, specialists, checking and fallback</small></article>
 <i aria-hidden="true">→</i>
-<article><b>3</b><strong>Score each job</strong><small>All current model variants are compared against that job's requirements</small></article>
+<article><b>3</b><strong>Set the job policy</strong><small>Give every job a quality target, cost weight, route and escalation rule</small></article>
 <i aria-hidden="true">→</i>
 <article><b>4</b><strong>Keep readings separate</strong><small>Model fit, source confidence, ecosystem visibility and measured performance</small></article>
 <i aria-hidden="true">→</i>
@@ -735,6 +737,7 @@ export const BODY_MARKUP = `<header class="topbar">
 <tbody>
 <tr><th>Starting application type</th><td>Suggests a useful first set of Skills.</td><td>That the suggestion is complete or fixed.</td></tr>
 <tr><th>Selected Skills</th><td>Creates the jobs and requirements used for model fit.</td><td>That a model has measured performance for your work.</td></tr>
+<tr><th>Job quality and cost policy</th><td>Sets a soft quality target and gives routine work more cost weight than difficult, specialist or checking work.</td><td>That token volume alone equals useful or high-quality work.</td></tr>
 <tr><th>Context and risk</th><td>Changes the examples, checks, controls and human review needed.</td><td>That one model is generally best for an industry.</td></tr>
 <tr><th>Plan style</th><td>Changes the importance of quality, cost, visibility, breadth or specialisation.</td><td>That a small score difference is meaningful.</td></tr>
 <tr><th>Sources and measurements</th><td>Change confidence, ecosystem visibility and measured-performance readings.</td><td>That public visibility equals users, reliability or quality.</td></tr>
@@ -778,6 +781,7 @@ export const BODY_MARKUP = `<header class="topbar">
 <article><strong>Source confirmed does not mean performance tested.</strong><span>It means the official provider page supported the recorded facts when checked.</span></article>
 <article><strong>A close call means less than one point.</strong><span>The raw order is kept. Measured evidence, application specialisation and then ecosystem reach provide visible tie-breakers; if they are also level, the result stays unresolved.</span></article>
 <article><strong>Trials are recorded by the user.</strong><span>The advisor does not call model APIs or run the application tests for you.</span></article>
+<article><strong>Useful-work efficiency is not token throughput.</strong><span>It means successful tasks meeting the output rubric per total dollar and elapsed minute, including tools, retries, fallbacks and corrections.</span></article>
 </div>
 </section>
 </main>

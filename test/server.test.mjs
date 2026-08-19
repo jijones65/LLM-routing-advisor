@@ -133,6 +133,7 @@ test("GET / renders a complete page", async () => {
     "primary-styles",
     "other-style",
     "route-list",
+    "quality-cost-plan",
     "team-evaluation",
     "route-stats",
     "team-compare",
@@ -298,6 +299,17 @@ test("saving a plan validates the payload", async () => {
         fit: 100,
         readings: { measuredPerformance: { evidenceLevel: "estimated" } },
         decision: { state: "too-close", reason: "Two candidates are close.", recommendedTest: "Run ten tasks." },
+        operatingPolicy: {
+          mode: "adaptive",
+          label: "Adaptive quality route",
+          qualityTarget: 4,
+          qualityWeight: 1.25,
+          costWeight: 0.75,
+          routingRule: "Use this model for normal work after the input is classified.",
+          escalationRule: "Escalate uncertain, failed or high-impact work to the checker or a human.",
+          successMeasure:
+            "Successful tasks meeting the output rubric per total dollar and elapsed minute, including tools, retries, fallbacks and human corrections.",
+        },
       },
     ],
     teamEvaluation: {
@@ -330,6 +342,9 @@ test("saving a plan validates the payload", async () => {
   assert.match(stored.specificationMarkdown, /# Draft Application Specification/);
   assert.match(stored.specificationMarkdown, /Supplier comparison for a school/);
   assert.match(stored.specificationMarkdown, /Claude Fable 5/);
+  assert.match(stored.specificationMarkdown, /Quality, cost and routing policy/);
+  assert.match(stored.specificationMarkdown, /Adaptive quality route/);
+  assert.match(stored.specificationMarkdown, /Successful tasks meeting the output rubric/);
   assert.match(stored.specificationMarkdown, /\[Fill in:/);
 
   const detail = await (await worker.fetch(request(`/api/blueprints/${id}`), { DB: db })).json();

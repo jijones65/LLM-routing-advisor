@@ -15,6 +15,7 @@ import {
 import {
   fitPercent,
   ineligibleReason,
+  jobOperatingPolicy,
   jobRequirements,
   qualityForJob,
   rankForRole,
@@ -68,6 +69,20 @@ test("every plan style produces a complete team", () => {
       `${styleId} has no checker`,
     );
     assert.equal(plan.unfilled.length, 0, `${styleId} left a job unfilled`);
+    for (const entry of plan.entries) {
+      const attainable = rankForRole(
+        catalog,
+        entry.role.role,
+        brief({ planStyle: styleId }),
+        STRATEGIES[styleId],
+      ).ranked.some((candidate) => candidate.readings.measuredPerformance.score >= entry.operatingPolicy.qualityTarget);
+      if (attainable) {
+        assert.ok(
+          entry.readings.measuredPerformance.score >= entry.operatingPolicy.qualityTarget,
+          `${styleId}/${entry.role.id} did not meet an attainable planning quality target`,
+        );
+      }
+    }
   }
 });
 
@@ -185,11 +200,55 @@ test("a provider job label adds evidence but does not gate a model out", () => {
 
 test("an untested quality estimate receives the reduced evidence factor", () => {
   const model = catalog.find((candidate) => !candidate.capabilityTests);
-  const term = scoreModel(model, "primary", brief(), STRATEGIES.quality).terms.find(
+  const application = brief();
+  const policy = jobOperatingPolicy("primary", application, STRATEGIES.quality);
+  const term = scoreModel(model, "primary", application, STRATEGIES.quality).terms.find(
     (candidate) => candidate.label === "Expected quality",
   );
-  assert.equal(term.value, model.quality * STRATEGIES.quality.quality * 0.6);
+  assert.equal(term.value, model.quality * policy.qualityWeight * 0.6);
   assert.match(term.detail, /evidence factor 0.6/);
+});
+
+test("job operating policies keep quality critical work separate from throughput work", () => {
+  const application = brief({ planStyle: "cost" });
+  const primary = jobOperatingPolicy("primary", application, STRATEGIES.cost);
+  const worker = jobOperatingPolicy("worker", application, STRATEGIES.cost);
+  const checker = jobOperatingPolicy("validator", application, STRATEGIES.cost);
+
+  assert.equal(worker.mode, "high-throughput");
+  assert.equal(checker.mode, "assurance");
+  assert.ok(worker.costWeight > primary.costWeight);
+  assert.ok(primary.qualityTarget > worker.qualityTarget);
+  assert.ok(checker.qualityWeight > worker.qualityWeight);
+  assert.match(worker.escalationRule, /Escalate/i);
+  assert.match(worker.successMeasure, /Successful tasks/i);
+});
+
+test("a cost-optimised team still meets every attainable job quality target", () => {
+  const application = brief({ planStyle: "cost" });
+  const plan = planFor(catalog, application, "cost");
+  for (const entry of plan.entries) {
+    const attainable = rankForRole(catalog, entry.role.role, application, STRATEGIES.cost).ranked.some(
+      (candidate) => candidate.readings.measuredPerformance.score >= entry.operatingPolicy.qualityTarget,
+    );
+    if (attainable) {
+      assert.ok(
+        entry.readings.measuredPerformance.score >= entry.operatingPolicy.qualityTarget,
+        `${entry.role.id} chose ${entry.model.name} at ${entry.readings.measuredPerformance.score} below ${entry.operatingPolicy.qualityTarget}`,
+      );
+    }
+  }
+});
+
+test("the quality target is a visible policy adjustment, not a hidden exclusion", () => {
+  const application = brief({ planStyle: "cost" });
+  const worker = planFor(catalog, application, "cost").entries.find((entry) => entry.role.id === "worker");
+  assert.ok(worker);
+  assert.ok(worker.policyAdjusted);
+  assert.match(worker.policyReason, /planning quality target/i);
+  assert.equal(worker.decision.state, "policy-choice");
+  assert.match(worker.decision.reason, /Team rule:/);
+  assert.ok(worker.decision.closeCandidates.some((candidate) => candidate.model.id === worker.advisorChoice.model.id));
 });
 
 test("current variants receive a finite score for every job", () => {
@@ -348,9 +407,15 @@ test("team evaluation separates structural checks from trials that must be run",
   assert.equal(evaluation.totalCapabilities, application.cases.length);
   assert.equal(evaluation.trials.length, 5);
   assert.ok(evaluation.checks.some((check) => check.id === "coverage"));
+  assert.ok(evaluation.checks.some((check) => check.id === "quality-targets"));
+  assert.ok(evaluation.checks.some((check) => check.id === "quality-cost-routing"));
   assert.ok(evaluation.checks.some((check) => check.id === "coordination" && check.status === "trial-required"));
   assert.ok(evaluation.trials.some((trial) => trial.id === "failure-recovery"));
   assert.ok(evaluation.trials.some((trial) => trial.id === "load-cost-latency"));
+  assert.match(
+    evaluation.trials.find((trial) => trial.id === "load-cost-latency").success,
+    /successful tasks per total dollar/i,
+  );
 });
 
 test("reusing one model across jobs is not described as independent validation", () => {
@@ -484,7 +549,7 @@ test("explanations name real factors and stay readable", () => {
   assert.ok(text.length > 80 && text.length < 900, `explanation was ${text.length} characters`);
 
   const summary = explainPlan(plan.entries, "balanced", true, false);
-  assert.match(summary, /primary candidate/);
+  assert.match(summary, /primary (candidate|selected)/);
   assert.match(summary, /Test the complete team/, "the summary must not drop the caveat");
 });
 

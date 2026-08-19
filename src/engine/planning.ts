@@ -13,7 +13,14 @@ import type {
 import { BASE_ROLES, SPECIALIST_ROLES } from "../data/roles.js";
 import { BUSINESS_GOALS, NEED_INDEX } from "../data/taxonomy.js";
 import { STRATEGIES } from "../data/strategies.js";
-import { effectiveSettings, fitPercent, jobRequirements, rankForRole, type Exclusion } from "./scoring.js";
+import {
+  effectiveSettings,
+  fitPercent,
+  jobOperatingPolicy,
+  jobRequirements,
+  rankForRole,
+  type Exclusion,
+} from "./scoring.js";
 
 /** Work out which capabilities the brief implies. */
 export function deriveCases(brief: Omit<Brief, "cases">): Capability[] {
@@ -186,8 +193,8 @@ function decisionGuide(
       closeCallThreshold: CLOSE_CALL_SCORE_GAP,
       closeCandidates: [decorate(top), decorate(chosen)],
       tieBreakBasis: null,
-      reason: `${chosen.model.name} is not the raw score leader. It is ${policyGap.toFixed(2)} points behind ${top.model.name} and was selected by the team’s provider policy.`,
-      recommendedTest: `Run both choices through the same 10 representative ${role.label.toLowerCase()} tasks and keep the policy choice only if the operational benefit outweighs any measured result gap.`,
+      reason: `${chosen.model.name} is not the raw score leader. It is ${policyGap.toFixed(2)} points behind ${top.model.name}. Team rule: ${policyReason}.`,
+      recommendedTest: `Run both choices through the same 10 representative ${role.label.toLowerCase()} tasks and keep the policy choice only if it meets the job-quality target and its measured operational benefit outweighs any result gap.`,
     };
   }
   const scoreGap = second ? Math.round((top.score - second.score) * 100) / 100 : null;
@@ -296,19 +303,40 @@ export function planFor(
     const closeCall = selectCloseCall(ranked, role, brief);
     let chosen = closeCall.chosen;
     let policyReason: string | null = null;
+    const operatingPolicy = jobOperatingPolicy(role.role, brief, strategy);
+    const chosenQuality = chosen.readings.measuredPerformance.score;
+    const targetCandidate = ranked.find(
+      (candidate) => candidate.readings.measuredPerformance.score >= operatingPolicy.qualityTarget,
+    );
+    const meetsAttainableTarget = (candidate: ScoredModel): boolean =>
+      !targetCandidate || candidate.readings.measuredPerformance.score >= operatingPolicy.qualityTarget;
 
-    if (strategy.singleProvider && primaryProvider) {
-      const sameProvider = ranked.find((candidate) => candidate.model.provider === primaryProvider);
+    // High-quality output is a requirement in every plan style. If the raw
+    // leader falls below the job's soft target, prefer the highest-ranked
+    // candidate that reaches it. The raw order stays visible and every model
+    // remains in the ranking; this is a documented team policy, not exclusion.
+    if (chosenQuality < operatingPolicy.qualityTarget) {
+      if (targetCandidate && targetCandidate !== chosen) {
+        chosen = targetCandidate;
+        policyReason = `meets the ${operatingPolicy.qualityTarget.toFixed(2)}/5 planning quality target while ${closeCall.chosen.model.name} is below it`;
+      }
+    }
+
+    if (!policyReason && strategy.singleProvider && primaryProvider) {
+      const sameProvider = ranked.find(
+        (candidate) => candidate.model.provider === primaryProvider && meetsAttainableTarget(candidate),
+      );
       if (sameProvider && sameProvider !== chosen) {
         chosen = sameProvider;
         policyReason = `kept on ${primaryProvider} because this plan style uses one provider for the whole team`;
       }
-    } else if (settings.multiVendor && usedProviders.size > 0) {
+    } else if (!policyReason && settings.multiVendor && usedProviders.size > 0) {
       // A percentage-of-top threshold breaks with negative scores, so compare on
       // the fit scale, which is normalised and always ordered correctly.
       const diverse = ranked.find(
         (candidate) =>
           !usedProviders.has(candidate.model.provider) &&
+          meetsAttainableTarget(candidate) &&
           fitPercent(candidate.score, ranked) >= DIVERSITY_FIT_THRESHOLD,
       );
       if (diverse && diverse !== chosen) {
@@ -358,6 +386,7 @@ export function planFor(
       policyReason,
       terms: chosen.terms,
       readings: chosen.readings,
+      operatingPolicy,
       decision,
       advisorChoice: decorate(advisorChosen),
       choiceCandidates: choiceCandidates.map(decorate),

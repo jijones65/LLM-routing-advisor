@@ -10,6 +10,14 @@ import type { Model } from "../../shared/types.js";
  */
 const CHANGES: readonly { state: string; title: string; scope: string; date: string; detail: string }[] = [
   {
+    state: "Refined",
+    title: "Every job now combines a quality target with cost-aware routing",
+    scope: "Recommendations · quality · cost",
+    date: "19 Aug 2026",
+    detail:
+      "Primary, planning, specialist and checking jobs now give more weight to task-specific quality, while the routine worker gives more weight to cost and volume. A soft quality target penalises material shortfalls without hiding a model. Every job shows its route, escalation rule and useful-work measure; saved specifications retain them.",
+  },
+  {
     state: "Fixed",
     title: "Close model choices are visible in the headline teams",
     scope: "Recommendations · user choice",

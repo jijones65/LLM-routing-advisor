@@ -3190,6 +3190,189 @@ p {
 .close-candidates small {
   font-size: 8px;
 }
+.quality-cost-plan {
+  display: grid;
+  gap: 12px;
+  margin: 10px 0 17px;
+  padding: 16px;
+  border: 1px solid #c8d09f;
+  border-radius: 13px;
+  background: #f7f9ee;
+}
+.quality-cost-head {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.8fr) minmax(0, 1.2fr);
+  gap: 18px;
+  align-items: end;
+}
+.quality-cost-head span {
+  color: #66783a;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.quality-cost-head h3 {
+  margin: 3px 0 0;
+  color: var(--navy);
+  font-size: 18px;
+}
+.quality-cost-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.55;
+}
+.quality-cost-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+.quality-cost-summary article {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1px 7px;
+  align-items: center;
+  padding: 9px 10px;
+  border: 1px solid #dce1c8;
+  border-radius: 9px;
+  background: #fff;
+}
+.quality-cost-summary strong {
+  grid-row: 1 / 3;
+  color: var(--navy);
+  font-size: 22px;
+}
+.quality-cost-summary span {
+  color: #4f6250;
+  font-size: 8px;
+  font-weight: 900;
+}
+.quality-cost-summary small {
+  color: var(--muted);
+  font-size: 7px;
+}
+.job-policy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+.job-operating-policy {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid #d9ddcb;
+  border-left: 3px solid #83995e;
+  border-radius: 9px;
+  background: #fff;
+}
+.job-operating-policy.high-throughput {
+  border-left-color: var(--aqua);
+}
+.job-operating-policy.assurance {
+  border-left-color: var(--coral);
+}
+.job-policy-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 8px;
+}
+.job-policy-head > span {
+  color: #60747a;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.job-policy-head > strong {
+  grid-column: 1;
+  color: var(--navy);
+  font-size: 10px;
+}
+.job-policy-head > small {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: center;
+  padding: 3px 6px;
+  border-radius: 999px;
+  font-size: 7px;
+  font-weight: 900;
+}
+.job-policy-head .target-ready {
+  background: #e8f2db;
+  color: #486226;
+}
+.job-policy-head .target-caution {
+  background: #fff0d2;
+  color: #7b5418;
+}
+.job-operating-policy > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 8px;
+}
+.job-operating-policy > p b {
+  color: var(--ink);
+}
+.job-operating-policy dl {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+}
+.job-operating-policy dl div {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 7px;
+}
+.job-operating-policy dt {
+  color: #61747a;
+  font-size: 7px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.job-operating-policy dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.45;
+}
+.useful-work-rule {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: var(--navy);
+  color: #fff;
+}
+.useful-work-rule strong {
+  color: var(--lime);
+  font-size: 9px;
+}
+.useful-work-rule span {
+  color: rgb(255 255 255 / 78%);
+  font-size: 8px;
+  line-height: 1.5;
+}
+.throughput-research {
+  padding-top: 9px;
+  border-top: 1px solid #dce1c8;
+  color: var(--muted);
+  font-size: 8px;
+}
+.throughput-research summary {
+  cursor: pointer;
+  color: var(--navy);
+  font-size: 9px;
+  font-weight: 900;
+}
+.throughput-research p {
+  margin: 7px 0;
+  line-height: 1.55;
+}
+.throughput-research a {
+  color: #315c72;
+}
 .team-evaluation {
   display: grid;
   gap: 12px;
@@ -3498,10 +3681,14 @@ p {
     grid-template-columns: 1fr;
   }
   .team-evaluation-head,
-  .team-trial {
+  .team-trial,
+  .quality-cost-head,
+  .useful-work-rule {
     grid-template-columns: 1fr;
   }
   .team-check-grid,
+  .job-policy-grid,
+  .quality-cost-summary,
   .close-candidates {
     grid-template-columns: 1fr;
   }

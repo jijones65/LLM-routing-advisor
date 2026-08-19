@@ -1,4 +1,13 @@
-import type { Brief, Capability, Model, RoleId, ScoreTerm, ScoredModel, Strategy } from "../shared/types.js";
+import type {
+  Brief,
+  Capability,
+  JobOperatingPolicy,
+  Model,
+  RoleId,
+  ScoreTerm,
+  ScoredModel,
+  Strategy,
+} from "../shared/types.js";
 import { adoptionScore, capabilityRange, signalsOf } from "./signals.js";
 
 /** Deployments that keep data inside an environment you control. */
@@ -19,6 +28,134 @@ export function effectiveSettings(brief: Brief, strategy: Strategy): EffectiveSe
     openPreferred: brief.openPreferred || Boolean(strategy.forceOpen),
     multiVendor: strategy.singleProvider ? false : strategy.forceMulti ? true : brief.multiVendor,
     highAssurance: Boolean(strategy.highAssurance) || brief.risk === "high",
+  };
+}
+
+interface JobPolicyProfile {
+  readonly mode: JobOperatingPolicy["mode"];
+  readonly label: string;
+  readonly baseQualityTarget: number;
+  readonly qualityMultiplier: number;
+  readonly costMultiplier: number;
+  readonly routingRule: string;
+  readonly escalationRule: string;
+}
+
+const JOB_POLICY_PROFILES: Readonly<Record<RoleId, JobPolicyProfile>> = {
+  primary: {
+    mode: "adaptive",
+    label: "High-quality lead with selective delegation",
+    baseQualityTarget: 4,
+    qualityMultiplier: 1.25,
+    costMultiplier: 0.75,
+    routingRule: "Handle ambiguous, cross-skill and user-facing work; delegate well-defined work to the routine model.",
+    escalationRule: "Take over when the routine route is uncertain, fails a check or reaches a high-impact decision.",
+  },
+  planner: {
+    mode: "quality-critical",
+    label: "Quality-critical coordination",
+    baseQualityTarget: 4.1,
+    qualityMultiplier: 1.3,
+    costMultiplier: 0.7,
+    routingRule: "Plan multi-step work, assign the right specialist and keep the shared goal and constraints intact.",
+    escalationRule: "Stop and re-plan when a dependency fails, the route loops or required evidence is missing.",
+  },
+  worker: {
+    mode: "high-throughput",
+    label: "Efficient first route for repeatable work",
+    baseQualityTarget: 3.5,
+    qualityMultiplier: 1,
+    costMultiplier: 1.5,
+    routingRule: "Start here for well-defined extraction, sorting, transformation and drafting work at volume.",
+    escalationRule: "Escalate low confidence, failed checks, unusual inputs and high-impact cases to a stronger model.",
+  },
+  validator: {
+    mode: "assurance",
+    label: "Independent quality and safety gate",
+    baseQualityTarget: 4.25,
+    qualityMultiplier: 1.35,
+    costMultiplier: 0.55,
+    routingRule: "Check important outputs, evidence and rules before the application releases or acts on them.",
+    escalationRule:
+      "Reject, return for correction or send to human review when the result does not meet the acceptance rule.",
+  },
+  researcher: {
+    mode: "quality-critical",
+    label: "Evidence-sensitive specialist",
+    baseQualityTarget: 4.1,
+    qualityMultiplier: 1.25,
+    costMultiplier: 0.75,
+    routingRule: "Use for current evidence, source comparison and claims that need traceability.",
+    escalationRule: "Escalate conflicting, incomplete or high-impact evidence to independent checking or human review.",
+  },
+  coder: {
+    mode: "quality-critical",
+    label: "Task-specific coding quality",
+    baseQualityTarget: 4.1,
+    qualityMultiplier: 1.25,
+    costMultiplier: 0.8,
+    routingRule:
+      "Use for software changes, debugging and tests; keep deterministic build and test tools outside the model.",
+    escalationRule: "Escalate failed tests, security-sensitive changes and uncertain repository-wide effects.",
+  },
+  vision: {
+    mode: "quality-critical",
+    label: "Task-specific visual quality",
+    baseQualityTarget: 4,
+    qualityMultiplier: 1.2,
+    costMultiplier: 0.85,
+    routingRule: "Use for images, scans, diagrams, video frames or spatial evidence assigned to this job.",
+    escalationRule: "Escalate unreadable inputs, uncertain interpretation and safety-sensitive visual decisions.",
+  },
+  voice: {
+    mode: "adaptive",
+    label: "Responsive speech with quality checks",
+    baseQualityTarget: 3.9,
+    qualityMultiplier: 1.15,
+    costMultiplier: 0.9,
+    routingRule: "Use for live speech, transcription and spoken interaction where latency also affects usefulness.",
+    escalationRule: "Confirm or escalate names, numbers, commitments and low-confidence transcription before acting.",
+  },
+  private: {
+    mode: "quality-critical",
+    label: "Controlled work with an explicit quality target",
+    baseQualityTarget: 3.9,
+    qualityMultiplier: 1.2,
+    costMultiplier: 0.85,
+    routingRule: "Use for work that must stay in a controlled, local or offline environment.",
+    escalationRule:
+      "Escalate outside the local route only when policy permits and the protected data is removed or approved.",
+  },
+};
+
+/**
+ * A job-specific quality-and-cost policy shared by scoring, plans and saved
+ * specifications. Plan styles still matter, but they cannot make every job
+ * behave like the same generic model call.
+ */
+export function jobOperatingPolicy(role: RoleId, brief: Brief, strategy: Strategy): JobOperatingPolicy {
+  const profile = JOB_POLICY_PROFILES[role];
+  const qualityStyleAdjustment = strategy.id === "quality" ? 0.25 : 0;
+  const throughputAdjustment = strategy.id === "cost" && role === "worker" ? -0.25 : 0;
+  const riskAdjustment = brief.risk === "high" ? 0.25 : brief.risk === "low" && role === "worker" ? -0.15 : 0;
+  const qualityTarget =
+    Math.round(
+      Math.max(
+        3.25,
+        Math.min(4.75, profile.baseQualityTarget + qualityStyleAdjustment + throughputAdjustment + riskAdjustment),
+      ) * 100,
+    ) / 100;
+
+  return {
+    mode: profile.mode,
+    label: profile.label,
+    qualityTarget,
+    qualityWeight: Math.round(strategy.quality * profile.qualityMultiplier * 100) / 100,
+    costWeight: Math.round(strategy.cost * profile.costMultiplier * 100) / 100,
+    routingRule: profile.routingRule,
+    escalationRule: profile.escalationRule,
+    successMeasure:
+      "Successful tasks that meet the acceptance rubric per total dollar and elapsed minute, including tools, retries, fallbacks and human corrections.",
   };
 }
 
@@ -116,6 +253,7 @@ export function ineligibleReason(
  */
 export function scoreModel(model: Model, role: RoleId, brief: Brief, strategy: Strategy): ScoredModel {
   const settings = effectiveSettings(brief, strategy);
+  const operatingPolicy = jobOperatingPolicy(role, brief, strategy);
   const terms: ScoreTerm[] = [];
 
   const push = (label: string, value: number, detail: string): void => {
@@ -150,8 +288,22 @@ export function scoreModel(model: Model, role: RoleId, brief: Brief, strategy: S
   const qualityConfidence = quality.tested === 0 ? 0.6 : quality.tested < quality.total ? 0.8 : 1;
   push(
     "Expected quality",
-    quality.value * strategy.quality * qualityConfidence,
-    `${quality.basis} ${quality.value.toFixed(1)}/5 × weight ${strategy.quality} × evidence factor ${qualityConfidence}`,
+    quality.value * operatingPolicy.qualityWeight * qualityConfidence,
+    `${quality.basis} ${quality.value.toFixed(1)}/5 × job-specific weight ${operatingPolicy.qualityWeight} × evidence factor ${qualityConfidence}`,
+  );
+
+  // High quality remains a requirement even in a cost-optimised plan. This is a
+  // soft planning guardrail rather than an exclusion because the quality value
+  // may still be an estimate. It makes a low price unable to erase a material
+  // quality shortfall for the primary, specialists or checker, while leaving a
+  // cheaper routine model available when it reaches the routine-work target.
+  const qualityShortfall = Math.max(0, operatingPolicy.qualityTarget - quality.value);
+  push(
+    "Quality target guardrail",
+    -qualityShortfall * 15 * qualityConfidence,
+    qualityShortfall > 0
+      ? `${quality.value.toFixed(2)}/5 is below this job's ${operatingPolicy.qualityTarget.toFixed(2)}/5 planning target; the model stays visible because the evidence may be incomplete`
+      : `${quality.value.toFixed(2)}/5 meets this job's ${operatingPolicy.qualityTarget.toFixed(2)}/5 planning target`,
   );
 
   // Operating cost and speed are scored *relative to the middle of the range*, so
@@ -169,7 +321,11 @@ export function scoreModel(model: Model, role: RoleId, brief: Brief, strategy: S
   const priceDetail = published
     ? `$${model.pricing.input}/$${model.pricing.output} per million tokens, cost class ${model.costClass}/5`
     : `cost class ${model.costClass}/5, estimated — ${model.pricing.note ?? "no published price"}`;
-  push("Operating cost", (3 - model.costClass) * strategy.cost * 0.75 * confidence, priceDetail);
+  push(
+    "Operating cost",
+    (3 - model.costClass) * operatingPolicy.costWeight * 0.75 * confidence,
+    `${priceDetail}; job-specific cost weight ${operatingPolicy.costWeight}`,
+  );
 
   push(
     "Speed",

@@ -334,6 +334,7 @@ byId("save-blueprint").addEventListener("click", async () => {
           rank: entry.rank,
           fit: entry.fit,
           readings: entry.readings,
+          operatingPolicy: entry.operatingPolicy,
           decision: entry.decision,
           userSelected: entry.userSelected,
         })),

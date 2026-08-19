@@ -182,7 +182,7 @@ export interface Role {
  *
  * Every weight is a multiplier applied to one normalised model attribute in
  * `scoreModel`. Keeping them declarative means a plan style is auditable — you
- * can read why "Cost first" behaves differently from "Quality first" without
+ * can read why "Cost optimised" behaves differently from "Quality first" without
  * reading the scoring code.
  */
 export interface Strategy {
@@ -299,6 +299,26 @@ export interface DecisionGuide {
   readonly recommendedTest: string;
 }
 
+/**
+ * How one team job should balance output quality with operating efficiency.
+ *
+ * This is a planning policy, not a performance result. The target and weights
+ * affect the shortlist; the routing and measurement text says how to validate
+ * the choice on the real application.
+ */
+export interface JobOperatingPolicy {
+  readonly mode: "quality-critical" | "adaptive" | "high-throughput" | "assurance";
+  readonly label: string;
+  /** Soft planning target on the existing 1–5 quality scale. */
+  readonly qualityTarget: number;
+  /** Effective job-specific weights after the plan-style weights are applied. */
+  readonly qualityWeight: number;
+  readonly costWeight: number;
+  readonly routingRule: string;
+  readonly escalationRule: string;
+  readonly successMeasure: string;
+}
+
 /** One job in a finished plan, with its chosen model and the reasoning. */
 export interface PlanEntry {
   readonly role: Role;
@@ -310,6 +330,7 @@ export interface PlanEntry {
   readonly policyReason: string | null;
   readonly terms: readonly ScoreTerm[];
   readonly readings: RecommendationReadings;
+  readonly operatingPolicy: JobOperatingPolicy;
   readonly decision: DecisionGuide;
   /** The advisor's automatic choice before an allowed user override. */
   readonly advisorChoice: Alternative;
