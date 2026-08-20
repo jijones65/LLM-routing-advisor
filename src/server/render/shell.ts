@@ -41,7 +41,7 @@ export const BODY_MARKUP = `<header class="topbar">
 <div class="concept-import-head">
 <div>
 <span class="label" id="concept-import-title">Start with a project document</span>
-<p>Upload a concept paper, requirements document or implementation specification as PDF or DOCX. The advisor maps named sections into a reviewable brief and preserves any team or model architecture already described.</p>
+<p>Upload any readable project document as PDF or DOCX. The advisor indexes its structure, selects a bounded set of relevant evidence and proposes a reviewable brief. Clear headings receive more confidence; weak guesses are flagged instead of treated as facts.</p>
 </div>
 <span class="concept-private">File not stored</span>
 </div>

@@ -11,11 +11,11 @@ import type { Model } from "../../shared/types.js";
 const CHANGES: readonly { state: string; title: string; scope: string; date: string; detail: string }[] = [
   {
     state: "Refined",
-    title: "Long project documents now keep their real structure",
+    title: "Project-document import is now generic and structure-first",
     scope: "Application design · plans · specifications",
     date: "19 Aug 2026",
     detail:
-      "Upload a concept paper, requirements document or implementation specification as PDF or DOCX. Word heading levels and named sections now drive the draft, long documents are analysed beyond their opening pages, source mappings are shown, and any existing team or model-per-role architecture is preserved separately from advisor candidates. Weak matches stay blank for review. The file is read transiently and not retained.",
+      "Upload any readable project document as PDF or DOCX. The importer indexes headings, selects a bounded evidence set, maps generic specification concepts and reports confidence and review items. It no longer treats the earlier example document's wording as special. Unsupported categories do not overwrite current choices, negated statements are not counted as positive evidence, and existing team or model architecture stays separate from advisor candidates. The file is read transiently and not retained.",
   },
   {
     state: "Added",

@@ -1,6 +1,8 @@
 import { ARCHETYPES, BUSINESS_GOALS, DOMAINS, INDUSTRIES, NEED_INDEX, type Archetype } from "../../data/taxonomy.js";
 import type {
+  ConceptConfidence,
   ConceptDocumentKind,
+  ConceptInferenceField,
   ConceptPaperAnalysis,
   ConceptPaperField,
   ConceptSourceMapping,
@@ -57,7 +59,10 @@ const NEED_ALIASES: Record<string, readonly string[]> = {
   documents: ["read contracts", "read reports", "document processing", "document extraction", "forms", "pdf files"],
   "computer-vision": [
     "computer vision",
+    "camera image",
+    "image analysis",
     "image recognition",
+    "object detection",
     "video analysis",
     "camera",
     "photograph",
@@ -173,8 +178,8 @@ const NEED_ALIASES: Record<string, readonly string[]> = {
     "hand-off",
     "multi-agent",
     "workflow orchestration",
-    "agent workforce",
-    "sub-agent",
+    "agent team",
+    "task delegation",
   ],
   "workflow-approvals": [
     "approval workflow",
@@ -231,8 +236,8 @@ const NEED_ALIASES: Record<string, readonly string[]> = {
     "quality assurance",
     "citation check",
     "independent check",
-    "cite-or-fail",
-    "evidence array",
+    "evidence check",
+    "source verification",
   ],
   "apply-policies": [
     "apply policy",
@@ -259,7 +264,10 @@ const NEED_ALIASES: Record<string, readonly string[]> = {
 
 const HEADING_TERMS = new Set(Object.values(FIELD_TERMS).flat());
 const MAX_FIELD = 1_600;
-const MAX_ANALYSIS_CHARACTERS = 500_000;
+const MAX_INDEX_CHARACTERS = 500_000;
+const MAX_EVIDENCE_CHARACTERS = 50_000;
+const MAX_SECTION_EVIDENCE = 400;
+const MAX_REPRESENTATIVE_SECTIONS = 48;
 
 interface DocumentSection {
   readonly level: number;
@@ -277,6 +285,12 @@ interface ParsedDocument {
 interface MappedValue {
   readonly value: string;
   readonly mapping?: ConceptSourceMapping;
+}
+
+interface InferredValue<T> {
+  readonly value: T;
+  readonly confidence: ConceptConfidence;
+  readonly score: number;
 }
 
 function clean(value: string): string {
@@ -357,19 +371,30 @@ function parseDocument(cleaned: string): ParsedDocument {
 
 function openingLabel(opening: string, labels: readonly string[]): MappedValue {
   const knownLabels = [
+    "Title",
+    "Project",
+    "Application",
+    "Proposal",
     "Audience",
     "Users",
     "Stakeholders",
     "Model",
     "Model guidance",
-    "Honesty principle",
-    "Architecture note(?: \\(READ THIS FIRST\\))?",
+    "Architecture",
+    "System design",
     "Objective",
     "Purpose",
+    "Aim",
+    "Vision",
     "Context",
+    "Background",
     "Inputs",
     "Outputs",
     "Constraints",
+    "Requirements",
+    "Out of scope",
+    "Evaluation",
+    "Verification",
   ];
   const start = new RegExp(`(?:^|\\s)(?:${labels.join("|")})(?:\\s*\\([^)]{1,60}\\))?[.:]\\s*`, "i").exec(opening);
   if (!start) return { value: "" };
@@ -385,20 +410,30 @@ function openingLabel(opening: string, labels: readonly string[]): MappedValue {
   return { value: "" };
 }
 
-function titleFromPurpose(document: ParsedDocument): string {
+function titleFromPurpose(document: ParsedDocument): MappedValue {
   const candidates = [document.opening, ...document.lines.slice(0, 12)];
   for (const candidate of candidates) {
     const match =
       /(?:build|application|concept|project|product)\s+(?:specification|paper|brief)?\s*(?:for|:)\s+(?:the\s+)?(.+?)(?:\s+[—–-]\s+|[.!?]|$)/i.exec(
         candidate,
       );
-    if (match?.[1] && match[1].length >= 5) return truncate(match[1], 100);
+    if (match?.[1] && match[1].length >= 5) {
+      return {
+        value: truncate(match[1], 100),
+        mapping: { source: "Opening purpose statement", confidence: "medium", method: "opening-summary" },
+      };
+    }
   }
-  return "";
+  return { value: "" };
 }
 
-function inferTitle(document: ParsedDocument, fileName: string): string {
+function inferTitle(document: ParsedDocument, fileName: string): MappedValue {
   const explicit = document.lines.find((line) => /^(?:project|application|concept|proposal|title)\s*:/i.test(line));
+  const firstSection = document.sections[0];
+  const h1 =
+    firstSection?.level === 1 && !/\.(?:md|pdf|docx)$/i.test(firstSection.heading) && firstSection.heading.length <= 110
+      ? firstSection
+      : undefined;
   const purpose = titleFromPurpose(document);
   const firstUseful = document.lines.find(
     (line) =>
@@ -411,13 +446,23 @@ function inferTitle(document: ParsedDocument, fileName: string): string {
       !isPlainHeading(line),
   );
   const fromFile = fileName.replace(/\.(?:pdf|docx)$/i, "").replace(/[-_]+/g, " ");
-  return truncate(
-    (explicit || purpose || firstUseful || fromFile).replace(
+  const value = truncate(
+    (explicit || h1?.heading || purpose.value || firstUseful || fromFile).replace(
       /^(?:project|application|concept|proposal|title)\s*:\s*/i,
       "",
     ),
     100,
   );
+  const mapping: ConceptSourceMapping = explicit
+    ? { source: "Opening title label", confidence: "high", method: "document-title" }
+    : h1
+      ? { source: h1.heading, confidence: "high", method: "document-title" }
+      : purpose.mapping
+        ? purpose.mapping
+        : firstUseful
+          ? { source: "First title-like line", confidence: "low", method: "document-title" }
+          : { source: "Filename", confidence: "low", method: "filename" };
+  return { value, mapping };
 }
 
 function headingScore(heading: string, terms: readonly string[]): number {
@@ -472,44 +517,49 @@ function plainTextMatch(document: ParsedDocument, terms: readonly string[]): Map
   const sentences = document.lines
     .join(" ")
     .split(/(?<=[.!?])\s+/)
+    .filter((sentence) => !/^\s*(?:no|none|not|without)\b/i.test(sentence))
     .filter((sentence) => phraseCount(normal(sentence), terms) > 0)
     .slice(0, 3);
   const value = truncate(sentences.join(" "));
   return value
     ? {
         value,
-        mapping: { source: "Plain-text phrase match", confidence: "medium", method: "plain-text-match" },
+        mapping: { source: "Plain-text phrase match", confidence: "low", method: "plain-text-match" },
       }
     : { value: "" };
 }
 
-function inferNeeds(corpus: string): string[] {
+function inferNeeds(corpus: string): InferredValue<string[]> {
   const scored = Object.entries(NEED_ALIASES)
     .map(([id, aliases]) => {
       const title = NEED_INDEX[id]?.name.toLowerCase();
       const score = phraseCount(corpus, aliases) + (title && corpus.includes(title) ? 5 : 0);
       return { id, score };
     })
-    .filter((item) => item.score >= 3)
+    .filter((item) => item.score >= 2)
     .sort((left, right) => right.score - left.score || left.id.localeCompare(right.id))
-    .slice(0, 12)
-    .map((item) => item.id);
-  return scored;
+    .slice(0, 12);
+  const score = scored.reduce((total, item) => total + item.score, 0);
+  return {
+    value: scored.map((item) => item.id),
+    score,
+    confidence: !scored.length ? "none" : scored.length >= 3 && scored[0].score >= 6 ? "high" : "medium",
+  };
 }
 
-function inferArchetype(corpus: string, needs: readonly string[]): Archetype {
+function inferArchetype(corpus: string, needs: readonly string[]): InferredValue<Archetype> {
   const aliases: Record<string, readonly string[]> = {
     "data-insight": ["business intelligence", "data insight", "dashboard", "management reporting"],
     "finance-insight": [
       "financial analysis",
-      "finance director",
-      "variance review",
+      "financial reporting",
+      "variance analysis",
       "profit and loss",
-      "xero",
-      "kpi dashboard",
+      "budget analysis",
+      "management accounting",
     ],
     "operations-excellence": ["operational excellence", "business process improvement", "workflow redesign"],
-    "research-system": ["research and evidence", "cite-or-fail", "source-grounding", "evidence system"],
+    "research-system": ["research and evidence", "source verification", "source-grounding", "evidence system"],
     "software-agent": ["software engineering", "build agent", "source code", "automated tests"],
   };
   const scored = ARCHETYPES.map((archetype) => {
@@ -529,18 +579,28 @@ function inferArchetype(corpus: string, needs: readonly string[]): Archetype {
     const explicit = phraseCount(corpus, aliases[archetype.id] ?? []);
     return { archetype, score: overlap * 4 + language + explicit * 5 };
   }).sort((left, right) => right.score - left.score);
-  return scored[0]?.archetype ?? ARCHETYPES[0];
+  const best = scored[0] ?? { archetype: ARCHETYPES[0], score: 0 };
+  return {
+    value: best.archetype,
+    score: best.score,
+    confidence: best.score >= 14 ? "high" : best.score >= 5 ? "medium" : best.score > 0 ? "low" : "none",
+  };
 }
 
 function inferOption(
   corpus: string,
   options: readonly { id: string; name: string }[],
   aliases: Record<string, readonly string[]>,
-): string {
+): InferredValue<string> {
   const scored = options
     .map((option) => ({ id: option.id, score: phraseCount(corpus, aliases[option.id] ?? [option.name.toLowerCase()]) }))
     .sort((left, right) => right.score - left.score);
-  return scored[0]?.score ? scored[0].id : options[0].id;
+  const best = scored[0] ?? { id: options[0].id, score: 0 };
+  return {
+    value: best.id,
+    score: best.score,
+    confidence: best.score >= 6 ? "high" : best.score > 0 ? "medium" : "none",
+  };
 }
 
 const GOAL_ALIASES: Record<string, readonly string[]> = {
@@ -567,9 +627,8 @@ const INDUSTRY_ALIASES: Record<string, readonly string[]> = {
     "investment",
     "lending",
     "accounting",
-    "finance director",
     "profit and loss",
-    "xero",
+    "financial reporting",
   ],
   health: ["health", "clinical", "hospital", "patient", "medical"],
   education: ["education", "school", "university", "student", "learning"],
@@ -592,9 +651,8 @@ const DOMAIN_ALIASES: Record<string, readonly string[]> = {
     "investment",
     "budget",
     "financial analysis",
-    "finance director",
     "profit and loss",
-    "xero",
+    "financial reporting",
   ],
   computing: ["software", "computing", "engineering", "cybersecurity", "api", "code"],
   health: ["health science", "medicine", "clinical", "biology", "patient"],
@@ -605,37 +663,41 @@ const DOMAIN_ALIASES: Record<string, readonly string[]> = {
 };
 
 const FIELD_SECTION_TERMS: Record<FieldName, readonly string[]> = {
-  objective: ["objective", "purpose", "vision", "intended outcome", "scope summary"],
-  context: ["context", "background", "current state", "operating setting", "overview", "rationale"],
-  users: ["users and stakeholders", "users", "stakeholders", "audience", "operator"],
-  inputs: ["inputs", "input sources", "source map", "data sources", "source refresh", "dividing line"],
-  outputs: [
-    "outputs",
-    "output format",
-    "deliverables",
-    "approval gate and delivery",
-    "report schema",
-    "two top-level triggers",
+  objective: ["objective", "purpose", "aim", "vision", "intended outcome", "problem statement", "opportunity"],
+  context: ["context", "background", "current state", "operating environment", "overview", "rationale"],
+  users: ["users and stakeholders", "users", "stakeholders", "audience", "people", "customers", "operators"],
+  inputs: [
+    "inputs",
+    "input sources",
+    "data inputs",
+    "data sources",
+    "information sources",
+    "source systems",
+    "source map",
   ],
+  outputs: ["outputs", "output format", "deliverables", "required results", "results", "responses", "reports"],
   constraints: [
     "constraints",
     "requirements",
-    "cite-or-fail rule",
-    "governing principle",
-    "operator decision points",
-    "scope policy guard",
+    "non-functional requirements",
+    "limitations",
+    "rules",
+    "guardrails",
+    "dependencies",
   ],
-  outOfScope: ["what is not in scope", "not in scope", "out of scope", "exclusions"],
-  evaluationCriteria: [
-    "evaluation criteria",
-    "success criteria",
-    "acceptance criteria",
+  outOfScope: ["what is not in scope", "not in scope", "out of scope", "exclusions", "boundaries"],
+  evaluationCriteria: ["evaluation criteria", "success criteria", "acceptance criteria", "measures", "metrics"],
+  edgeCases: ["edge cases", "failure modes", "risks", "exceptions", "fallbacks", "known limitations"],
+  verificationSteps: [
+    "verification steps",
+    "verification",
+    "validation plan",
+    "test plan",
     "integration check",
-    "regression baseline",
-    "stop condition",
+    "integration test",
+    "testing",
+    "assurance",
   ],
-  edgeCases: ["edge cases", "failure modes", "known limitation", "kpi baseline", "fallback", "stop condition"],
-  verificationSteps: ["verification steps", "verification", "integration check", "test", "stop condition"],
 };
 
 function combineMapped(...values: readonly MappedValue[]): MappedValue {
@@ -656,24 +718,46 @@ function combineMapped(...values: readonly MappedValue[]): MappedValue {
   };
 }
 
-function documentKind(document: ParsedDocument, corpus: string): ConceptDocumentKind {
-  if (
-    corpus.includes("build specification") ||
-    corpus.includes("implementation specification") ||
-    (document.sections.length >= 12 &&
-      document.sections.some((section) => /build order|integration check/i.test(section.heading)))
-  )
-    return "implementation-specification";
-  if (
-    corpus.includes("requirements document") ||
-    document.sections.some((section) =>
-      /acceptance criteria|functional requirements|non-functional requirements/i.test(section.heading),
-    )
-  )
-    return "requirements-document";
-  if (corpus.includes("concept paper") || document.sections.some((section) => /concept paper/i.test(section.heading)))
-    return "concept-paper";
-  return "application-brief";
+function documentKind(document: ParsedDocument): { kind: ConceptDocumentKind; confidence: ConceptConfidence } {
+  const structuralText = normal(
+    [document.opening.slice(0, 4_000), ...document.sections.map((section) => section.heading)].join(" "),
+  );
+  const signals: Record<ConceptDocumentKind, readonly string[]> = {
+    "implementation-specification": [
+      "implementation specification",
+      "technical specification",
+      "build specification",
+      "architecture",
+      "solution architecture",
+      "system architecture",
+      "technical design",
+      "build plan",
+      "deployment plan",
+      "implementation plan",
+    ],
+    "requirements-document": [
+      "requirements document",
+      "business requirements",
+      "functional requirements",
+      "non-functional requirements",
+      "acceptance criteria",
+      "mandatory requirements",
+    ],
+    "concept-paper": [
+      "concept paper",
+      "concept note",
+      "business case",
+      "project proposal",
+      "problem statement",
+      "opportunity statement",
+    ],
+    "application-brief": ["application brief", "project brief", "product brief", "design brief", "solution brief"],
+  };
+  const ranked = (Object.entries(signals) as [ConceptDocumentKind, readonly string[]][])
+    .map(([kind, phrases]) => ({ kind, score: phraseCount(structuralText, phrases) }))
+    .sort((left, right) => right.score - left.score);
+  if (!ranked[0]?.score) return { kind: "application-brief", confidence: "low" };
+  return { kind: ranked[0].kind, confidence: ranked[0].score >= 6 ? "high" : "medium" };
 }
 
 function openingSummary(document: ParsedDocument): MappedValue {
@@ -690,14 +774,19 @@ function openingSummary(document: ParsedDocument): MappedValue {
 }
 
 function openingObjective(document: ParsedDocument): MappedValue {
-  const purpose = document.lines.find((line) =>
-    /(?:build|application|concept|project)\s+(?:specification|paper|brief)/i.test(line),
-  );
-  const architecture = openingLabel(document.opening, ["Architecture note"]);
-  const value = truncate([purpose, architecture.value].filter(Boolean).join(" "));
-  return value
-    ? { value, mapping: { source: "Opening summary", confidence: "medium", method: "opening-summary" } }
-    : openingSummary(document);
+  const labelled = openingLabel(document.opening, ["Objective", "Purpose", "Aim", "Vision"]);
+  if (labelled.value) return labelled;
+  if (document.sections.length >= 5 || document.opening.length > 3_000) return { value: "" };
+  const summary = openingSummary(document);
+  if (!/\b(?:build|create|develop|design|provide|enable|improve|automate|support|deliver)\b/i.test(summary.value)) {
+    return { value: "" };
+  }
+  return summary.value
+    ? {
+        value: summary.value,
+        mapping: { source: "Opening summary", confidence: "low", method: "opening-summary" },
+      }
+    : { value: "" };
 }
 
 function mappedField(document: ParsedDocument, field: FieldName, kind: ConceptDocumentKind): MappedValue {
@@ -715,74 +804,220 @@ function mappedField(document: ParsedDocument, field: FieldName, kind: ConceptDo
 }
 
 function existingArchitecture(document: ParsedDocument): MappedValue {
-  return mapSections(
-    document,
-    [
-      "architecture summary",
-      "two top-level triggers",
-      "persistent agents",
-      "call tree",
-      "workforce hierarchy",
-      "team structure",
-    ],
-    { limit: 5, minimum: 12, maxLength: 3_200 },
+  return combineMapped(
+    openingLabel(document.opening, ["Architecture", "Architecture note", "System design"]),
+    mapSections(
+      document,
+      [
+        "architecture",
+        "architecture overview",
+        "solution architecture",
+        "system architecture",
+        "technical architecture",
+        "technical design",
+        "solution design",
+        "system design",
+        "system components",
+        "component diagram",
+        "agent roles",
+        "model roles",
+        "team structure",
+        "workflow architecture",
+        "orchestration",
+        "integration architecture",
+        "data flow",
+        "call flow",
+      ],
+      { limit: 4, minimum: 12, maxLength: 3_200 },
+    ),
   );
 }
 
 function existingModelGuidance(document: ParsedDocument): MappedValue {
   return combineMapped(
     openingLabel(document.opening, ["Model", "Model guidance"]),
-    mapSections(document, ["model-per-role", "model choice", "model guidance", "supported model"], {
-      limit: 1,
-      minimum: 12,
-    }),
+    mapSections(
+      document,
+      ["model selection", "model choices", "model guidance", "model requirements", "model policy", "model-per-role"],
+      {
+        limit: 2,
+        minimum: 15,
+      },
+    ),
   );
 }
 
-/** Turn extracted text into reviewable suggestions without calling a model API. */
+/** Build a bounded, representative evidence set instead of treating every word as equally relevant. */
+function evidenceCorpus(document: ParsedDocument, mapped: readonly MappedValue[]): string {
+  const representativeSections =
+    document.sections.length <= MAX_REPRESENTATIVE_SECTIONS
+      ? document.sections
+      : Array.from({ length: MAX_REPRESENTATIVE_SECTIONS }, (_, index) =>
+          Math.round((index * (document.sections.length - 1)) / (MAX_REPRESENTATIVE_SECTIONS - 1)),
+        ).map((index) => document.sections[index]);
+  const structuralEvidence = representativeSections.map(
+    (section) => `${section.heading}: ${section.body.slice(0, MAX_SECTION_EVIDENCE)}`,
+  );
+  const unstructured = document.lines.join(" ");
+  const sample = (position: number): string => {
+    const start = Math.max(0, Math.round((unstructured.length - 12_000) * position));
+    return unstructured.slice(start, start + 12_000);
+  };
+  const unstructuredEvidence = document.sections.length ? [] : [sample(0), sample(0.5), sample(1)];
+  const chunks = [
+    document.opening.slice(0, 6_000),
+    ...mapped.map((item) => item.value),
+    ...structuralEvidence,
+    ...unstructuredEvidence,
+  ]
+    .map(oneLine)
+    .filter(Boolean);
+  return oneLine([...new Set(chunks)].join("\n")).slice(0, MAX_EVIDENCE_CHARACTERS);
+}
+
+function positiveSignalCorpus(evidence: string): string {
+  return normal(
+    evidence
+      .split(/(?<=[.!?])\s+/)
+      .filter((sentence) => !/^\s*(?:no|none|not|without)\b/i.test(sentence))
+      .join(" "),
+  );
+}
+
+function negatedPreferenceCount(corpus: string, subject: string): number {
+  const pattern = new RegExp(
+    `\\b(?:do not|don't|must not|should not|not required|without|exclude|avoid)\\b[^.!?]{0,80}\\b(?:${subject})\\b`,
+    "gi",
+  );
+  return [...corpus.matchAll(pattern)].length * 3;
+}
+
+function reviewList(
+  fields: Record<FieldName, MappedValue>,
+  confidence: Record<ConceptInferenceField, ConceptConfidence>,
+): string[] {
+  const labels: Record<FieldName, string> = {
+    objective: "Objective",
+    context: "Context",
+    users: "People and users",
+    inputs: "Inputs",
+    outputs: "Outputs",
+    constraints: "Constraints",
+    outOfScope: "Out of scope",
+    evaluationCriteria: "Evaluation criteria",
+    edgeCases: "Edge cases",
+    verificationSteps: "Verification",
+  };
+  const fieldReview = (Object.entries(fields) as [FieldName, MappedValue][]).flatMap(([field, result]) =>
+    !result.value
+      ? [`${labels[field]} was not found in a clearly named section.`]
+      : result.mapping?.confidence === "low"
+        ? [`${labels[field]} came from a weak plain-text match.`]
+        : [],
+  );
+  const suggestionLabels: Partial<Record<ConceptInferenceField, string>> = {
+    applicationType: "Application name",
+    suggestedArchetype: "Starting application type",
+    suggestedNeeds: "Skills",
+    businessGoal: "Business goal",
+    industry: "Industry",
+    domain: "Knowledge area",
+    risk: "Risk level",
+    dataControl: "Data-control preference",
+    openPreferred: "Open or local model preference",
+  };
+  const suggestionReview = (Object.entries(suggestionLabels) as [ConceptInferenceField, string][]).flatMap(
+    ([field, label]) =>
+      confidence[field] === "none"
+        ? [`${label} was not explicitly supported by the selected evidence.`]
+        : confidence[field] === "low"
+          ? [`${label} is a low-confidence suggestion.`]
+          : [],
+  );
+  return [...fieldReview, ...suggestionReview];
+}
+
+/** Turn an arbitrary project document into bounded, reviewable suggestions without calling a model API. */
 export function analyseConceptPaper(
   rawText: string,
   metadata: { fileName: string; fileType: "pdf" | "docx"; pageCount?: number },
 ): ConceptPaperAnalysis {
   const fullyCleaned = clean(rawText);
-  const cleaned = fullyCleaned.slice(0, MAX_ANALYSIS_CHARACTERS);
-  const document = parseDocument(cleaned);
-  const corpus = normal(cleaned);
-  const kind = documentKind(document, corpus);
-  let suggestedNeeds = inferNeeds(corpus);
-  const archetype = inferArchetype(corpus, suggestedNeeds);
-  if (suggestedNeeds.length < 3) suggestedNeeds = [...archetype.needs];
-
-  const highRisk =
-    phraseCount(corpus, [
-      "high risk",
-      "high-risk",
-      "safety critical",
-      "safety-critical",
-      "clinical decision",
-      "legal decision",
-      "human approval required",
-      "materially affect",
-      "approval gate",
-      "real recommendations to real businesses",
-    ]) > 0;
-  const lowRisk =
-    !highRisk && phraseCount(corpus, ["low risk", "low-risk", "easy to correct", "internal draft only"]) > 0;
-
+  const indexed = fullyCleaned.slice(0, MAX_INDEX_CHARACTERS);
+  const document = parseDocument(indexed);
+  const kind = documentKind(document);
   const fieldResults = Object.fromEntries(
-    (Object.keys(FIELD_SECTION_TERMS) as FieldName[]).map((field) => [field, mappedField(document, field, kind)]),
+    (Object.keys(FIELD_SECTION_TERMS) as FieldName[]).map((field) => [field, mappedField(document, field, kind.kind)]),
   ) as Record<FieldName, MappedValue>;
   const architecture = existingArchitecture(document);
   const modelGuidance = existingModelGuidance(document);
+  const evidence = evidenceCorpus(document, [...Object.values(fieldResults), architecture, modelGuidance]);
+  const corpus = normal(evidence);
+  const positiveCorpus = positiveSignalCorpus(evidence);
+  const needs = inferNeeds(positiveCorpus);
+  const archetype = inferArchetype(positiveCorpus, needs.value);
+  const businessGoal = inferOption(positiveCorpus, BUSINESS_GOALS, GOAL_ALIASES);
+  const industry = inferOption(positiveCorpus, INDUSTRIES, INDUSTRY_ALIASES);
+  const domain = inferOption(positiveCorpus, DOMAINS, DOMAIN_ALIASES);
+  const title = inferTitle(document, metadata.fileName);
   const summary = openingSummary(document);
-  const applicationType = inferTitle(document, metadata.fileName);
-  const titlePurpose = titleFromPurpose(document);
+
+  const highRiskScore = phraseCount(corpus, [
+    "high risk",
+    "high-risk",
+    "safety critical",
+    "safety-critical",
+    "clinical decision",
+    "legal decision",
+    "consequential decision",
+    "human approval required",
+    "human approval gate",
+  ]);
+  const lowRiskScore = phraseCount(corpus, ["low risk", "low-risk", "easy to correct", "internal draft only"]);
+  const risk: "low" | "medium" | "high" = highRiskScore ? "high" : lowRiskScore ? "low" : "medium";
+  const riskConfidence: ConceptConfidence =
+    highRiskScore >= 6 || lowRiskScore >= 6 ? "high" : highRiskScore || lowRiskScore ? "medium" : "none";
+
+  const dataControlPositive = phraseCount(corpus, [
+    "confidential",
+    "sensitive data",
+    "personal data",
+    "private data",
+    "on-premise",
+    "on premise",
+    "data residency",
+    "controlled environment",
+    "credentials",
+    "secrets",
+  ]);
+  const dataControlNegative = phraseCount(corpus, ["public data only", "no sensitive data", "no confidential data"]);
+  const dataControl = dataControlPositive > dataControlNegative;
+  const dataControlConfidence: ConceptConfidence =
+    dataControlPositive || dataControlNegative
+      ? Math.max(dataControlPositive, dataControlNegative) >= 6
+        ? "high"
+        : "medium"
+      : "none";
+
+  const openPositive = phraseCount(corpus, [
+    "open weight",
+    "open-weight",
+    "open source model",
+    "run locally",
+    "local model",
+    "self-hosted model",
+    "offline model",
+  ]);
+  const openNegative = negatedPreferenceCount(
+    corpus,
+    "open[- ]weight|open source model|local(?:\\s+[a-z0-9-]+){0,3}\\s+model|run locally|self-hosted model|offline model",
+  );
+  const openPreferred = openPositive > openNegative;
+  const openConfidence: ConceptConfidence =
+    openPositive || openNegative ? (Math.max(openPositive, openNegative) >= 6 ? "high" : "medium") : "none";
+
   const sourceMappings: Partial<Record<ConceptPaperField, ConceptSourceMapping>> = {
-    ...(titlePurpose
-      ? {
-          applicationType: { source: "Opening summary", confidence: "high", method: "opening-summary" },
-        }
-      : {}),
+    ...(title.mapping ? { applicationType: title.mapping } : {}),
   };
   for (const [field, result] of Object.entries(fieldResults) as [FieldName, MappedValue][]) {
     if (result.mapping) sourceMappings[field] = result.mapping;
@@ -790,30 +1025,30 @@ export function analyseConceptPaper(
   if (architecture.mapping) sourceMappings.existingArchitecture = architecture.mapping;
   if (modelGuidance.mapping) sourceMappings.existingModelGuidance = modelGuidance.mapping;
 
-  const positiveOpen = phraseCount(corpus, [
-    "open weight",
-    "open-weight",
-    "open source model",
-    "run locally",
-    "offline model",
-  ]);
-  const negativeOpen = phraseCount(corpus, [
-    "do not use a local",
-    "not use a local",
-    "self-hosted one is not in scope",
-    "replacing the anthropic model with a self-hosted",
-  ]);
+  const inferenceConfidence: Record<ConceptInferenceField, ConceptConfidence> = {
+    documentKind: kind.confidence,
+    applicationType: title.mapping?.confidence ?? "none",
+    suggestedArchetype: archetype.confidence,
+    suggestedNeeds: needs.confidence,
+    businessGoal: businessGoal.confidence,
+    industry: industry.confidence,
+    domain: domain.confidence,
+    risk: riskConfidence,
+    dataControl: dataControlConfidence,
+    openPreferred: openConfidence,
+  };
 
   return {
     fileName: metadata.fileName,
     fileType: metadata.fileType,
     extractedCharacters: fullyCleaned.length,
-    analysedCharacters: cleaned.length,
-    analysisTruncated: fullyCleaned.length > cleaned.length,
+    indexedCharacters: indexed.length,
+    analysedCharacters: evidence.length,
+    analysisTruncated: fullyCleaned.length > indexed.length,
     ...(metadata.pageCount ? { pageCount: metadata.pageCount } : {}),
     importedAt: new Date().toISOString(),
-    documentKind: kind,
-    applicationType,
+    documentKind: kind.kind,
+    applicationType: title.value,
     summary: summary.value,
     objective: fieldResults.objective.value,
     context: fieldResults.context.value,
@@ -827,40 +1062,28 @@ export function analyseConceptPaper(
     verificationSteps: fieldResults.verificationSteps.value,
     existingArchitecture: architecture.value,
     existingModelGuidance: modelGuidance.value,
-    sourceOutline: document.sections.slice(0, 60).map((section) => section.heading),
+    sourceOutline: document.sections.slice(0, 80).map((section) => section.heading),
     sourceMappings,
-    suggestedArchetype: archetype.id,
-    suggestedNeeds,
-    businessGoal: inferOption(corpus, BUSINESS_GOALS, GOAL_ALIASES),
-    industry: inferOption(corpus, INDUSTRIES, INDUSTRY_ALIASES),
-    domain: inferOption(corpus, DOMAINS, DOMAIN_ALIASES),
-    risk: highRisk ? "high" : lowRisk ? "low" : "medium",
-    dataControl:
-      phraseCount(corpus, [
-        "confidential",
-        "sensitive data",
-        "personal data",
-        "private data",
-        "on-premise",
-        "on premise",
-        "data residency",
-        "controlled environment",
-        "credential safety",
-        "secrets",
-      ]) > 0,
-    openPreferred: positiveOpen > negativeOpen,
+    analysisStrategy: "structure-first-v1",
+    inferenceConfidence,
+    reviewRequired: reviewList(fieldResults, inferenceConfidence),
+    suggestedArchetype: archetype.value.id,
+    suggestedNeeds: needs.value,
+    businessGoal: businessGoal.value,
+    industry: industry.value,
+    domain: domain.value,
+    risk,
+    dataControl,
+    openPreferred,
     notes: [
-      `Recognised as ${kind.replaceAll("-", " ")}; imported fields are mapped from named sections where possible.`,
-      "Suggestions must be reviewed before saving; an empty field means the document did not provide a sufficiently clear match.",
+      `The document structure was indexed, then ${evidence.length.toLocaleString()} characters of relevant and representative evidence were selected for suggestions.`,
+      `Recognised as ${kind.kind.replaceAll("-", " ")} with ${kind.confidence} confidence.`,
+      "Named sections are preferred. Plain-text matches are marked low confidence, and missing fields are left for review.",
       ...(architecture.value
-        ? [
-            "An existing team or application architecture was detected and is preserved separately from advisor candidates.",
-          ]
+        ? ["An existing team or application architecture was preserved separately from advisor candidates."]
         : []),
-      ...(fullyCleaned.length > cleaned.length
-        ? [
-            `Only ${cleaned.length.toLocaleString()} of ${fullyCleaned.length.toLocaleString()} extracted characters were analysed.`,
-          ]
+      ...(fullyCleaned.length > indexed.length
+        ? [`The source exceeded the indexing limit; ${indexed.length.toLocaleString()} characters were indexed.`]
         : []),
       "The uploaded file is processed for this import and is not retained by the advisor.",
       ...(metadata.fileType === "pdf"

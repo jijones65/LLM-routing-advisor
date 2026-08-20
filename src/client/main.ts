@@ -59,35 +59,45 @@ function renderConceptPaper(): void {
     importedConcept.inputs,
     importedConcept.outputs,
     importedConcept.constraints,
+    importedConcept.outOfScope,
     importedConcept.evaluationCriteria,
     importedConcept.edgeCases,
     importedConcept.verificationSteps,
   ].filter(Boolean).length;
   const mapped = Object.keys(importedConcept.sourceMappings ?? {}).length;
   const kind = importedConcept.documentKind.replaceAll("-", " ");
+  const review = importedConcept.reviewRequired?.length ?? 0;
   result.hidden = false;
   result.innerHTML = `<strong>${esc(importedConcept.fileName)} imported</strong>
-    <span>${esc(kind)} recognised · ${esc(importedConcept.suggestedNeeds.length)} Skills suggested · ${filled} specification areas started</span>
-    <small>${esc(mapped)} source mappings recorded${importedConcept.existingArchitecture ? " · existing architecture preserved" : ""}. Review every suggestion before saving. The original file was not retained.</small>
+    <span>${esc(kind)} suggested · ${esc(importedConcept.suggestedNeeds.length)} Skills suggested · ${filled} specification areas started</span>
+    <small>Structure-first mapping selected ${esc(importedConcept.analysedCharacters.toLocaleString())} characters of evidence · ${esc(mapped)} source mappings · ${esc(review)} items need review${importedConcept.existingArchitecture ? " · existing architecture preserved" : ""}. The original file was not retained.</small>
     <button type="button" id="clear-concept-paper">Do not include these document details when saving</button>`;
 }
 
 function applyConceptPaper(analysis: ConceptPaperAnalysis): void {
   importedConcept = analysis;
-  brief.archetype = boot.archetypes.some((item) => item.id === analysis.suggestedArchetype)
-    ? analysis.suggestedArchetype
-    : initialBrief.archetype;
+  const supported = (field: keyof ConceptPaperAnalysis["inferenceConfidence"]): boolean =>
+    ["high", "medium"].includes(analysis.inferenceConfidence?.[field] ?? "none");
+  if (supported("suggestedArchetype") && boot.archetypes.some((item) => item.id === analysis.suggestedArchetype)) {
+    brief.archetype = analysis.suggestedArchetype;
+  }
   brief.customApplicationType = analysis.applicationType.slice(0, 100);
   const knownNeeds = new Set(boot.needGroups.flatMap((group) => group.items.map((item) => item.id)));
-  brief.needs = analysis.suggestedNeeds.filter((need) => knownNeeds.has(need));
-  if (!brief.needs.length) brief.needs = [...initialBrief.needs];
-  if (boot.businessGoals.some((item) => item.id === analysis.businessGoal)) brief.businessGoal = analysis.businessGoal;
-  if (boot.industries.some((item) => item.id === analysis.industry)) brief.industry = analysis.industry;
-  if (boot.domains.some((item) => item.id === analysis.domain)) brief.domain = analysis.domain;
-  brief.risk = analysis.risk;
+  if (supported("suggestedNeeds")) {
+    const suggested = analysis.suggestedNeeds.filter((need) => knownNeeds.has(need));
+    if (suggested.length) brief.needs = suggested;
+  }
+  if (supported("businessGoal") && boot.businessGoals.some((item) => item.id === analysis.businessGoal)) {
+    brief.businessGoal = analysis.businessGoal;
+  }
+  if (supported("industry") && boot.industries.some((item) => item.id === analysis.industry)) {
+    brief.industry = analysis.industry;
+  }
+  if (supported("domain") && boot.domains.some((item) => item.id === analysis.domain)) brief.domain = analysis.domain;
+  if (supported("risk")) brief.risk = analysis.risk;
   brief.planStyle = "balanced";
-  brief.dataControl = analysis.dataControl;
-  brief.openPreferred = analysis.openPreferred;
+  if (supported("dataControl")) brief.dataControl = analysis.dataControl;
+  if (supported("openPreferred")) brief.openPreferred = analysis.openPreferred;
   brief.multiVendor = true;
   modelChoiceOverrides.clear();
   trialOutcomes.clear();
@@ -165,8 +175,8 @@ byId<HTMLButtonElement>("import-concept-paper").addEventListener("click", async 
     return;
   }
   button.disabled = true;
-  button.textContent = "Reading the paper…";
-  status.textContent = "Extracting text and matching it to the application brief…";
+  button.textContent = "Reading the document…";
+  status.textContent = "Indexing the structure and selecting relevant evidence…";
   try {
     const form = new FormData();
     form.append("file", file);
@@ -176,7 +186,7 @@ byId<HTMLButtonElement>("import-concept-paper").addEventListener("click", async 
     applyConceptPaper(data.analysis);
     status.textContent =
       "Plan brief created from the document — review the mapped source sections, application name and Skills below.";
-    toast("Concept paper imported — candidate teams updated");
+    toast("Project document imported — review the suggested brief");
   } catch (error) {
     status.textContent = error instanceof Error ? error.message : "The concept paper could not be read.";
     status.classList.add("error");

@@ -1,6 +1,6 @@
 # LLM Application Routing Advisor — Product and Implementation Specification
 
-**Specification version:** 2.1
+**Specification version:** 2.2
 **Current implementation baseline:** 19 August 2026 · catalogue `2026.08.19-1` · scoring `2026.08.19-1` · taxonomy `2026.08.19-3`
 **Status:** Living specification for refinement, maintenance, and future rebuilds
 
@@ -96,11 +96,13 @@ Project-document import requirements:
 - Accept genuine PDF and DOCX files; reject renamed or unsupported files.
 - Read the file only for the current import. Do not retain the original bytes.
 - For PDFs, read the selectable text layer. If little text is present, explain that a scanned paper needs OCR rather than inventing a plan.
-- Preserve DOCX heading levels and use named sections before phrase matching. Process at least 500,000 extracted characters so ordinary long specifications are not silently reduced to their opening pages.
-- Recognise whether the source is a concept paper, application brief, requirements document or implementation specification and show that classification for review.
-- Infer a starting application type, Skills, business goal, industry, knowledge area, risk and operating preferences. These remain editable suggestions; negated preferences such as “do not use a local model” must not be reversed.
+- Preserve DOCX heading levels and index document structure before interpreting content. Index up to 500,000 extracted characters, then select no more than 50,000 characters of relevant and representative evidence; do not treat every word in a long upload as equally relevant.
+- Use document-neutral section concepts such as objective, users, inputs, outputs, constraints, evaluation, risks and verification. Do not add phrases from one example document as special-case mapping rules.
+- Suggest whether the source resembles a concept paper, application brief, requirements document or implementation specification and show the confidence. An unfamiliar or unrelated document may remain a low-confidence application brief.
+- Infer a starting application type, Skills, business goal, industry, knowledge area, risk and operating preferences only from the selected evidence. These remain editable suggestions; uncertain categories must not overwrite the user's current choices, and negated statements must not be treated as positive evidence.
 - Extract bounded text for objective, context, users, inputs, outputs, constraints, out-of-scope work, evaluation criteria, edge cases and verification steps.
-- Record the source heading or opening label and a mapping-confidence label for every populated draft area. Leave an area blank when a long structured document has no sufficiently clear section rather than substituting an unrelated phrase match.
+- Record the source heading or opening label and a high, medium or low mapping-confidence label for every populated draft area. Leave an area blank when a structured document has no sufficiently clear section rather than substituting an unrelated phrase match.
+- Return a review list covering missing fields, weak mappings and unsupported category suggestions. The UI must show how much bounded evidence was selected and how many items require review.
 - Detect and preserve an existing application-team architecture and model-per-role guidance. Advisor candidates must be labelled as a comparison or refinement layer, not as a silent replacement for a team already specified by the source.
 - When the team is saved, retain the filename, extraction metadata and bounded inferred fields in the plan payload. Do not retain the complete source document.
 - Prefill the matching Markdown specification fields, include a source-mapping table, and leave unsupported decisions as explicit `[Fill in: …]` items.

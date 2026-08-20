@@ -70,6 +70,10 @@ export function generateBlueprintSpecification(payload: AnyRecord): string {
   const conceptValue = (field: string, fallback: string): string =>
     typeof concept[field] === "string" && String(concept[field]).trim() ? oneLine(concept[field]) : fallback;
   const documentKind = oneLine(concept.documentKind, "application document").replaceAll("-", " ");
+  const inferenceConfidence = record(concept.inferenceConfidence);
+  const reviewRequired = strings(concept.reviewRequired);
+  const selectedEvidence =
+    typeof concept.analysedCharacters === "number" ? concept.analysedCharacters.toLocaleString() : "not recorded";
 
   const sourceMapLabels: readonly [string, string][] = [
     ["applicationType", "Application name"],
@@ -196,7 +200,7 @@ ${existingModelGuidance ? `### Model guidance already stated in the document\n\n
 > **Plan:** ${oneLine(payload.name)}  
 > **Created:** ${oneLine(created)}  
 ${conceptFile ? `> **Imported document:** ${oneLine(conceptFile)} · imported ${oneLine(concept.importedAt, "date not recorded")}  \n` : ""}> **Specification approach:** This draft follows the specification-engineering structure described in [KDnuggets](${SPECIFICATION_GUIDE_URL}): objective, context, inputs, output format, constraints, evaluation criteria, edge cases, and verification steps.
-${conceptFile ? `> **Imported document type:** ${documentKind}  \n` : ""}
+${conceptFile ? `> **Suggested document type:** ${documentKind} · ${oneLine(inferenceConfidence.documentKind, "unrated")} confidence  \n> **Import method:** Structure-first mapping · ${selectedEvidence} characters of selected evidence · ${reviewRequired.length} review items  \n` : ""}
 
 ## 1. Objective
 
@@ -231,6 +235,15 @@ ${
 ${sourceMapRows}
 
 Blank draft fields were left for review rather than filled from a weak phrase match.
+
+${
+  reviewRequired.length
+    ? `### Import review checklist
+
+${reviewRequired.map((item) => `- [ ] ${oneLine(item)}`).join("\n")}
+`
+    : ""
+}
 `
     : ""
 }

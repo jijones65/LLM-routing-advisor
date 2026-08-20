@@ -11,7 +11,7 @@ Live site: [llm-application-routing-advisor.jeff-jones-7064.chatgpt.site](https:
 - **112 model variants** across 27 providers, each carrying its source URL, review date and sourcing state
 - **26 reviewed SLMs, 26 edge language models and 10 edge vision-language models**, with dedicated explorer filters and clear boundaries between language models, perception tools and device runtimes
 - **25 starting application types plus a custom type field**, including real-time asset tracking, predictive maintenance and edge vision safety
-- **Structured project-document import** — upload a concept paper, requirements document or implementation specification as PDF or DOCX; Word headings are preserved, named source sections are mapped into the draft, existing team/model architecture is kept separate from advisor candidates, and the original file is not retained
+- **Generic project-document import** — upload any readable project document as PDF or DOCX; the importer indexes its structure, selects a bounded evidence set, maps generic specification concepts with visible confidence, leaves weak guesses for review, keeps existing team/model architecture separate from advisor candidates, and does not retain the original file
 - **Downloadable concept-paper template** — a Markdown starter covering objective, context, inputs, output format, constraints, evaluation criteria, edge cases and verification steps
 - **14 plan styles** — Quality, Balanced, Cost, Visible ecosystem reach, Broad capability range and Focused specialist team as headline choices, plus eight more
 - **Published pricing** where providers publish it, driving the cost score instead of an estimate

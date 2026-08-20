@@ -100,7 +100,7 @@ test("Word heading levels survive extraction for section-aware mapping", () => {
   assert.match(text, /Audience\. Operations staff/);
 });
 
-test("a long implementation specification keeps its real architecture and late verification sections", () => {
+test("a long implementation specification is indexed but only bounded evidence drives suggestions", () => {
   const filler = "Routine implementation detail that is not an application objective. ".repeat(2_300);
   const analysis = analyseConceptPaper(
     `[[H1]]AIBusinessHealthWorkforce.md
@@ -135,18 +135,75 @@ Confirm twenty role files, the complete hand-off path, the approval gate and bot
 
   assert.ok(analysis.extractedCharacters > 120_000);
   assert.equal(analysis.analysisTruncated, false);
-  assert.equal(analysis.analysedCharacters, analysis.extractedCharacters);
+  assert.equal(analysis.indexedCharacters, analysis.extractedCharacters);
+  assert.ok(analysis.analysedCharacters < analysis.indexedCharacters);
+  assert.ok(analysis.analysedCharacters <= 50_000);
+  assert.equal(analysis.analysisStrategy, "structure-first-v1");
   assert.equal(analysis.documentKind, "implementation-specification");
   assert.equal(analysis.applicationType, "AI Business Intelligence Engine");
-  assert.match(analysis.objective, /two persistent agents and nineteen temporary specialist roles/i);
+  assert.equal(analysis.objective, "");
+  assert.ok(analysis.reviewRequired.some((item) => /Objective was not found/i.test(item)));
   assert.match(analysis.users, /human operator owns consequential decisions/i);
   assert.match(analysis.outOfScope, /self-hosted model/i);
   assert.match(analysis.verificationSteps, /twenty role files/i);
-  assert.match(analysis.existingArchitecture, /nineteen temporary roles/i);
+  assert.match(analysis.existingArchitecture, /nineteen temporary (?:specialist )?roles/i);
   assert.match(analysis.existingModelGuidance, /premium model for director synthesis/i);
   assert.equal(analysis.sourceMappings.verificationSteps.source, "17. Integration check");
-  assert.equal(analysis.suggestedArchetype, "finance-insight");
+  assert.ok(["data-insight", "finance-insight"].includes(analysis.suggestedArchetype));
   assert.equal(analysis.openPreferred, false);
+  assert.notEqual(analysis.inferenceConfidence.openPreferred, "none");
+});
+
+test("an unfamiliar requirements document maps generic headings without inventing architecture", () => {
+  const analysis = analyseConceptPaper(
+    `[[H1]]Coastal Wildlife Observation Service
+[[H2]]Problem statement
+Rangers cannot review every remote camera image quickly enough to protect nesting areas.
+[[H2]]People
+Park rangers, wildlife researchers and an accountable conservation manager.
+[[H2]]Data inputs
+Remote camera images, acoustic recordings, weather observations and geospatial coordinates.
+[[H2]]Required results
+Species detections, confidence scores, a map layer and a review queue for uncertain findings.
+[[H2]]Functional requirements
+The service must detect animals in images, classify calls in audio and place detections on a map.
+[[H2]]Non-functional requirements
+Sensitive habitat coordinates must stay in a controlled environment and field stations have limited connectivity.
+[[H2]]Acceptance criteria
+On a labelled field set, recall must exceed 90 percent and every low-confidence result must reach human review.
+[[H2]]Test plan
+Test daylight, night, poor weather, missing coordinates and an unavailable field station.`,
+    { fileName: "wildlife-observation-requirements.docx", fileType: "docx" },
+  );
+
+  assert.equal(analysis.documentKind, "requirements-document");
+  assert.equal(analysis.applicationType, "Coastal Wildlife Observation Service");
+  assert.match(analysis.inputs, /camera images/i);
+  assert.match(analysis.outputs, /species detections/i);
+  assert.match(analysis.verificationSteps, /daylight/i);
+  assert.equal(analysis.existingArchitecture, "");
+  assert.equal(analysis.existingModelGuidance, "");
+  assert.ok(analysis.suggestedNeeds.includes("computer-vision"));
+  assert.ok(analysis.suggestedNeeds.includes("geospatial"));
+  assert.equal(analysis.dataControl, true);
+});
+
+test("an unrelated prose upload stays low confidence and does not fabricate plan fields", () => {
+  const analysis = analyseConceptPaper(
+    `Meeting notes from the garden club. Members discussed the spring picnic, flower colours, volunteer availability and the date of the next meeting. No software project, model choice, application requirements, data sources, outputs or success measures were agreed.`,
+    { fileName: "garden-club-meeting-notes.pdf", fileType: "pdf" },
+  );
+
+  assert.equal(analysis.applicationType, "garden club meeting notes");
+  assert.equal(analysis.inferenceConfidence.applicationType, "low");
+  assert.equal(analysis.inferenceConfidence.suggestedNeeds, "none");
+  assert.deepEqual(analysis.suggestedNeeds, []);
+  assert.equal(analysis.objective, "");
+  assert.equal(analysis.inputs, "");
+  assert.equal(analysis.outputs, "");
+  assert.equal(analysis.existingArchitecture, "");
+  assert.equal(analysis.existingModelGuidance, "");
+  assert.ok(analysis.reviewRequired.length >= 8);
 });
 
 test("the downloadable template follows the eight-part specification structure", async () => {

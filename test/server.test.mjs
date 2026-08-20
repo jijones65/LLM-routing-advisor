@@ -379,6 +379,10 @@ test("saving a plan validates the payload", async () => {
       fileName: "school-supplier-concept.docx",
       importedAt: "2026-08-18T11:55:00.000Z",
       documentKind: "implementation-specification",
+      analysisStrategy: "structure-first-v1",
+      analysedCharacters: 12000,
+      inferenceConfidence: { documentKind: "high" },
+      reviewRequired: ["Outputs should be confirmed by the application owner."],
       objective: "Compare current supplier evidence and explain the trade-offs to school procurement staff.",
       context: "A school is replacing a manual supplier comparison process.",
       users: "Procurement staff and a responsible human approver.",
@@ -427,7 +431,13 @@ test("saving a plan validates the payload", async () => {
   assert.match(stored.specificationMarkdown, /Compare current supplier evidence/);
   assert.match(stored.specificationMarkdown, /At least 95% of cited facts/);
   assert.match(stored.specificationMarkdown, /Missing prices and conflicting supplier claims/);
-  assert.match(stored.specificationMarkdown, /Imported document type:\*\* implementation specification/);
+  assert.match(
+    stored.specificationMarkdown,
+    /Suggested document type:\*\* implementation specification · high confidence/,
+  );
+  assert.match(stored.specificationMarkdown, /Structure-first mapping · 12,000 characters of selected evidence/);
+  assert.match(stored.specificationMarkdown, /Import review checklist/);
+  assert.match(stored.specificationMarkdown, /Outputs should be confirmed/);
   assert.match(stored.specificationMarkdown, /How the uploaded document was mapped/);
   assert.match(stored.specificationMarkdown, /1\. Objective/);
   assert.match(stored.specificationMarkdown, /Do not place purchase orders automatically/);
