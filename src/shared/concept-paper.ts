@@ -25,6 +25,13 @@ export interface ConceptSourceMapping {
     "named-section" | "opening-label" | "opening-summary" | "plain-text-match" | "document-title" | "filename";
 }
 
+export interface ConceptAdditionalSourceSection {
+  readonly heading: string;
+  readonly content: string;
+  readonly sourceLevel: number;
+  readonly truncated: boolean;
+}
+
 export type ConceptInferenceField =
   | "documentKind"
   | "applicationType"
@@ -65,6 +72,9 @@ export interface ConceptPaperAnalysis {
   readonly verificationSteps: string;
   readonly existingArchitecture: string;
   readonly existingModelGuidance: string;
+  /** Useful named sections that did not map into a standard specification field. */
+  readonly additionalSourceMaterial: readonly ConceptAdditionalSourceSection[];
+  readonly additionalSourceSectionsOmitted: number;
   readonly sourceOutline: readonly string[];
   readonly sourceMappings: Readonly<Partial<Record<ConceptPaperField, ConceptSourceMapping>>>;
   readonly analysisStrategy: "structure-first-v1";

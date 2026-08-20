@@ -1,6 +1,6 @@
 # LLM Application Routing Advisor — Product and Implementation Specification
 
-**Specification version:** 2.2
+**Specification version:** 2.3
 **Current implementation baseline:** 19 August 2026 · catalogue `2026.08.19-1` · scoring `2026.08.19-1` · taxonomy `2026.08.19-3`
 **Status:** Living specification for refinement, maintenance, and future rebuilds
 
@@ -103,6 +103,7 @@ Project-document import requirements:
 - Extract bounded text for objective, context, users, inputs, outputs, constraints, out-of-scope work, evaluation criteria, edge cases and verification steps.
 - Record the source heading or opening label and a high, medium or low mapping-confidence label for every populated draft area. Leave an area blank when a structured document has no sufficiently clear section rather than substituting an unrelated phrase match.
 - Return a review list covering missing fields, weak mappings and unsupported category suggestions. The UI must show how much bounded evidence was selected and how many items require review.
+- Preserve useful named source sections that do not map to a standard field under **Additional material from the uploaded document** in the saved Markdown. Keep each original heading, record whether its content is a bounded excerpt, and show when the overall retention limit omits further sections. Do not force unmatched content into an unrelated standard field or create document-specific mapping rules from an example.
 - Detect and preserve an existing application-team architecture and model-per-role guidance. Advisor candidates must be labelled as a comparison or refinement layer, not as a silent replacement for a team already specified by the source.
 - When the team is saved, retain the filename, extraction metadata and bounded inferred fields in the plan payload. Do not retain the complete source document.
 - Prefill the matching Markdown specification fields, include a source-mapping table, and leave unsupported decisions as explicit `[Fill in: …]` items.

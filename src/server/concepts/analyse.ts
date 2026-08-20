@@ -1,5 +1,6 @@
 import { ARCHETYPES, BUSINESS_GOALS, DOMAINS, INDUSTRIES, NEED_INDEX, type Archetype } from "../../data/taxonomy.js";
 import type {
+  ConceptAdditionalSourceSection,
   ConceptConfidence,
   ConceptDocumentKind,
   ConceptInferenceField,
@@ -268,6 +269,9 @@ const MAX_INDEX_CHARACTERS = 500_000;
 const MAX_EVIDENCE_CHARACTERS = 50_000;
 const MAX_SECTION_EVIDENCE = 400;
 const MAX_REPRESENTATIVE_SECTIONS = 48;
+const MAX_ADDITIONAL_SECTION_CHARACTERS = 1_200;
+const MAX_ADDITIONAL_TOTAL_CHARACTERS = 200_000;
+const MAX_ADDITIONAL_SECTIONS = 200;
 
 interface DocumentSection {
   readonly level: number;
@@ -884,6 +888,43 @@ function positiveSignalCorpus(evidence: string): string {
   );
 }
 
+function additionalSourceMaterial(
+  document: ParsedDocument,
+  mappings: Partial<Record<ConceptPaperField, ConceptSourceMapping>>,
+): { sections: ConceptAdditionalSourceSection[]; omitted: number } {
+  const mappedHeadings = new Set(
+    Object.values(mappings)
+      .flatMap((mapping) => mapping.source.split(/;\s*/))
+      .map(normal),
+  );
+  const boilerplate = /^(?:table of contents|contents|document control|revision history|version history|change log)$/i;
+  const candidates = document.sections.filter(
+    (section) =>
+      section.body.length >= 40 &&
+      !mappedHeadings.has(normal(section.heading)) &&
+      !boilerplate.test(headingKey(section.heading)),
+  );
+  const sections: ConceptAdditionalSourceSection[] = [];
+  let usedCharacters = 0;
+  let omitted = 0;
+  for (const section of candidates) {
+    const content = truncate(section.body, MAX_ADDITIONAL_SECTION_CHARACTERS);
+    const size = section.heading.length + content.length;
+    if (sections.length >= MAX_ADDITIONAL_SECTIONS || usedCharacters + size > MAX_ADDITIONAL_TOTAL_CHARACTERS) {
+      omitted += 1;
+      continue;
+    }
+    sections.push({
+      heading: truncate(section.heading, 180),
+      content,
+      sourceLevel: section.level,
+      truncated: oneLine(section.body).length > content.length,
+    });
+    usedCharacters += size;
+  }
+  return { sections, omitted };
+}
+
 function negatedPreferenceCount(corpus: string, subject: string): number {
   const pattern = new RegExp(
     `\\b(?:do not|don't|must not|should not|not required|without|exclude|avoid)\\b[^.!?]{0,80}\\b(?:${subject})\\b`,
@@ -1037,6 +1078,13 @@ export function analyseConceptPaper(
     dataControl: dataControlConfidence,
     openPreferred: openConfidence,
   };
+  const additional = additionalSourceMaterial(document, sourceMappings);
+  const reviewRequired = reviewList(fieldResults, inferenceConfidence);
+  if (additional.omitted) {
+    reviewRequired.push(
+      `${additional.omitted} useful source ${additional.omitted === 1 ? "section was" : "sections were"} omitted after the bounded additional-material limit was reached.`,
+    );
+  }
 
   return {
     fileName: metadata.fileName,
@@ -1062,11 +1110,13 @@ export function analyseConceptPaper(
     verificationSteps: fieldResults.verificationSteps.value,
     existingArchitecture: architecture.value,
     existingModelGuidance: modelGuidance.value,
-    sourceOutline: document.sections.slice(0, 80).map((section) => section.heading),
+    additionalSourceMaterial: additional.sections,
+    additionalSourceSectionsOmitted: additional.omitted,
+    sourceOutline: document.sections.slice(0, 160).map((section) => section.heading),
     sourceMappings,
     analysisStrategy: "structure-first-v1",
     inferenceConfidence,
-    reviewRequired: reviewList(fieldResults, inferenceConfidence),
+    reviewRequired,
     suggestedArchetype: archetype.value.id,
     suggestedNeeds: needs.value,
     businessGoal: businessGoal.value,
@@ -1079,6 +1129,11 @@ export function analyseConceptPaper(
       `The document structure was indexed, then ${evidence.length.toLocaleString()} characters of relevant and representative evidence were selected for suggestions.`,
       `Recognised as ${kind.kind.replaceAll("-", " ")} with ${kind.confidence} confidence.`,
       "Named sections are preferred. Plain-text matches are marked low confidence, and missing fields are left for review.",
+      ...(additional.sections.length
+        ? [
+            `${additional.sections.length.toLocaleString()} useful named sections that did not map to standard fields were retained as additional source material.`,
+          ]
+        : []),
       ...(architecture.value
         ? ["An existing team or application architecture was preserved separately from advisor candidates."]
         : []),

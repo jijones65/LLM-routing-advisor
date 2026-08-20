@@ -15,7 +15,7 @@ const CHANGES: readonly { state: string; title: string; scope: string; date: str
     scope: "Application design · plans · specifications",
     date: "19 Aug 2026",
     detail:
-      "Upload any readable project document as PDF or DOCX. The importer indexes headings, selects a bounded evidence set, maps generic specification concepts and reports confidence and review items. It no longer treats the earlier example document's wording as special. Unsupported categories do not overwrite current choices, negated statements are not counted as positive evidence, and existing team or model architecture stays separate from advisor candidates. The file is read transiently and not retained.",
+      "Upload any readable project document as PDF or DOCX. The importer indexes headings, selects a bounded evidence set, maps generic specification concepts and reports confidence and review items. Useful named sections that do not fit a standard field are retained under their original headings in the saved Markdown instead of being discarded or forced into the wrong field. It does not treat any example document's wording as special. Unsupported categories do not overwrite current choices, negated statements are not counted as positive evidence, and existing team or model architecture stays separate from advisor candidates. The file is read transiently and not retained.",
   },
   {
     state: "Added",

@@ -148,6 +148,9 @@ Confirm twenty role files, the complete hand-off path, the approval gate and bot
   assert.match(analysis.verificationSteps, /twenty role files/i);
   assert.match(analysis.existingArchitecture, /nineteen temporary (?:specialist )?roles/i);
   assert.match(analysis.existingModelGuidance, /premium model for director synthesis/i);
+  assert.ok(analysis.additionalSourceMaterial.some((section) => /Build order/i.test(section.heading)));
+  assert.ok(analysis.additionalSourceMaterial.find((section) => /Build order/i.test(section.heading)).truncated);
+  assert.equal(analysis.additionalSourceSectionsOmitted, 0);
   assert.equal(analysis.sourceMappings.verificationSteps.source, "17. Integration check");
   assert.ok(["data-insight", "finance-insight"].includes(analysis.suggestedArchetype));
   assert.equal(analysis.openPreferred, false);
@@ -169,6 +172,8 @@ Species detections, confidence scores, a map layer and a review queue for uncert
 The service must detect animals in images, classify calls in audio and place detections on a map.
 [[H2]]Non-functional requirements
 Sensitive habitat coordinates must stay in a controlled environment and field stations have limited connectivity.
+[[H2]]Operational assumptions
+Rangers will review the queue twice each day, and field devices may reconnect only once per shift.
 [[H2]]Acceptance criteria
 On a labelled field set, recall must exceed 90 percent and every low-confidence result must reach human review.
 [[H2]]Test plan
@@ -183,6 +188,11 @@ Test daylight, night, poor weather, missing coordinates and an unavailable field
   assert.match(analysis.verificationSteps, /daylight/i);
   assert.equal(analysis.existingArchitecture, "");
   assert.equal(analysis.existingModelGuidance, "");
+  assert.ok(analysis.additionalSourceMaterial.some((section) => section.heading === "Operational assumptions"));
+  assert.match(
+    analysis.additionalSourceMaterial.find((section) => section.heading === "Operational assumptions").content,
+    /twice each day/i,
+  );
   assert.ok(analysis.suggestedNeeds.includes("computer-vision"));
   assert.ok(analysis.suggestedNeeds.includes("geospatial"));
   assert.equal(analysis.dataControl, true);
@@ -203,6 +213,7 @@ test("an unrelated prose upload stays low confidence and does not fabricate plan
   assert.equal(analysis.outputs, "");
   assert.equal(analysis.existingArchitecture, "");
   assert.equal(analysis.existingModelGuidance, "");
+  assert.deepEqual(analysis.additionalSourceMaterial, []);
   assert.ok(analysis.reviewRequired.length >= 8);
 });
 

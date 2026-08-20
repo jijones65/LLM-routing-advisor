@@ -67,10 +67,11 @@ function renderConceptPaper(): void {
   const mapped = Object.keys(importedConcept.sourceMappings ?? {}).length;
   const kind = importedConcept.documentKind.replaceAll("-", " ");
   const review = importedConcept.reviewRequired?.length ?? 0;
+  const additional = importedConcept.additionalSourceMaterial?.length ?? 0;
   result.hidden = false;
   result.innerHTML = `<strong>${esc(importedConcept.fileName)} imported</strong>
     <span>${esc(kind)} suggested · ${esc(importedConcept.suggestedNeeds.length)} Skills suggested · ${filled} specification areas started</span>
-    <small>Structure-first mapping selected ${esc(importedConcept.analysedCharacters.toLocaleString())} characters of evidence · ${esc(mapped)} source mappings · ${esc(review)} items need review${importedConcept.existingArchitecture ? " · existing architecture preserved" : ""}. The original file was not retained.</small>
+    <small>Structure-first mapping selected ${esc(importedConcept.analysedCharacters.toLocaleString())} characters of evidence · ${esc(mapped)} source mappings · ${esc(additional)} additional source sections kept · ${esc(review)} items need review${importedConcept.existingArchitecture ? " · existing architecture preserved" : ""}. The original file was not retained.</small>
     <button type="button" id="clear-concept-paper">Do not include these document details when saving</button>`;
 }
 

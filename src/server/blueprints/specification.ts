@@ -72,6 +72,9 @@ export function generateBlueprintSpecification(payload: AnyRecord): string {
   const documentKind = oneLine(concept.documentKind, "application document").replaceAll("-", " ");
   const inferenceConfidence = record(concept.inferenceConfidence);
   const reviewRequired = strings(concept.reviewRequired);
+  const additionalSourceSections = records(concept.additionalSourceMaterial);
+  const additionalSourceSectionsOmitted =
+    typeof concept.additionalSourceSectionsOmitted === "number" ? concept.additionalSourceSectionsOmitted : 0;
   const selectedEvidence =
     typeof concept.analysedCharacters === "number" ? concept.analysedCharacters.toLocaleString() : "not recorded";
 
@@ -98,6 +101,29 @@ export function generateBlueprintSpecification(payload: AnyRecord): string {
         `| ${oneLine(label)} | ${oneLine(mapping.source)} | ${oneLine(mapping.confidence, "review")} |`,
     )
     .join("\n");
+  const additionalSourceMarkdown = additionalSourceSections.length
+    ? `### Additional material from the uploaded document
+
+These named source sections did not map directly into the standard specification fields. They are retained for review rather than discarded or silently forced into an unrelated field.
+
+${additionalSourceSections
+  .map((section) => {
+    const shortened = section.truncated === true ? " · bounded excerpt" : "";
+    return `#### ${oneLine(section.heading)}
+
+_Original heading level ${oneLine(section.sourceLevel, "not recorded")}${shortened}_
+
+${oneLine(section.content)}`;
+  })
+  .join("\n\n")}
+
+${
+  additionalSourceSectionsOmitted
+    ? `> ${additionalSourceSectionsOmitted} further useful source ${additionalSourceSectionsOmitted === 1 ? "section was" : "sections were"} not retained because the bounded additional-material limit was reached.`
+    : ""
+}
+`
+    : "";
 
   const existingArchitecture = conceptValue("existingArchitecture", "");
   const existingModelGuidance = conceptValue("existingModelGuidance", "");
@@ -247,6 +273,8 @@ ${reviewRequired.map((item) => `- [ ] ${oneLine(item)}`).join("\n")}
 `
     : ""
 }
+
+${additionalSourceMarkdown}
 
 ## 3. Inputs
 

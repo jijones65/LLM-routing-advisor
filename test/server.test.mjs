@@ -383,6 +383,15 @@ test("saving a plan validates the payload", async () => {
       analysedCharacters: 12000,
       inferenceConfidence: { documentKind: "high" },
       reviewRequired: ["Outputs should be confirmed by the application owner."],
+      additionalSourceMaterial: [
+        {
+          heading: "Decision ownership",
+          content: "The school procurement committee owns the final supplier decision.",
+          sourceLevel: 2,
+          truncated: false,
+        },
+      ],
+      additionalSourceSectionsOmitted: 0,
       objective: "Compare current supplier evidence and explain the trade-offs to school procurement staff.",
       context: "A school is replacing a manual supplier comparison process.",
       users: "Procurement staff and a responsible human approver.",
@@ -438,6 +447,9 @@ test("saving a plan validates the payload", async () => {
   assert.match(stored.specificationMarkdown, /Structure-first mapping · 12,000 characters of selected evidence/);
   assert.match(stored.specificationMarkdown, /Import review checklist/);
   assert.match(stored.specificationMarkdown, /Outputs should be confirmed/);
+  assert.match(stored.specificationMarkdown, /Additional material from the uploaded document/);
+  assert.match(stored.specificationMarkdown, /Decision ownership/);
+  assert.match(stored.specificationMarkdown, /procurement committee owns the final supplier decision/);
   assert.match(stored.specificationMarkdown, /How the uploaded document was mapped/);
   assert.match(stored.specificationMarkdown, /1\. Objective/);
   assert.match(stored.specificationMarkdown, /Do not place purchase orders automatically/);
