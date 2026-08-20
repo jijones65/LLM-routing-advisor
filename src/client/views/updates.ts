@@ -10,6 +10,14 @@ import type { Model } from "../../shared/types.js";
  */
 const CHANGES: readonly { state: string; title: string; scope: string; date: string; detail: string }[] = [
   {
+    state: "Added",
+    title: "Passwordless email accounts keep saved plans separate",
+    scope: "Accounts · saved plans · privacy",
+    date: "20 Aug 2026",
+    detail:
+      "Users can request a secure, one-time sign-in link by email without creating a password. Supabase validates the session; the Advisor stores only the local account record and plan ownership in D1. Every saved-plan read, edit, export and delete, plus project-document import, is checked on the server against the signed-in user. Google sign-in is deliberately deferred to a later release.",
+  },
+  {
     state: "Refined",
     title: "Project-document import is now generic and structure-first",
     scope: "Application design · plans · specifications",

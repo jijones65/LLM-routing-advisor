@@ -26,9 +26,16 @@ export const BODY_MARKUP = `<header class="topbar">
 <button class="tab" data-tab="updates">Update centre</button>
 <button class="tab" data-tab="about">About</button>
 </nav>
+<div class="topbar-actions">
 <div class="live" id="live-state">
 <i>
 </i>Checks for updates · 60s</div>
+<button class="account-button" type="button" id="account-button">Sign in</button>
+<div class="account-user" id="account-user" hidden>
+<span id="account-email"></span>
+<button type="button" id="account-sign-out">Sign out</button>
+</div>
+</div>
 </header>
 <main>
 <section class="page active" id="design-page">
@@ -178,7 +185,7 @@ export const BODY_MARKUP = `<header class="topbar">
 </div>
 <div class="save-plan-actions">
 <button class="save" id="save-blueprint">Save this team plan</button>
-<a id="saved-markdown-link" href="#" download hidden>Download draft specification (.md)</a>
+<button type="button" id="saved-markdown-link" hidden>Download draft specification (.md)</button>
 </div>
 </div>
 <div class="team-compare" id="team-compare">
@@ -717,7 +724,7 @@ export const BODY_MARKUP = `<header class="topbar">
 <span class="about-number">02</span>
 <div>
 <h2>Saved plans</h2>
-<p>Reopen or compare saved teams, edit the plan name and draft application specification, export the specification as a Markdown file, or permanently delete a plan you no longer need.</p>
+<p>Sign in with a secure, one-time email link. Then reopen or compare your saved teams, edit the plan name and draft application specification, export the specification as a Markdown file, or permanently delete a plan you no longer need. Each account sees only its own plans.</p>
 <small><strong>It cannot do:</strong> complete the fill-in decisions or prove that the saved team works. The draft keeps the advisor's facts separate from choices and trial results you must supply.</small>
 </div>
 </article>
@@ -833,6 +840,19 @@ export const BODY_MARKUP = `<header class="topbar">
 </div>
 </section>
 </main>
+<dialog class="auth-dialog" id="auth-dialog" aria-labelledby="auth-title">
+<form method="dialog" class="auth-dialog-close"><button type="submit" aria-label="Close sign in">×</button></form>
+<div class="eyebrow">Your Advisor account</div>
+<h2 id="auth-title">Sign in to save and reopen plans</h2>
+<p>Receive a secure, one-time sign-in link by email. The Advisor does not store passwords.</p>
+<form id="auth-email-form">
+<label for="auth-email">Email address</label>
+<input id="auth-email" name="email" type="email" autocomplete="email" required placeholder="you@example.com">
+<button class="save" type="submit">Email me a sign-in link</button>
+</form>
+<p class="auth-status" id="auth-status" role="status"></p>
+<small>New users receive a free account automatically. Google sign-in may be added later.</small>
+</dialog>
 <div class="toast" id="toast" role="status">
 </div>
 `;

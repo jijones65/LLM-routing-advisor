@@ -23,6 +23,7 @@ Live site: [llm-application-routing-advisor.jeff-jones-7064.chatgpt.site](https:
 - **Provider-concentration warning** — when one provider leads most headline plans, the interface explains that this is a pattern in the current inputs rather than measured proof of general superiority
 - **Complete-team validation** — structural checks plus recordable trials for hand-offs, conflicts, provider failure, cost, latency and peak load
 - **Durable Saved plans** — reopen a brief, compare up to three teams, edit the plan name and draft specification, export it as Markdown, or delete it after confirmation
+- **Passwordless email accounts** — Supabase sends the one-time sign-in link, while D1 keeps each user's saved plans separate; the Advisor stores no passwords and Google sign-in is reserved for a later release
 - **Fill-in application specifications** — every save creates a draft covering objective, context, inputs, output contract, constraints, evaluation, edge cases and verification
 - **Six independent model lists** cross-referenced, with overlap between them reported and kept separate from provider confirmation
 - **A coverage check** that polls official provider pages and raises a review item when one changes
@@ -54,6 +55,7 @@ src/
     team-evaluation.ts     structural team checks and shared real-task trials
     explain.ts             turning a breakdown into readable prose
   server/
+    auth.ts                Supabase session validation and browser-safe auth configuration
     index.ts               worker entry and route table
     routes/api.ts          JSON endpoints
     blueprints/            Markdown application-specification generator
@@ -138,6 +140,8 @@ server/index.js
 .openai/hosting.json          # d1: DB, project_id: appgprj_6a851a9f65…
 .openai/drizzle/0001_initial.sql
 .openai/drizzle/0002_align_catalog_and_evidence.sql
+.openai/drizzle/0003_refresh_edge_catalog.sql
+.openai/drizzle/0004_user_accounts.sql
 ```
 
 Upload that archive to the existing project the same way you did before — the
@@ -148,6 +152,22 @@ worker is now generated from `src/` instead of being hand-edited.
 
 The database is not reset by a deploy. The schema is applied idempotently on
 first request (`ensureSchema`), so new tables appear without a migration step.
+
+The hosted account release uses these environment variables. Keep their values
+in the Sites environment rather than committing them to Git:
+
+```text
+AUTH_REQUIRED=true
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_PUBLISHABLE_KEY=<browser-safe publishable key>
+SUPABASE_GOOGLE_ENABLED=false
+```
+
+`CLAIM_LEGACY_PLANS=true` is a temporary private-release migration switch. It
+assigns plans created before accounts existed to the first signed-in owner. Turn
+it off after that owner has signed in and confirmed the plans, and before making
+the Site public. A Supabase secret or service-role key is neither required nor
+accepted by the application.
 
 ### To Cloudflare Workers instead
 

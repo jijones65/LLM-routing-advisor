@@ -12,14 +12,17 @@ import {
   getCatalog,
   getRegistries,
   getRegistryCandidates,
+  claimLegacyBlueprints,
   listBlueprints,
   saveBlueprint,
+  upsertApplicationUser,
   updateBlueprint,
   type BlueprintPayload,
 } from "../db/repo.js";
 import { generateBlueprintSpecification, specificationFilename } from "../blueprints/specification.js";
 import { ConceptPaperError, readConceptPaper } from "../concepts/parse.js";
 import { CONCEPT_PAPER_TEMPLATE } from "../concepts/template.js";
+import { authenticateRequest, type AuthEnv, type AuthenticatedUser } from "../auth.js";
 
 /** No caching anywhere: every response depends on live source state. */
 const NO_STORE = { "cache-control": "no-store" } as const;
@@ -29,9 +32,26 @@ const json = (body: unknown, status = 200): Response =>
 
 const flag = (url: URL, name: string): boolean => url.searchParams.get(name) === "1";
 
+async function accountUser(request: Request, db: D1Database | undefined, env: AuthEnv): Promise<AuthenticatedUser> {
+  const user = await authenticateRequest(request, env);
+  if (db) {
+    await upsertApplicationUser(db, user);
+    if (env.CLAIM_LEGACY_PLANS === "true") await claimLegacyBlueprints(db, user.id);
+  }
+  return user;
+}
+
+/** GET /api/account — confirm the signed-in identity and local account tier. */
+export async function accountRoute(request: Request, db: D1Database | undefined, env: AuthEnv): Promise<Response> {
+  if (request.method !== "GET") return new Response("Method not allowed", { status: 405 });
+  const user = await accountUser(request, db, env);
+  return json({ user: { id: user.id, email: user.email, displayName: user.displayName, accountTier: "free" } });
+}
+
 /** POST /api/concept-paper — read one PDF or DOCX without retaining its bytes. */
-export async function conceptPaperRoute(request: Request): Promise<Response> {
+export async function conceptPaperRoute(request: Request, db: D1Database | undefined, env: AuthEnv): Promise<Response> {
   if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
+  await accountUser(request, db, env);
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.toLowerCase().includes("multipart/form-data")) {
     return json({ error: "Upload the concept paper as form data." }, 415);
@@ -141,10 +161,11 @@ function validateBlueprint(payload: unknown): BlueprintPayload | string {
 }
 
 /** GET and POST /api/blueprints — list or save a plan. */
-export async function blueprintsRoute(request: Request, db: D1Database | undefined): Promise<Response> {
+export async function blueprintsRoute(request: Request, db: D1Database | undefined, env: AuthEnv): Promise<Response> {
   if (!db) return json({ error: "Saving plans needs persistent storage, which is unavailable here." }, 503);
+  const user = await accountUser(request, db, env);
 
-  if (request.method === "GET") return json({ blueprints: await listBlueprints(db) });
+  if (request.method === "GET") return json({ blueprints: await listBlueprints(db, user.id) });
   if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
   let body: unknown;
@@ -157,7 +178,7 @@ export async function blueprintsRoute(request: Request, db: D1Database | undefin
   const validated = validateBlueprint(body);
   if (typeof validated === "string") return json({ error: validated }, 400);
 
-  const id = await saveBlueprint(db, validated);
+  const id = await saveBlueprint(db, validated, user.id);
   return json({ id, saved: true, markdownUrl: `/api/blueprints/${encodeURIComponent(id)}/markdown` }, 201);
 }
 
@@ -167,6 +188,7 @@ export async function blueprintRoute(
   db: D1Database | undefined,
   id: string,
   markdown = false,
+  env: AuthEnv = {},
 ): Promise<Response> {
   if (!db) return json({ error: "Saved plans need persistent storage, which is unavailable here." }, 503);
   if (!id || id.length > 100) return json({ error: "The saved plan id is invalid." }, 400);
@@ -175,11 +197,12 @@ export async function blueprintRoute(
     return new Response("Method not allowed", { status: 405 });
   }
 
-  const existing = await getBlueprint(db, id);
+  const user = await accountUser(request, db, env);
+  const existing = await getBlueprint(db, id, user.id);
   if (!existing) return json({ error: "Saved plan not found." }, 404);
 
   if (request.method === "DELETE") {
-    await deleteBlueprint(db, id);
+    await deleteBlueprint(db, id, user.id);
     return json({ deleted: true, id });
   }
 
@@ -221,7 +244,7 @@ export async function blueprintRoute(
     return json({ error: "The draft specification is too large to save." }, 413);
   }
 
-  const updated = await updateBlueprint(db, id, change as { name: string; specificationMarkdown: string });
+  const updated = await updateBlueprint(db, id, change as { name: string; specificationMarkdown: string }, user.id);
   return json({
     blueprint: updated ? { ...updated, specificationMarkdown: updated.payload.specificationMarkdown as string } : null,
   });

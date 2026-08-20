@@ -26,6 +26,18 @@ import { loadRegistry } from "./views/registry.js";
 import { initSavedPlans, loadSavedPlans, type SavedPlan } from "./views/saved.js";
 import { renderUpdates } from "./views/updates.js";
 import type { ConceptPaperAnalysis } from "../shared/concept-paper.js";
+import {
+  authIsConfigured,
+  authIsRequired,
+  authorizedFetch,
+  downloadProtected,
+  initAuth,
+  isSignedIn,
+  onAuthChange,
+  requestSignIn,
+  sendEmailSignInLink,
+  signOut,
+} from "./auth.js";
 
 const boot = readBootstrap();
 // Signals arrive already attached from the server; recomputing is a cheap no-op
@@ -38,6 +50,89 @@ const registryQuery: RegistryQuery = { ...initialRegistryQuery };
 const context: DesignContext = { boot, catalog, brief, registrySummary: null };
 let savedPlansLoaded = false;
 let importedConcept: ConceptPaperAnalysis | null = null;
+
+// ---------------------------------------------------------------------------
+// Account sign-in
+// ---------------------------------------------------------------------------
+
+const authDialog = byId<HTMLDialogElement>("auth-dialog");
+const authStatus = byId<HTMLElement>("auth-status");
+let syncedUserId = "";
+
+function openAuthDialog(message = ""): void {
+  authStatus.textContent =
+    message ||
+    (authIsConfigured()
+      ? "Enter your email address to receive a one-time sign-in link."
+      : "Account sign-in is not configured yet.");
+  if (!authDialog.open) authDialog.showModal();
+}
+
+function renderAccount(user: { id: string; email?: string } | null): void {
+  const signIn = byId<HTMLButtonElement>("account-button");
+  const signedIn = byId<HTMLElement>("account-user");
+  if (!authIsRequired()) {
+    signIn.hidden = true;
+    signedIn.hidden = true;
+    return;
+  }
+  signIn.hidden = Boolean(user);
+  signedIn.hidden = !user;
+  signIn.textContent = authIsConfigured() ? "Sign in" : "Sign-in setup";
+  if (user) byId("account-email").textContent = user.email ?? "Signed in";
+}
+
+const authReady = initAuth(boot.auth);
+onAuthChange((user) => {
+  renderAccount(user);
+  if (!user) {
+    syncedUserId = "";
+    return;
+  }
+  authDialog.close();
+  if (syncedUserId !== user.id) {
+    syncedUserId = user.id;
+    void authorizedFetch("/api/account", { cache: "no-store" }).then((response) => {
+      if (!response.ok) toast("The account could not be linked to saved plans");
+      else if (savedPlansLoaded) void loadSavedPlans();
+    });
+  }
+});
+void authReady.catch(() => {
+  renderAccount(null);
+  authStatus.textContent = "The sign-in service could not be reached.";
+});
+
+window.addEventListener("advisor:sign-in", () => openAuthDialog());
+byId("account-button").addEventListener("click", () => openAuthDialog());
+byId("account-sign-out").addEventListener("click", async () => {
+  try {
+    await signOut();
+    toast("Signed out");
+    if (savedPlansLoaded) void loadSavedPlans();
+  } catch {
+    toast("Could not sign out");
+  }
+});
+
+byId<HTMLFormElement>("auth-email-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget as HTMLFormElement;
+  const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+  const email = byId<HTMLInputElement>("auth-email").value.trim();
+  if (!submit || !email) return;
+  submit.disabled = true;
+  authStatus.textContent = "Sending a secure sign-in link…";
+  try {
+    await sendEmailSignInLink(email);
+    authStatus.textContent =
+      "Check your email and open the one-time sign-in link. You can close this window afterward.";
+  } catch (error) {
+    authStatus.textContent = error instanceof Error ? error.message : "The sign-in link could not be sent.";
+  } finally {
+    submit.disabled = false;
+  }
+});
 
 /** Re-render the design view. Every brief control funnels through here. */
 function refresh(): void {
@@ -170,6 +265,12 @@ byId<HTMLButtonElement>("import-concept-paper").addEventListener("click", async 
   const status = byId("concept-paper-status");
   const file = input.files?.[0];
   status.classList.remove("error");
+  if (authIsRequired() && !isSignedIn()) {
+    status.textContent = "Sign in before importing a project document.";
+    status.classList.add("error");
+    requestSignIn();
+    return;
+  }
   if (!file) {
     status.textContent = "Choose a PDF or DOCX project document first.";
     status.classList.add("error");
@@ -181,7 +282,7 @@ byId<HTMLButtonElement>("import-concept-paper").addEventListener("click", async 
   try {
     const form = new FormData();
     form.append("file", file);
-    const response = await fetch("/api/concept-paper", { method: "POST", body: form });
+    const response = await authorizedFetch("/api/concept-paper", { method: "POST", body: form });
     const data = (await response.json()) as { analysis?: ConceptPaperAnalysis; error?: string };
     if (!response.ok || !data.analysis) throw new Error(data.error ?? "The concept paper could not be read.");
     applyConceptPaper(data.analysis);
@@ -425,6 +526,11 @@ byId("refresh-registry").addEventListener("click", () => void loadAudit({ regist
 byId("save-blueprint").addEventListener("click", async () => {
   const saveButton = byId<HTMLButtonElement>("save-blueprint");
   if (saveButton.disabled) return;
+  if (authIsRequired() && !isSignedIn()) {
+    requestSignIn();
+    toast("Sign in to save this team plan");
+    return;
+  }
   saveButton.disabled = true;
   const originalLabel = saveButton.textContent;
   saveButton.textContent = "Saving…";
@@ -435,7 +541,7 @@ byId("save-blueprint").addEventListener("click", async () => {
   const strategy = boot.strategies[complete.planStyle] ?? boot.strategies.balanced;
 
   try {
-    const response = await fetch("/api/blueprints", {
+    const response = await authorizedFetch("/api/blueprints", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -478,8 +584,8 @@ byId("save-blueprint").addEventListener("click", async () => {
       toast(data.error ?? "The plan could not be saved");
       return;
     }
-    const link = byId<HTMLAnchorElement>("saved-markdown-link");
-    link.href = data.markdownUrl;
+    const link = byId<HTMLButtonElement>("saved-markdown-link");
+    link.dataset.downloadUrl = data.markdownUrl;
     link.hidden = false;
     toast("Team plan saved — draft specification ready");
     if (savedPlansLoaded) void loadSavedPlans();
@@ -488,6 +594,19 @@ byId("save-blueprint").addEventListener("click", async () => {
   } finally {
     saveButton.disabled = false;
     saveButton.textContent = originalLabel;
+  }
+});
+
+byId<HTMLButtonElement>("saved-markdown-link").addEventListener("click", async (event) => {
+  const button = event.currentTarget as HTMLButtonElement;
+  if (!button.dataset.downloadUrl) return;
+  button.disabled = true;
+  try {
+    await downloadProtected(button.dataset.downloadUrl, "llm-advisor-plan.md");
+  } catch (error) {
+    toast(error instanceof Error ? error.message : "The draft specification could not be downloaded");
+  } finally {
+    button.disabled = false;
   }
 });
 

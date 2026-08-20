@@ -145,6 +145,103 @@ a:focus-visible {
   background: var(--lime);
   box-shadow: 0 0 0 5px rgba(201, 223, 105, 0.12);
 }
+.topbar-actions,
+.account-user {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+}
+.account-button,
+.account-user button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+}
+.account-button:hover,
+.account-user button:hover {
+  border-color: rgba(201, 223, 105, 0.72);
+  background: rgba(201, 223, 105, 0.12);
+}
+.account-user span {
+  max-width: 180px;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 10px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.auth-dialog {
+  width: min(460px, calc(100vw - 32px));
+  padding: 30px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: 0 28px 90px rgba(10, 25, 38, 0.3);
+}
+.auth-dialog::backdrop {
+  background: rgba(10, 25, 38, 0.66);
+  backdrop-filter: blur(5px);
+}
+.auth-dialog h2 {
+  margin: 8px 0 8px;
+  color: var(--navy);
+  font-size: 27px;
+  letter-spacing: -0.035em;
+}
+.auth-dialog > p,
+.auth-dialog > small {
+  color: var(--muted);
+}
+.auth-dialog-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+.auth-dialog-close button {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: #f0eee7;
+  color: var(--navy);
+  font-size: 20px;
+}
+#auth-email-form .save {
+  width: 100%;
+  min-height: 46px;
+  border-radius: 11px;
+  font-weight: 850;
+}
+#auth-email-form label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 850;
+}
+#auth-email-form input {
+  width: 100%;
+  min-height: 46px;
+  margin-bottom: 10px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+.auth-status {
+  min-height: 20px;
+  margin: 12px 0 4px;
+  color: #315c72 !important;
+  font-size: 11px;
+  font-weight: 750;
+}
 .page {
   display: none;
 }
@@ -560,10 +657,15 @@ p {
   justify-items: end;
   gap: 7px;
 }
-.save-plan-actions a {
+.save-plan-actions a,
+.save-plan-actions #saved-markdown-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: #315c72;
   font-size: 9px;
   font-weight: 850;
+  text-decoration: underline;
 }
 [hidden] {
   display: none !important;
@@ -1952,7 +2054,7 @@ p {
 }
 @media (max-width: 1180px) {
   .topbar {
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto 1fr auto;
   }
   .live {
     display: none;

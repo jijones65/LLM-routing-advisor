@@ -26,6 +26,13 @@ export interface Bootstrap {
   readonly catalogVersion: string;
   readonly scoringVersion: string;
   readonly providerCount: number;
+  readonly auth: {
+    readonly required: boolean;
+    readonly configured: boolean;
+    readonly supabaseUrl: string;
+    readonly publishableKey: string;
+    readonly googleEnabled: boolean;
+  };
 }
 
 /** Read the server-provided bootstrap payload. */

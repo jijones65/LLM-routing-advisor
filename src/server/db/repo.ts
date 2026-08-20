@@ -16,6 +16,7 @@ import {
 import { loadSnapshots } from "../registry/refresh.js";
 import { ensureSchema, fingerprint, type D1Database } from "./index.js";
 import { generateBlueprintSpecification } from "../blueprints/specification.js";
+import type { AuthenticatedUser } from "../auth.js";
 
 const MATCHER = new CatalogMatcher(CATALOG);
 const SYNCED_CATALOG_DBS = new WeakSet<object>();
@@ -472,26 +473,86 @@ function parseBlueprintRow(row: BlueprintRow, includeSpecification = true): Save
 }
 
 /** List the most recent saved plans. */
-export async function listBlueprints(db: D1Database): Promise<SavedBlueprint[]> {
+export async function listBlueprints(db: D1Database, userId = "legacy-private-owner"): Promise<SavedBlueprint[]> {
   await ensureSchema(db);
   const rows = await db
-    .prepare("SELECT id, name, payload_json, created_at FROM application_blueprints ORDER BY created_at DESC LIMIT 50")
+    .prepare(
+      `SELECT b.id, b.name, b.payload_json, b.created_at
+       FROM application_blueprints b
+       INNER JOIN application_blueprint_owners o ON o.blueprint_id = b.id
+       WHERE o.user_id = ?
+       ORDER BY b.created_at DESC
+       LIMIT 50`,
+    )
+    .bind(userId)
     .all<BlueprintRow>();
   return (rows.results ?? []).map((row) => parseBlueprintRow(row, false));
 }
 
 /** Read one saved plan. */
-export async function getBlueprint(db: D1Database, id: string): Promise<SavedBlueprint | null> {
+export async function getBlueprint(
+  db: D1Database,
+  id: string,
+  userId = "legacy-private-owner",
+): Promise<SavedBlueprint | null> {
   await ensureSchema(db);
   const row = await db
-    .prepare("SELECT id, name, payload_json, created_at FROM application_blueprints WHERE id = ?")
-    .bind(id)
+    .prepare(
+      `SELECT b.id, b.name, b.payload_json, b.created_at
+       FROM application_blueprints b
+       INNER JOIN application_blueprint_owners o ON o.blueprint_id = b.id
+       WHERE b.id = ? AND o.user_id = ?`,
+    )
+    .bind(id, userId)
     .first<BlueprintRow>();
   return row ? parseBlueprintRow(row) : null;
 }
 
+/** Create or refresh the local account record represented by a Supabase user. */
+export async function upsertApplicationUser(db: D1Database, user: AuthenticatedUser): Promise<void> {
+  await ensureSchema(db);
+  const now = new Date().toISOString();
+  await db
+    .prepare(
+      `INSERT INTO application_users (id, email, display_name, account_tier, created_at, last_seen_at)
+       VALUES (?, ?, ?, 'free', ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         email = excluded.email,
+         display_name = excluded.display_name,
+         last_seen_at = excluded.last_seen_at`,
+    )
+    .bind(user.id, user.email, user.displayName, now, now)
+    .run();
+}
+
+/**
+ * Assign pre-account plans to the first private owner who signs in.
+ *
+ * The hosted environment enables this only during the private migration stage.
+ * It must be disabled before the Site becomes public.
+ */
+export async function claimLegacyBlueprints(db: D1Database, userId: string): Promise<void> {
+  await ensureSchema(db);
+  const assignedAt = new Date().toISOString();
+  await db
+    .prepare(
+      `INSERT INTO application_blueprint_owners (blueprint_id, user_id, assigned_at)
+       SELECT b.id, ?, ?
+       FROM application_blueprints b
+       WHERE NOT EXISTS (
+         SELECT 1 FROM application_blueprint_owners o WHERE o.blueprint_id = b.id
+       )`,
+    )
+    .bind(userId, assignedAt)
+    .run();
+}
+
 /** Save a plan, returning its new id. */
-export async function saveBlueprint(db: D1Database, payload: BlueprintPayload): Promise<string> {
+export async function saveBlueprint(
+  db: D1Database,
+  payload: BlueprintPayload,
+  userId = "legacy-private-owner",
+): Promise<string> {
   await ensureSchema(db);
   const id = crypto.randomUUID();
   const savedAt = typeof payload.savedAt === "string" ? payload.savedAt : new Date().toISOString();
@@ -506,9 +567,21 @@ export async function saveBlueprint(db: D1Database, payload: BlueprintPayload): 
         : generateBlueprintSpecification({ ...payload, savedAt, lastEditedAt: savedAt }),
   };
   await db
-    .prepare("INSERT INTO application_blueprints (id, name, payload_json, created_at) VALUES (?, ?, ?, ?)")
-    .bind(id, String(payload.name).trim().slice(0, 160), JSON.stringify(completePayload), savedAt)
+    .prepare(
+      `INSERT INTO application_users (id, email, display_name, account_tier, created_at, last_seen_at)
+       VALUES (?, ?, ?, 'free', ?, ?)
+       ON CONFLICT(id) DO NOTHING`,
+    )
+    .bind(userId, userId, null, savedAt, savedAt)
     .run();
+  await db.batch([
+    db
+      .prepare("INSERT INTO application_blueprints (id, name, payload_json, created_at) VALUES (?, ?, ?, ?)")
+      .bind(id, String(payload.name).trim().slice(0, 160), JSON.stringify(completePayload), savedAt),
+    db
+      .prepare("INSERT INTO application_blueprint_owners (blueprint_id, user_id, assigned_at) VALUES (?, ?, ?)")
+      .bind(id, userId, savedAt),
+  ]);
   return id;
 }
 
@@ -517,8 +590,9 @@ export async function updateBlueprint(
   db: D1Database,
   id: string,
   change: { name: string; specificationMarkdown: string },
+  userId = "legacy-private-owner",
 ): Promise<SavedBlueprint | null> {
-  const existing = await getBlueprint(db, id);
+  const existing = await getBlueprint(db, id, userId);
   if (!existing) return null;
 
   const lastEditedAt = new Date().toISOString();
@@ -530,17 +604,26 @@ export async function updateBlueprint(
     lastEditedAt,
   };
   await db
-    .prepare("UPDATE application_blueprints SET name = ?, payload_json = ? WHERE id = ?")
-    .bind(payload.name, JSON.stringify(payload), id)
+    .prepare(
+      `UPDATE application_blueprints
+       SET name = ?, payload_json = ?
+       WHERE id = ? AND EXISTS (
+         SELECT 1 FROM application_blueprint_owners o WHERE o.blueprint_id = ? AND o.user_id = ?
+       )`,
+    )
+    .bind(payload.name, JSON.stringify(payload), id, id, userId)
     .run();
-  return getBlueprint(db, id);
+  return getBlueprint(db, id, userId);
 }
 
 /** Permanently delete one saved plan. */
-export async function deleteBlueprint(db: D1Database, id: string): Promise<boolean> {
-  const existing = await getBlueprint(db, id);
+export async function deleteBlueprint(db: D1Database, id: string, userId = "legacy-private-owner"): Promise<boolean> {
+  const existing = await getBlueprint(db, id, userId);
   if (!existing) return false;
 
-  await db.prepare("DELETE FROM application_blueprints WHERE id = ?").bind(id).run();
+  await db.batch([
+    db.prepare("DELETE FROM application_blueprint_owners WHERE blueprint_id = ? AND user_id = ?").bind(id, userId),
+    db.prepare("DELETE FROM application_blueprints WHERE id = ?").bind(id),
+  ]);
   return true;
 }
