@@ -327,7 +327,7 @@ try {
   // --- about ---------------------------------------------------------------
   await page.locator('[data-tab="about"]').click();
   await page.waitForTimeout(150);
-  expect("the About guide explains all six working tabs", (await page.locator(".about-card").count()) === 6);
+  expect("the About guide explains all seven other working tabs", (await page.locator(".about-card").count()) === 7);
   expect("the About guide gives a five-step workflow", (await page.locator(".about-workflow li").count()) === 5);
   expect(
     "the About guide explains evidence limits",

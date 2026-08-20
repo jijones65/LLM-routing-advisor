@@ -44,6 +44,14 @@ export type ConceptInferenceField =
   | "dataControl"
   | "openPreferred";
 
+export interface StoredSourceFile {
+  readonly path: string;
+  readonly name: string;
+  readonly size: number;
+  readonly mimeType: string;
+  readonly createdAt: string;
+}
+
 /** Structured, reviewable facts inferred from an uploaded project document. */
 export interface ConceptPaperAnalysis {
   readonly fileName: string;
@@ -89,4 +97,6 @@ export interface ConceptPaperAnalysis {
   readonly dataControl: boolean;
   readonly openPreferred: boolean;
   readonly notes: readonly string[];
+  /** Private account-storage pointer added by the signed-in browser after analysis. */
+  readonly storedFile?: StoredSourceFile;
 }

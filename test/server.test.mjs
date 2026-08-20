@@ -102,6 +102,7 @@ test("GET / renders a complete page", async () => {
   for (const tab of [
     "Application design",
     "Saved plans",
+    "Account",
     "Model explorer",
     "Live registry",
     "Coverage check",
@@ -124,8 +125,8 @@ test("GET / renders a complete page", async () => {
   ]) {
     assert.match(html, new RegExp(framework), `the Skills guide is missing ${framework}`);
   }
-  assert.equal((html.match(/class="about-card"/g) ?? []).length, 6);
-  assert.equal((html.match(/class="tab(?: active)?" data-tab=/g) ?? []).length, 7);
+  assert.equal((html.match(/class="about-card"/g) ?? []).length, 7);
+  assert.equal((html.match(/class="tab(?: active)?" data-tab=/g) ?? []).length, 8);
   for (const label of [
     "Recommendation ranking",
     "Source-evidence layer",
@@ -179,10 +180,27 @@ test("GET / renders a complete page", async () => {
     "saved-plan-detail",
     "refresh-saved-plans",
     "saved-markdown-link",
+    "landing-page",
+    "landing-header-sign-in",
+    "landing-sign-in",
+    "landing-final-sign-in",
+    "advisor-app",
     "account-button",
     "account-user",
     "account-email",
+    "account-page-button",
     "account-sign-out",
+    "account-page",
+    "account-profile-email",
+    "account-tier",
+    "account-plan-count",
+    "account-file-count",
+    "account-storage-used",
+    "account-file-list",
+    "account-file-status",
+    "refresh-account-files",
+    "account-page-sign-out",
+    "account-back",
     "auth-dialog",
     "auth-email-form",
     "auth-email",
@@ -195,8 +213,23 @@ test("GET / renders a complete page", async () => {
     assert.match(html, new RegExp(`id="${id}"`), `the shell is missing #${id}`);
   }
   assert.match(html, /<button[^>]*type="button"[^>]*id="saved-markdown-link"/);
+  assert.match(html, /<div class="advisor-app" id="advisor-app" hidden>/);
+  assert.match(html, /Sign in or create a free account/);
+  assert.match(html, /Stored in your account/);
   assert.doesNotMatch(html, /Sign in with Google/);
   db.close();
+});
+
+test("the account client gates the dashboard and supports private project files", () => {
+  const main = readFileSync(new URL("../build/client/main.js", import.meta.url), "utf8");
+  const auth = readFileSync(new URL("../build/client/auth.js", import.meta.url), "utf8");
+  assert.match(main, /landing\.hidden = Boolean\(user\)/);
+  assert.match(main, /app\.hidden = !user/);
+  assert.match(main, /uploadAccountFile/);
+  assert.match(main, /deleteAccountFile/);
+  assert.match(auth, /advisor-files/);
+  assert.match(auth, /15 seconds/);
+  assert.match(auth, /60 seconds/);
 });
 
 test("the planning client renders accessible Skill help and model-fit rationales", () => {

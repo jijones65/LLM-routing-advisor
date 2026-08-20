@@ -59,6 +59,14 @@ Preferred terminology:
 
 ## 4. Main product areas
 
+### 4.0 Signed-out landing and account boundary
+
+When authentication is required, a signed-out visitor sees a public landing page explaining the application-first method, workflow, current catalogue coverage and account features. The dashboard header, working tabs, catalogue views and account page remain hidden until Supabase restores a valid session. Signing out returns the user to the landing page and resets the active dashboard view to Application design.
+
+The landing page provides equivalent **Sign in or create a free account** actions in its header, hero and final call to action. Email sign-in creates a user automatically when the address is new. The dialog must show a sending state, stop waiting after 15 seconds, explain common rate-limit and unauthorised-address errors, and prevent a repeat request to the same address for 60 seconds after Supabase accepts it. An accepted request is not described as delivered.
+
+The initial Supabase email sender is a testing dependency, not a production mail service. Before broad release the owner must configure custom SMTP, verify sender-domain authentication and delivery, and set appropriate Auth rate limits. Google sign-in remains deferred.
+
 ### 4.1 Application Design
 
 The user defines an application and receives alternative model teams.
@@ -94,7 +102,8 @@ Outputs:
 Project-document import requirements:
 
 - Accept genuine PDF and DOCX files; reject renamed or unsupported files.
-- Read the file only for the current import. Do not retain the original bytes.
+- Send the file to the protected parser only for the current import; the Worker does not retain those request bytes.
+- After a successful analysis, upload the original file to the private `advisor-files` Supabase Storage bucket under `<user-id>/<uuid>-<safe-original-name>`. Retaining the original is separate from placing extracted evidence in a plan.
 - For PDFs, read the selectable text layer. If little text is present, explain that a scanned paper needs OCR rather than inventing a plan.
 - Preserve DOCX heading levels and index document structure before interpreting content. Index up to 500,000 extracted characters, then select no more than 50,000 characters of relevant and representative evidence; do not treat every word in a long upload as equally relevant.
 - Use document-neutral section concepts such as objective, users, inputs, outputs, constraints, evaluation, risks and verification. Do not add phrases from one example document as special-case mapping rules.
@@ -105,7 +114,7 @@ Project-document import requirements:
 - Return a review list covering missing fields, weak mappings and unsupported category suggestions. The UI must show how much bounded evidence was selected and how many items require review.
 - Preserve useful named source sections that do not map to a standard field under **Additional material from the uploaded document** in the saved Markdown. Keep each original heading, record whether its content is a bounded excerpt, and show when the overall retention limit omits further sections. Do not force unmatched content into an unrelated standard field or create document-specific mapping rules from an example.
 - Detect and preserve an existing application-team architecture and model-per-role guidance. Advisor candidates must be labelled as a comparison or refinement layer, not as a silent replacement for a team already specified by the source.
-- When the team is saved, retain the filename, extraction metadata and bounded inferred fields in the plan payload. Do not retain the complete source document.
+- When the team is saved, retain the filename, extraction metadata, bounded inferred fields and private storage pointer in the plan payload. Do not copy the complete source document into D1 or the generated Markdown.
 - Prefill the matching Markdown specification fields, include a source-mapping table, and leave unsupported decisions as explicit `[Fill in: …]` items.
 - Provide a downloadable Markdown concept-paper template based on the eight-part structure in the referenced specification-engineering article: objective, context, inputs, output format, constraints, evaluation criteria, edge cases and verification steps.
 
@@ -817,6 +826,15 @@ Account environment contract:
 - `SUPABASE_GOOGLE_ENABLED=false` remains false until a later Google-auth release is designed and tested.
 - `CLAIM_LEGACY_PLANS=true` is allowed only during a private migration stage. The first authenticated owner is assigned every plan that has no ownership row. The operation is idempotent; later users cannot claim those plans. Disable the flag after the owner verifies the migration and before public access.
 
+Supabase Storage contract:
+
+- `advisor-files` is private, limited to PDF and DOCX, and limited to 8 MB per object.
+- The first object-path segment is the authenticated Supabase user ID.
+- Row-level policies allow authenticated insert, select and delete only when the folder matches `auth.uid()`; reads and deletes also require `owner_id = auth.uid()`.
+- The browser uses the signed-in user's token and the publishable key. A service-role key is never exposed or required.
+- The Account page lists at most the latest 100 files, reports their visible total size, and supports authenticated download and confirmed permanent deletion.
+- Deleting a stored source file does not delete a saved plan or its bounded extracted brief. Deleting a plan does not silently delete a source file that another plan may reference.
+
 Saved plans include:
 
 - Application inputs
@@ -894,6 +912,8 @@ Interface requirements:
 - External links open safely in a new tab
 - Provider and Ollama links available wherever models are shown
 - An About tab that explains Application design, Saved plans, Model explorer, Live registry, Coverage check, and Update centre in plain language
+- A signed-out landing page with no visible access to the dashboard tabs until a session is restored
+- An Account link and page showing email identity, free tier, saved-plan count, project-file usage, file download, file deletion and sign-out
 - A clear statement of what each tab can help with and what it cannot prove
 - A five-step workflow from describing an application to testing, recording, and revisiting a model-team plan
 - Definitions that distinguish candidates from proven winners, source confirmation from performance testing, and user-recorded trials from tests run by the application
@@ -904,6 +924,7 @@ Interface requirements:
 - Recommend deterministic tools for maps, calculations, databases, search, identity, access, and workflow control where appropriate.
 - Recommend human review for material decisions.
 - Store saved plans in platform-backed persistence rather than browser-only storage.
+- Store original project files in a private account-scoped object bucket rather than D1, browser storage or the generated Markdown.
 - Use passwordless email as the initial account method; Google sign-in is a later enhancement.
 - Validate every protected request against Supabase and then apply a D1 ownership check.
 - Store no passwords, Supabase access tokens or refresh tokens in D1.
@@ -913,6 +934,7 @@ Interface requirements:
 - Do not silently send user application briefs to external model providers.
 - Escape rendered source data and validate saved blueprint payloads.
 - Keep external-source failures isolated from the bundled catalogue fallback.
+- Treat a mail-provider acceptance response as a request accepted, not proof of delivery; surface timeouts, unauthorised-address restrictions and rate limiting.
 
 ## 16. Evaluation and acceptance tests
 
@@ -1081,6 +1103,8 @@ A rebuild is complete only when:
 - Data sources, aliases, overlap, official evidence, and catalogue membership remain distinct.
 - Saved plans are versioned and reproducible.
 - Passwordless email sessions protect user-owned plans without storing passwords or auth tokens in D1.
+- Signed-out visitors see the landing page and cannot navigate the working tabs; signing in reveals the Advisor and signing out hides it again.
+- Private PDF and DOCX uploads are stored under the authenticated user's Supabase folder and can be listed, downloaded and deleted only by that user.
 - Server-side ownership checks prevent one valid account from reading or changing another account's plan.
 - Saved plans can be reopened, compared, edited, exported and deliberately deleted without losing the context of plans that remain.
 - Tests cover the ranking rules and known failure cases.
