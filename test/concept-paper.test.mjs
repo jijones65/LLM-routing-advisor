@@ -3,6 +3,7 @@ import { test } from "node:test";
 import JSZip from "jszip";
 import worker from "../build/server/index.js";
 import { analyseConceptPaper } from "../build/server/concepts/analyse.js";
+import { structuredTextFromDocxHtml } from "../build/server/concepts/parse.js";
 
 const request = (path, init) => new Request(`https://advisor.test${path}`, init);
 
@@ -88,6 +89,64 @@ Run ten representative supplier comparisons and simulate a provider failure.`,
   assert.equal(analysis.industry, "education");
   assert.equal(analysis.dataControl, true);
   assert.equal(analysis.pageCount, 2);
+});
+
+test("Word heading levels survive extraction for section-aware mapping", () => {
+  const text = structuredTextFromDocxHtml(
+    "<h1>Example specification</h1><p><strong>Audience.</strong> Operations staff.</p><h2>Integration check</h2><p>Run ten representative cases.</p>",
+  );
+  assert.match(text, /\[\[H1\]\]Example specification/);
+  assert.match(text, /\[\[H2\]\]Integration check/);
+  assert.match(text, /Audience\. Operations staff/);
+});
+
+test("a long implementation specification keeps its real architecture and late verification sections", () => {
+  const filler = "Routine implementation detail that is not an application objective. ".repeat(2_300);
+  const analysis = analyseConceptPaper(
+    `[[H1]]AIBusinessHealthWorkforce.md
+Build specification for the AI Business Intelligence Engine — agent workforce on OpenClaw.
+Audience. Another AI agent executes the build; a human operator owns consequential decisions.
+Model. Use a cloud reasoning model for agentic decisions. Do not use a local small model for the source-grounded review flow.
+Architecture note (READ THIS FIRST). Implement two persistent agents and nineteen temporary specialist roles.
+[[H2]]1. Current state of the host
+Extend the working KPI service without rebuilding or breaking its existing path.
+[[H2]]2. Architecture summary
+The main agent hands a variance review to the finance director.
+[[H3]]2.1 Two top-level triggers
+The KPI route returns a dashboard. The variance-review route returns a cited PDF and JSON report after approval.
+[[H3]]2.2 The two persistent agents plus nineteen temporary roles
+Main and director persist. Four managers and fifteen experts are spawned only for their assigned work.
+[[H3]]2.3 The call tree
+Main calls director; director calls managers; managers call experts and aggregate evidence-backed findings.
+[[H3]]2.4 Model-per-role
+Use efficient models for lookup, a balanced model for judgement and a premium model for director synthesis.
+[[H2]]3. Build order
+${filler}
+[[H2]]13. Approval gate and delivery
+Save a draft PDF and JSON report. Deliver only after the responsible human replies YES.
+[[H2]]14. Cite-or-fail rule
+Every finding must contain evidence. Missing evidence must be reported rather than invented.
+[[H2]]15. What is NOT in scope
+Do not replace the approved cloud model with a self-hosted model and do not create a multi-tenant service.
+[[H2]]17. Integration check
+Confirm twenty role files, the complete hand-off path, the approval gate and both regression routes.`,
+    { fileName: "AI_Business_Intelligence_Engine.docx", fileType: "docx" },
+  );
+
+  assert.ok(analysis.extractedCharacters > 120_000);
+  assert.equal(analysis.analysisTruncated, false);
+  assert.equal(analysis.analysedCharacters, analysis.extractedCharacters);
+  assert.equal(analysis.documentKind, "implementation-specification");
+  assert.equal(analysis.applicationType, "AI Business Intelligence Engine");
+  assert.match(analysis.objective, /two persistent agents and nineteen temporary specialist roles/i);
+  assert.match(analysis.users, /human operator owns consequential decisions/i);
+  assert.match(analysis.outOfScope, /self-hosted model/i);
+  assert.match(analysis.verificationSteps, /twenty role files/i);
+  assert.match(analysis.existingArchitecture, /nineteen temporary roles/i);
+  assert.match(analysis.existingModelGuidance, /premium model for director synthesis/i);
+  assert.equal(analysis.sourceMappings.verificationSteps.source, "17. Integration check");
+  assert.equal(analysis.suggestedArchetype, "finance-insight");
+  assert.equal(analysis.openPreferred, false);
 });
 
 test("the downloadable template follows the eight-part specification structure", async () => {

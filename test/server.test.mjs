@@ -378,15 +378,24 @@ test("saving a plan validates the payload", async () => {
     conceptPaper: {
       fileName: "school-supplier-concept.docx",
       importedAt: "2026-08-18T11:55:00.000Z",
+      documentKind: "implementation-specification",
       objective: "Compare current supplier evidence and explain the trade-offs to school procurement staff.",
       context: "A school is replacing a manual supplier comparison process.",
       users: "Procurement staff and a responsible human approver.",
       inputs: "Supplier contracts, price tables and current external evidence.",
       outputs: "A cited comparison report and shortlist.",
       constraints: "Keep confidential supplier information in an approved environment.",
+      outOfScope: "Do not place purchase orders automatically.",
       evaluationCriteria: "At least 95% of cited facts must match their source.",
       edgeCases: "Missing prices and conflicting supplier claims.",
       verificationSteps: "Run ten representative comparisons and simulate a source outage.",
+      existingArchitecture: "A procurement lead reviews the research agent's shortlist before release.",
+      existingModelGuidance: "Use an efficient extraction model and an independent evidence checker.",
+      sourceMappings: {
+        objective: { source: "1. Objective", confidence: "high", method: "named-section" },
+        outOfScope: { source: "8. Exclusions", confidence: "high", method: "named-section" },
+        existingArchitecture: { source: "4. Existing workflow", confidence: "high", method: "named-section" },
+      },
     },
     catalogVersion: "catalog-test",
     scoringVersion: "scoring-test",
@@ -418,6 +427,14 @@ test("saving a plan validates the payload", async () => {
   assert.match(stored.specificationMarkdown, /Compare current supplier evidence/);
   assert.match(stored.specificationMarkdown, /At least 95% of cited facts/);
   assert.match(stored.specificationMarkdown, /Missing prices and conflicting supplier claims/);
+  assert.match(stored.specificationMarkdown, /Imported document type:\*\* implementation specification/);
+  assert.match(stored.specificationMarkdown, /How the uploaded document was mapped/);
+  assert.match(stored.specificationMarkdown, /1\. Objective/);
+  assert.match(stored.specificationMarkdown, /Do not place purchase orders automatically/);
+  assert.match(stored.specificationMarkdown, /Architecture already described in the uploaded document/);
+  assert.match(stored.specificationMarkdown, /procurement lead reviews the research agent/);
+  assert.match(stored.specificationMarkdown, /do not silently replace the source document's stated team/i);
+  assert.equal((stored.specificationMarkdown.match(/\*\*Specification approach:\*\*/g) ?? []).length, 1);
   assert.match(stored.specificationMarkdown, /\[Fill in:/);
 
   const detail = await (await worker.fetch(request(`/api/blueprints/${id}`), { DB: db })).json();

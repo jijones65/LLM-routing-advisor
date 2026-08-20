@@ -10,12 +10,12 @@ import type { Model } from "../../shared/types.js";
  */
 const CHANGES: readonly { state: string; title: string; scope: string; date: string; detail: string }[] = [
   {
-    state: "Added",
-    title: "Concept papers can start a model-team plan",
+    state: "Refined",
+    title: "Long project documents now keep their real structure",
     scope: "Application design · plans · specifications",
     date: "19 Aug 2026",
     detail:
-      "Upload a PDF or DOCX in any layout to suggest the application name, Skills, context, risk and operating preferences. The file is read transiently and not retained. Saving the team carries the extracted objective, users, inputs, outputs, constraints, success criteria, edge cases and verification steps into the editable Markdown specification. A downloadable starter follows the eight-part specification-engineering structure.",
+      "Upload a concept paper, requirements document or implementation specification as PDF or DOCX. Word heading levels and named sections now drive the draft, long documents are analysed beyond their opening pages, source mappings are shown, and any existing team or model-per-role architecture is preserved separately from advisor candidates. Weak matches stay blank for review. The file is read transiently and not retained.",
   },
   {
     state: "Added",

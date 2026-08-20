@@ -40,17 +40,17 @@ export const BODY_MARKUP = `<header class="topbar">
 <section class="concept-import" aria-labelledby="concept-import-title">
 <div class="concept-import-head">
 <div>
-<span class="label" id="concept-import-title">Start with a concept paper</span>
-<p>Upload a PDF or DOCX in any layout. The advisor reads its text, suggests the application brief and uses the extracted facts to start the saved Markdown specification.</p>
+<span class="label" id="concept-import-title">Start with a project document</span>
+<p>Upload a concept paper, requirements document or implementation specification as PDF or DOCX. The advisor maps named sections into a reviewable brief and preserves any team or model architecture already described.</p>
 </div>
 <span class="concept-private">File not stored</span>
 </div>
 <label class="concept-file" for="concept-paper-file">
-<span>Choose concept paper</span>
+<span>Choose PDF or DOCX</span>
 <input id="concept-paper-file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
 </label>
 <div class="concept-import-actions">
-<button type="button" id="import-concept-paper">Make a plan from this paper</button>
+<button type="button" id="import-concept-paper">Make a plan from this document</button>
 <a href="/api/concept-paper-template" download>Download a starter template (.md)</a>
 </div>
 <p class="concept-import-status" id="concept-paper-status" role="status">PDF or DOCX · up to 8 MB · scanned PDFs need OCR</p>

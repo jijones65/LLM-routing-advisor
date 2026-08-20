@@ -1,6 +1,6 @@
 # LLM Application Routing Advisor — Product and Implementation Specification
 
-**Specification version:** 2.0
+**Specification version:** 2.1
 **Current implementation baseline:** 19 August 2026 · catalogue `2026.08.19-1` · scoring `2026.08.19-1` · taxonomy `2026.08.19-3`
 **Status:** Living specification for refinement, maintenance, and future rebuilds
 
@@ -65,7 +65,7 @@ The user defines an application and receives alternative model teams.
 
 Inputs:
 
-- Optional PDF or DOCX concept paper in any layout, up to 8 MB
+- Optional PDF or DOCX concept paper, application brief, requirements document or implementation specification in any layout, up to 8 MB
 - Application type
 - Skills the application needs
 - Business goal
@@ -91,15 +91,19 @@ Outputs:
 - External tools the application may require
 - A reminder to test on real examples before launch
 
-Concept-paper import requirements:
+Project-document import requirements:
 
 - Accept genuine PDF and DOCX files; reject renamed or unsupported files.
 - Read the file only for the current import. Do not retain the original bytes.
 - For PDFs, read the selectable text layer. If little text is present, explain that a scanned paper needs OCR rather than inventing a plan.
-- Infer a starting application type, Skills, business goal, industry, knowledge area, risk and operating preferences from phrases in the paper. These are suggestions and remain editable.
-- Extract bounded text for objective, context, users, inputs, outputs, constraints, evaluation criteria, edge cases and verification steps.
+- Preserve DOCX heading levels and use named sections before phrase matching. Process at least 500,000 extracted characters so ordinary long specifications are not silently reduced to their opening pages.
+- Recognise whether the source is a concept paper, application brief, requirements document or implementation specification and show that classification for review.
+- Infer a starting application type, Skills, business goal, industry, knowledge area, risk and operating preferences. These remain editable suggestions; negated preferences such as “do not use a local model” must not be reversed.
+- Extract bounded text for objective, context, users, inputs, outputs, constraints, out-of-scope work, evaluation criteria, edge cases and verification steps.
+- Record the source heading or opening label and a mapping-confidence label for every populated draft area. Leave an area blank when a long structured document has no sufficiently clear section rather than substituting an unrelated phrase match.
+- Detect and preserve an existing application-team architecture and model-per-role guidance. Advisor candidates must be labelled as a comparison or refinement layer, not as a silent replacement for a team already specified by the source.
 - When the team is saved, retain the filename, extraction metadata and bounded inferred fields in the plan payload. Do not retain the complete source document.
-- Prefill the matching Markdown specification fields while leaving unsupported decisions as explicit `[Fill in: …]` items.
+- Prefill the matching Markdown specification fields, include a source-mapping table, and leave unsupported decisions as explicit `[Fill in: …]` items.
 - Provide a downloadable Markdown concept-paper template based on the eight-part structure in the referenced specification-engineering article: objective, context, inputs, output format, constraints, evaluation criteria, edge cases and verification steps.
 
 ### 4.2 Model Explorer

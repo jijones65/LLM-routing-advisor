@@ -66,8 +66,49 @@ export function generateBlueprintSpecification(payload: AnyRecord): string {
   const created = text(payload.savedAt, new Date().toISOString());
   const concept = record(payload.conceptPaper);
   const conceptFile = typeof concept.fileName === "string" ? concept.fileName.trim() : "";
+  const sourceMappings = record(concept.sourceMappings);
   const conceptValue = (field: string, fallback: string): string =>
     typeof concept[field] === "string" && String(concept[field]).trim() ? oneLine(concept[field]) : fallback;
+  const documentKind = oneLine(concept.documentKind, "application document").replaceAll("-", " ");
+
+  const sourceMapLabels: readonly [string, string][] = [
+    ["applicationType", "Application name"],
+    ["objective", "Objective"],
+    ["context", "Context"],
+    ["users", "People and users"],
+    ["inputs", "Inputs"],
+    ["outputs", "Outputs"],
+    ["constraints", "Constraints"],
+    ["outOfScope", "Out of scope"],
+    ["evaluationCriteria", "Evaluation criteria"],
+    ["edgeCases", "Edge cases"],
+    ["verificationSteps", "Verification"],
+    ["existingArchitecture", "Existing architecture"],
+    ["existingModelGuidance", "Existing model guidance"],
+  ];
+  const sourceMapRows = sourceMapLabels
+    .map(([field, label]) => ({ label, mapping: record(sourceMappings[field]) }))
+    .filter(({ mapping }) => typeof mapping.source === "string" && mapping.source.trim())
+    .map(
+      ({ label, mapping }) =>
+        `| ${oneLine(label)} | ${oneLine(mapping.source)} | ${oneLine(mapping.confidence, "review")} |`,
+    )
+    .join("\n");
+
+  const existingArchitecture = conceptValue("existingArchitecture", "");
+  const existingModelGuidance = conceptValue("existingModelGuidance", "");
+  const sourceArchitecture =
+    existingArchitecture || existingModelGuidance
+      ? `### Architecture already described in the uploaded document
+
+${existingArchitecture || "[The document contains model guidance but no clearly mapped team structure.]"}
+
+${existingModelGuidance ? `### Model guidance already stated in the document\n\n${existingModelGuidance}\n` : ""}
+> The advisor candidates below are a comparison and refinement layer. They do not silently replace the source document's stated team, roles or model policy.
+
+### Advisor candidate team
+`
+      : "";
 
   const modelTable = routing.length
     ? routing
@@ -154,8 +195,8 @@ export function generateBlueprintSpecification(payload: AnyRecord): string {
 >
 > **Plan:** ${oneLine(payload.name)}  
 > **Created:** ${oneLine(created)}  
-${conceptFile ? `> **Concept paper:** ${oneLine(conceptFile)} · imported ${oneLine(concept.importedAt, "date not recorded")}  \n` : ""}> **Specification approach:** This draft follows the specification-engineering structure described in [KDnuggets](${SPECIFICATION_GUIDE_URL}): objective, context, inputs, output format, constraints, evaluation criteria, edge cases, and verification steps.
-> **Specification approach:** This draft follows the specification-engineering structure described in [KDnuggets](${SPECIFICATION_GUIDE_URL}): objective, context, inputs, output format, constraints, evaluation criteria, edge cases, and verification steps.
+${conceptFile ? `> **Imported document:** ${oneLine(conceptFile)} · imported ${oneLine(concept.importedAt, "date not recorded")}  \n` : ""}> **Specification approach:** This draft follows the specification-engineering structure described in [KDnuggets](${SPECIFICATION_GUIDE_URL}): objective, context, inputs, output format, constraints, evaluation criteria, edge cases, and verification steps.
+${conceptFile ? `> **Imported document type:** ${documentKind}  \n` : ""}
 
 ## 1. Objective
 
@@ -169,7 +210,7 @@ ${conceptValue("objective", "[Fill in: In one or two sentences, state the user p
 ${conceptValue("evaluationCriteria", "[Fill in: Describe the observable improvement for the people who will use or be affected by the application.]")}
 
 **Out of scope**  
-[Fill in: List work this application must not attempt.]
+${conceptValue("outOfScope", "[Fill in: List work this application must not attempt.]")}
 
 ## 2. Context
 
@@ -180,6 +221,19 @@ ${conceptValue("evaluationCriteria", "[Fill in: Describe the observable improvem
 - **Concept-paper context:** ${conceptValue("context", "[Fill in: background, current state, rationale and operating environment.]")}
 - **People and operating setting:** ${conceptValue("users", "[Fill in: users, decision owners, locations, languages, accessibility needs, and existing workflow.]")}
 - **Important domain rules:** [Fill in: laws, policies, professional standards, or internal rules that apply.]
+
+${
+  sourceMapRows
+    ? `### How the uploaded document was mapped
+
+| Draft area | Source section or label | Mapping confidence |
+|---|---|---|
+${sourceMapRows}
+
+Blank draft fields were left for review rather than filled from a weak phrase match.
+`
+    : ""
+}
 
 ## 3. Inputs
 
@@ -209,7 +263,9 @@ ${capabilities.length ? capabilities.map((capability) => `- ${oneLine(capability
 - **Accessibility and language:** [Fill in: reading level, supported languages, alt text, captions, or other requirements.]
 - **Record keeping:** [Fill in: what is logged, retained, versioned, or deliberately not stored.]
 
-## 5. Candidate model team
+## 5. Existing architecture and candidate model team
+
+${sourceArchitecture}
 
 > These are candidates selected by the advisor's current rules. They are not proven winners. Test the complete team on the same representative application tasks before making a final choice.
 

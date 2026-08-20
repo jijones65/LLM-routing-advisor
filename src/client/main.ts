@@ -63,10 +63,12 @@ function renderConceptPaper(): void {
     importedConcept.edgeCases,
     importedConcept.verificationSteps,
   ].filter(Boolean).length;
+  const mapped = Object.keys(importedConcept.sourceMappings ?? {}).length;
+  const kind = importedConcept.documentKind.replaceAll("-", " ");
   result.hidden = false;
   result.innerHTML = `<strong>${esc(importedConcept.fileName)} imported</strong>
-    <span>${esc(importedConcept.suggestedNeeds.length)} Skills suggested · ${filled} specification areas started</span>
-    <small>Review every suggestion before saving. The original file was not retained.</small>
+    <span>${esc(kind)} recognised · ${esc(importedConcept.suggestedNeeds.length)} Skills suggested · ${filled} specification areas started</span>
+    <small>${esc(mapped)} source mappings recorded${importedConcept.existingArchitecture ? " · existing architecture preserved" : ""}. Review every suggestion before saving. The original file was not retained.</small>
     <button type="button" id="clear-concept-paper">Do not include these document details when saving</button>`;
 }
 
@@ -158,7 +160,7 @@ byId<HTMLButtonElement>("import-concept-paper").addEventListener("click", async 
   const file = input.files?.[0];
   status.classList.remove("error");
   if (!file) {
-    status.textContent = "Choose a PDF or DOCX concept paper first.";
+    status.textContent = "Choose a PDF or DOCX project document first.";
     status.classList.add("error");
     return;
   }
@@ -172,14 +174,15 @@ byId<HTMLButtonElement>("import-concept-paper").addEventListener("click", async 
     const data = (await response.json()) as { analysis?: ConceptPaperAnalysis; error?: string };
     if (!response.ok || !data.analysis) throw new Error(data.error ?? "The concept paper could not be read.");
     applyConceptPaper(data.analysis);
-    status.textContent = "Plan brief created from the paper — review the application name, Skills and context below.";
+    status.textContent =
+      "Plan brief created from the document — review the mapped source sections, application name and Skills below.";
     toast("Concept paper imported — candidate teams updated");
   } catch (error) {
     status.textContent = error instanceof Error ? error.message : "The concept paper could not be read.";
     status.classList.add("error");
   } finally {
     button.disabled = false;
-    button.textContent = "Make a plan from this paper";
+    button.textContent = "Make a plan from this document";
   }
 });
 

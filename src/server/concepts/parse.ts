@@ -14,6 +14,41 @@ export class ConceptPaperError extends Error {
   }
 }
 
+function decodeHtml(value: string): string {
+  const named: Record<string, string> = {
+    amp: "&",
+    apos: "'",
+    gt: ">",
+    lt: "<",
+    nbsp: " ",
+    quot: '"',
+  };
+  return value.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (match, entity: string) => {
+    if (entity[0] !== "#") return named[entity.toLowerCase()] ?? match;
+    const hexadecimal = entity[1]?.toLowerCase() === "x";
+    const codePoint = Number.parseInt(entity.slice(hexadecimal ? 2 : 1), hexadecimal ? 16 : 10);
+    return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
+  });
+}
+
+/** Keep Word heading levels so long specifications can be mapped by section. */
+export function structuredTextFromDocxHtml(html: string): string {
+  return decodeHtml(
+    html
+      .replace(/<h([1-6])\b[^>]*>/gi, "\n[[H$1]]")
+      .replace(/<\/h[1-6]>/gi, "\n")
+      .replace(/<li\b[^>]*>/gi, "\n- ")
+      .replace(/<\/(?:p|li|tr|ul|ol|table)>/gi, "\n")
+      .replace(/<\/(?:td|th)>/gi, " | ")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<[^>]+>/g, ""),
+  )
+    .replace(/\u00a0/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function fileKind(file: File, bytes: Uint8Array): "pdf" | "docx" {
   const name = file.name.toLowerCase();
   const isPdf = name.endsWith(".pdf") || file.type === "application/pdf";
@@ -42,8 +77,8 @@ export async function readConceptPaper(file: File): Promise<ConceptPaperAnalysis
       extracted = result.text;
       pageCount = result.totalPages;
     } else {
-      const result = await mammoth.extractRawText({ arrayBuffer: buffer });
-      extracted = result.value;
+      const result = await mammoth.convertToHtml({ arrayBuffer: buffer });
+      extracted = structuredTextFromDocxHtml(result.value);
     }
   } catch {
     throw new ConceptPaperError(

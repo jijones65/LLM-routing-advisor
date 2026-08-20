@@ -6,6 +6,7 @@ declare module "mammoth/mammoth.browser.js" {
 
   const mammoth: {
     extractRawText(input: { arrayBuffer: ArrayBuffer }): Promise<Result>;
+    convertToHtml(input: { arrayBuffer: ArrayBuffer }): Promise<Result>;
   };
 
   export default mammoth;
