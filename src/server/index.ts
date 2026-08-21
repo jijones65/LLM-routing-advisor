@@ -1,17 +1,21 @@
 import { getCatalog } from "./db/repo.js";
 import type { D1Database } from "./db/index.js";
 import {
+  accountRoute,
   auditRoute,
   blueprintRoute,
   blueprintsRoute,
   candidatesRoute,
   catalogRoute,
+  conceptPaperRoute,
+  conceptPaperTemplateRoute,
   registriesRoute,
 } from "./routes/api.js";
 import { renderPage } from "./render/page.js";
+import { authBootstrap, authenticationResponse, type AuthEnv } from "./auth.js";
 
 /** Bindings the worker expects. `DB` matches `.openai/hosting.json`. */
-export interface Env {
+export interface Env extends AuthEnv {
   readonly DB?: D1Database;
 }
 
@@ -39,7 +43,10 @@ const ROUTES: Record<string, (request: Request, url: URL, env: Env) => Promise<R
     if (request.method !== "GET") return new Response("Method not allowed", { status: 405 });
     return candidatesRoute(url, env.DB);
   },
-  "/api/blueprints": async (request, _url, env) => blueprintsRoute(request, env.DB),
+  "/api/account": async (request, _url, env) => accountRoute(request, env.DB, env),
+  "/api/blueprints": async (request, _url, env) => blueprintsRoute(request, env.DB, env),
+  "/api/concept-paper": async (request, _url, env) => conceptPaperRoute(request, env.DB, env),
+  "/api/concept-paper-template": async (request) => conceptPaperTemplateRoute(request),
   "/api/health": async () =>
     new Response(JSON.stringify({ ok: true, time: new Date().toISOString() }), {
       headers: { "content-type": "application/json", "cache-control": "no-store" },
@@ -55,6 +62,8 @@ export default {
       try {
         return await route(request, url, env);
       } catch (error) {
+        const authResponse = authenticationResponse(error);
+        if (authResponse) return authResponse;
         return new Response(JSON.stringify({ error: String(error) }), {
           status: 500,
           headers: { "content-type": "application/json", "cache-control": "no-store" },
@@ -66,8 +75,10 @@ export default {
       const parts = url.pathname.split("/").filter(Boolean);
       if (parts.length === 3 || (parts.length === 4 && parts[3] === "markdown")) {
         try {
-          return await blueprintRoute(request, env.DB, decodeURIComponent(parts[2]), parts[3] === "markdown");
+          return await blueprintRoute(request, env.DB, decodeURIComponent(parts[2]), parts[3] === "markdown", env);
         } catch (error) {
+          const authResponse = authenticationResponse(error);
+          if (authResponse) return authResponse;
           return new Response(JSON.stringify({ error: String(error) }), {
             status: 500,
             headers: { "content-type": "application/json", "cache-control": "no-store" },
@@ -81,7 +92,7 @@ export default {
     // The page renders from the bundled catalogue even when storage is down, so
     // planning an application never depends on the database being reachable.
     const { models } = await getCatalog(env.DB);
-    return new Response(renderPage(models), {
+    return new Response(renderPage(models, authBootstrap(env)), {
       headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache" },
     });
   },

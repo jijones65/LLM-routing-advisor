@@ -18,10 +18,51 @@ import { createServer } from "node:http";
 import { existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import JSZip from "jszip";
 import { FakeD1 } from "../test/fake-d1.mjs";
 import { REGISTRY_FIXTURES } from "../test/fixtures/registry.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+
+async function conceptDocx() {
+  const zip = new JSZip();
+  zip.file(
+    "[Content_Types].xml",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`,
+  );
+  zip
+    .folder("_rels")
+    .file(
+      ".rels",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`,
+    );
+  const lines = [
+    "Supplier comparison for a school",
+    "Objective",
+    "Compare current supplier evidence and explain trade-offs to school procurement staff.",
+    "Users and stakeholders",
+    "Procurement staff and a responsible human approver.",
+    "Inputs",
+    "Read contracts, spreadsheet price tables, policy requirements and current external sources.",
+    "Outputs",
+    "A cited comparison report and ranked shortlist.",
+    "Constraints",
+    "Confidential supplier information must remain in an approved environment.",
+    "Evaluation criteria",
+    "At least 95 percent of cited facts must match their source.",
+    "Edge cases",
+    "Missing prices, conflicting claims and unavailable sources.",
+    "Verification",
+    "Run ten representative comparisons and simulate a provider failure.",
+  ];
+  zip
+    .folder("word")
+    .file(
+      "document.xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${lines.map((line) => `<w:p><w:r><w:t>${line}</w:t></w:r></w:p>`).join("")}<w:sectPr/></w:body></w:document>`,
+    );
+  return Buffer.from(await zip.generateAsync({ type: "uint8array" }));
+}
 
 let chromium;
 try {
@@ -117,8 +158,24 @@ try {
   expect("every choice shows a decision status", (await page.locator(".role-card .decision-card").count()) >= 3);
   expect("structural team checks render", (await page.locator(".team-check").count()) >= 7);
   expect("the shared team trial worksheet has five trials", (await page.locator(".team-trial").count()) === 5);
-  await page.fill("#custom-application", "Supplier comparison for a school");
-  await page.waitForTimeout(150);
+  const template = await (await fetch(`${base}/api/concept-paper-template`)).text();
+  expect("a concept-paper starter template is downloadable", /## 8\. Verification steps/.test(template));
+  await page.locator("#concept-paper-file").setInputFiles({
+    name: "school-supplier-concept.docx",
+    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    buffer: await conceptDocx(),
+  });
+  await page.locator("#import-concept-paper").click();
+  await page.waitForTimeout(900);
+  expect(
+    "a DOCX concept paper creates a brief",
+    (await page.inputValue("#custom-application")) === "Supplier comparison for a school",
+  );
+  expect("the concept paper suggests Skills", (await page.locator('.cap[aria-pressed="true"]').count()) >= 3);
+  expect(
+    "the concept-paper result explains what was imported",
+    await page.locator("#concept-paper-result").isVisible(),
+  );
   expect(
     "a custom application type still builds a team",
     /supplier comparison for a school/i.test((await page.textContent("#route-title")) ?? "") &&
@@ -270,7 +327,7 @@ try {
   // --- about ---------------------------------------------------------------
   await page.locator('[data-tab="about"]').click();
   await page.waitForTimeout(150);
-  expect("the About guide explains all six working tabs", (await page.locator(".about-card").count()) === 6);
+  expect("the About guide explains all seven other working tabs", (await page.locator(".about-card").count()) === 7);
   expect("the About guide gives a five-step workflow", (await page.locator(".about-workflow li").count()) === 5);
   expect(
     "the About guide explains evidence limits",
@@ -328,6 +385,14 @@ try {
   expect(
     "the saved plan contains a draft specification",
     /Draft Application Specification/.test(payload.specificationMarkdown),
+  );
+  expect(
+    "the saved plan retains concept-paper facts",
+    payload.conceptPaper?.fileName === "school-supplier-concept.docx",
+  );
+  expect(
+    "the draft specification is prefilled from the concept paper",
+    /Compare current supplier evidence/.test(payload.specificationMarkdown),
   );
 
   // --- saved plans --------------------------------------------------------

@@ -25,6 +25,24 @@ import { initExploreFilters, renderModels } from "./views/explore.js";
 import { loadRegistry } from "./views/registry.js";
 import { initSavedPlans, loadSavedPlans, type SavedPlan } from "./views/saved.js";
 import { renderUpdates } from "./views/updates.js";
+import type { ConceptPaperAnalysis } from "../shared/concept-paper.js";
+import {
+  authIsConfigured,
+  authIsRequired,
+  authorizedFetch,
+  deleteAccountFile,
+  downloadAccountFile,
+  downloadProtected,
+  initAuth,
+  isSignedIn,
+  listAccountFiles,
+  onAuthChange,
+  requestSignIn,
+  sendEmailSignInLink,
+  signOut,
+  uploadAccountFile,
+  type StoredAccountFile,
+} from "./auth.js";
 
 const boot = readBootstrap();
 // Signals arrive already attached from the server; recomputing is a cheap no-op
@@ -36,11 +54,246 @@ const registryQuery: RegistryQuery = { ...initialRegistryQuery };
 
 const context: DesignContext = { boot, catalog, brief, registrySummary: null };
 let savedPlansLoaded = false;
+let importedConcept: ConceptPaperAnalysis | null = null;
+
+// ---------------------------------------------------------------------------
+// Account sign-in
+// ---------------------------------------------------------------------------
+
+const authDialog = byId<HTMLDialogElement>("auth-dialog");
+const authStatus = byId<HTMLElement>("auth-status");
+let syncedUserId = "";
+let accountFilesLoaded = false;
+let accountFiles: StoredAccountFile[] = [];
+
+function openAuthDialog(message = ""): void {
+  authStatus.textContent =
+    message ||
+    (authIsConfigured()
+      ? "Enter your email address to receive a one-time sign-in link."
+      : "Account sign-in is not configured yet.");
+  if (!authDialog.open) authDialog.showModal();
+}
+
+function renderAccount(user: { id: string; email?: string } | null): void {
+  const signIn = byId<HTMLButtonElement>("account-button");
+  const signedIn = byId<HTMLElement>("account-user");
+  const landing = byId<HTMLElement>("landing-page");
+  const app = byId<HTMLElement>("advisor-app");
+  if (!authIsRequired()) {
+    signIn.hidden = true;
+    signedIn.hidden = true;
+    landing.hidden = true;
+    app.hidden = false;
+    return;
+  }
+  signIn.hidden = Boolean(user);
+  signedIn.hidden = !user;
+  landing.hidden = Boolean(user);
+  app.hidden = !user;
+  signIn.textContent = authIsConfigured() ? "Sign in" : "Sign-in setup";
+  if (user) {
+    const email = user.email ?? "Signed in";
+    byId("account-email").textContent = email;
+    byId("account-profile-email").textContent = email;
+    byId("account-tier").textContent = "Free";
+  } else {
+    accountFilesLoaded = false;
+    accountFiles = [];
+    activateTab("design");
+  }
+}
+
+const authReady = initAuth(boot.auth);
+onAuthChange((user) => {
+  renderAccount(user);
+  if (!user) {
+    syncedUserId = "";
+    return;
+  }
+  if (authDialog.open) authDialog.close();
+  if (syncedUserId !== user.id) {
+    syncedUserId = user.id;
+    void authorizedFetch("/api/account", { cache: "no-store" }).then((response) => {
+      if (!response.ok) toast("The account could not be linked to saved plans");
+      else if (savedPlansLoaded) void loadSavedPlans();
+    });
+  }
+});
+void authReady.catch(() => {
+  renderAccount(null);
+  authStatus.textContent = "The sign-in service could not be reached.";
+});
+
+window.addEventListener("advisor:sign-in", () => openAuthDialog());
+byId("account-button").addEventListener("click", () => openAuthDialog());
+for (const id of ["landing-header-sign-in", "landing-sign-in", "landing-final-sign-in"]) {
+  byId(id).addEventListener("click", () => openAuthDialog());
+}
+
+async function performSignOut(): Promise<void> {
+  try {
+    await signOut();
+    toast("Signed out");
+    if (savedPlansLoaded) void loadSavedPlans();
+  } catch {
+    toast("Could not sign out");
+  }
+}
+
+byId("account-sign-out").addEventListener("click", () => void performSignOut());
+byId("account-page-sign-out").addEventListener("click", () => void performSignOut());
+
+byId<HTMLFormElement>("auth-email-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget as HTMLFormElement;
+  const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+  const email = byId<HTMLInputElement>("auth-email").value.trim();
+  if (!submit || !email) return;
+  submit.disabled = true;
+  submit.textContent = "Sending sign-in link…";
+  authStatus.textContent = "Sending a secure sign-in link…";
+  try {
+    await sendEmailSignInLink(email);
+    authStatus.textContent =
+      "Request accepted. Check your inbox and spam folder for the one-time link. Delivery is limited while the testing email service is in use.";
+    let seconds = 60;
+    submit.textContent = `Try again in ${seconds}s`;
+    const timer = window.setInterval(() => {
+      seconds -= 1;
+      submit.textContent = seconds > 0 ? `Try again in ${seconds}s` : "Email me a sign-in link";
+      if (seconds <= 0) {
+        window.clearInterval(timer);
+        submit.disabled = false;
+      }
+    }, 1_000);
+  } catch (error) {
+    authStatus.textContent = error instanceof Error ? error.message : "The sign-in link could not be sent.";
+    submit.textContent = "Email me a sign-in link";
+    submit.disabled = false;
+  }
+});
 
 /** Re-render the design view. Every brief control funnels through here. */
 function refresh(): void {
   context.brief = brief;
   renderDesign(context);
+}
+
+function renderConceptPaper(): void {
+  const result = byId<HTMLElement>("concept-paper-result");
+  if (!importedConcept) {
+    result.hidden = true;
+    result.innerHTML = "";
+    return;
+  }
+  const filled = [
+    importedConcept.objective,
+    importedConcept.context,
+    importedConcept.users,
+    importedConcept.inputs,
+    importedConcept.outputs,
+    importedConcept.constraints,
+    importedConcept.outOfScope,
+    importedConcept.evaluationCriteria,
+    importedConcept.edgeCases,
+    importedConcept.verificationSteps,
+  ].filter(Boolean).length;
+  const mapped = Object.keys(importedConcept.sourceMappings ?? {}).length;
+  const kind = importedConcept.documentKind.replaceAll("-", " ");
+  const review = importedConcept.reviewRequired?.length ?? 0;
+  const additional = importedConcept.additionalSourceMaterial?.length ?? 0;
+  const stored = importedConcept.storedFile;
+  result.hidden = false;
+  result.innerHTML = `<strong>${esc(importedConcept.fileName)} imported</strong>
+    <span>${esc(kind)} suggested · ${esc(importedConcept.suggestedNeeds.length)} Skills suggested · ${filled} specification areas started</span>
+    <small>Structure-first mapping selected ${esc(importedConcept.analysedCharacters.toLocaleString())} characters of evidence · ${esc(mapped)} source mappings · ${esc(additional)} additional source sections kept · ${esc(review)} items need review${importedConcept.existingArchitecture ? " · existing architecture preserved" : ""}. ${stored ? "The original file is stored privately in your account." : "The original file could not be retained."}</small>
+    <button type="button" id="clear-concept-paper">Do not include these document details when saving</button>`;
+}
+
+function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 bytes";
+  const units = ["bytes", "KB", "MB", "GB"];
+  const power = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const value = bytes / 1024 ** power;
+  return `${value.toFixed(power === 0 || value >= 10 ? 0 : 1)} ${units[power]}`;
+}
+
+function renderAccountFiles(): void {
+  const total = accountFiles.reduce((sum, file) => sum + file.size, 0);
+  byId("account-file-count").textContent = `${accountFiles.length} file${accountFiles.length === 1 ? "" : "s"}`;
+  byId("account-storage-used").textContent = `${formatBytes(total)} stored`;
+  setHtml(
+    "account-file-list",
+    accountFiles.length
+      ? accountFiles
+          .map(
+            (file) => `<article class="account-file-row">
+              <div><strong>${esc(file.name)}</strong><small>${esc(formatBytes(file.size))}${file.createdAt ? ` · ${esc(new Date(file.createdAt).toLocaleDateString())}` : ""}</small></div>
+              <div class="account-file-actions">
+                <button type="button" data-download-file="${esc(file.path)}" data-file-name="${esc(file.name)}">Download</button>
+                <button type="button" data-delete-file="${esc(file.path)}" data-file-name="${esc(file.name)}">Delete</button>
+              </div>
+            </article>`,
+          )
+          .join("")
+      : '<div class="account-file-empty">No project files have been stored yet.</div>',
+  );
+}
+
+async function loadAccountFiles(): Promise<void> {
+  const status = byId("account-file-status");
+  status.classList.remove("error");
+  status.textContent = "Loading your project files…";
+  try {
+    accountFiles = await listAccountFiles();
+    accountFilesLoaded = true;
+    renderAccountFiles();
+    status.textContent = accountFiles.length
+      ? "Private account storage is up to date."
+      : "Upload a PDF or DOCX from Application design to store it here.";
+    const plansResponse = await authorizedFetch("/api/blueprints", { cache: "no-store" });
+    if (plansResponse.ok) {
+      const data = (await plansResponse.json()) as { blueprints?: unknown[] };
+      const count = data.blueprints?.length ?? 0;
+      byId("account-plan-count").textContent = `${count} saved plan${count === 1 ? "" : "s"}`;
+    }
+  } catch (error) {
+    accountFilesLoaded = false;
+    status.classList.add("error");
+    status.textContent = error instanceof Error ? error.message : "Project files could not be loaded.";
+  }
+}
+
+function applyConceptPaper(analysis: ConceptPaperAnalysis): void {
+  importedConcept = analysis;
+  const supported = (field: keyof ConceptPaperAnalysis["inferenceConfidence"]): boolean =>
+    ["high", "medium"].includes(analysis.inferenceConfidence?.[field] ?? "none");
+  if (supported("suggestedArchetype") && boot.archetypes.some((item) => item.id === analysis.suggestedArchetype)) {
+    brief.archetype = analysis.suggestedArchetype;
+  }
+  brief.customApplicationType = analysis.applicationType.slice(0, 100);
+  const knownNeeds = new Set(boot.needGroups.flatMap((group) => group.items.map((item) => item.id)));
+  if (supported("suggestedNeeds")) {
+    const suggested = analysis.suggestedNeeds.filter((need) => knownNeeds.has(need));
+    if (suggested.length) brief.needs = suggested;
+  }
+  if (supported("businessGoal") && boot.businessGoals.some((item) => item.id === analysis.businessGoal)) {
+    brief.businessGoal = analysis.businessGoal;
+  }
+  if (supported("industry") && boot.industries.some((item) => item.id === analysis.industry)) {
+    brief.industry = analysis.industry;
+  }
+  if (supported("domain") && boot.domains.some((item) => item.id === analysis.domain)) brief.domain = analysis.domain;
+  if (supported("risk")) brief.risk = analysis.risk;
+  brief.planStyle = "balanced";
+  if (supported("dataControl")) brief.dataControl = analysis.dataControl;
+  if (supported("openPreferred")) brief.openPreferred = analysis.openPreferred;
+  brief.multiVendor = true;
+  modelChoiceOverrides.clear();
+  trialOutcomes.clear();
+  refresh();
+  renderConceptPaper();
 }
 
 // ---------------------------------------------------------------------------
@@ -89,6 +342,77 @@ setHtml(
 );
 
 initExploreFilters(boot, catalog);
+
+// ---------------------------------------------------------------------------
+// Concept-paper import
+// ---------------------------------------------------------------------------
+
+byId<HTMLInputElement>("concept-paper-file").addEventListener("change", (event) => {
+  const file = (event.target as HTMLInputElement).files?.[0];
+  const status = byId("concept-paper-status");
+  status.classList.remove("error");
+  status.textContent = file ? `${file.name} · ready to read` : "PDF or DOCX · up to 8 MB · scanned PDFs need OCR";
+});
+
+byId<HTMLButtonElement>("import-concept-paper").addEventListener("click", async () => {
+  const input = byId<HTMLInputElement>("concept-paper-file");
+  const button = byId<HTMLButtonElement>("import-concept-paper");
+  const status = byId("concept-paper-status");
+  const file = input.files?.[0];
+  status.classList.remove("error");
+  if (authIsRequired() && !isSignedIn()) {
+    status.textContent = "Sign in before importing a project document.";
+    status.classList.add("error");
+    requestSignIn();
+    return;
+  }
+  if (!file) {
+    status.textContent = "Choose a PDF or DOCX project document first.";
+    status.classList.add("error");
+    return;
+  }
+  button.disabled = true;
+  button.textContent = "Reading the document…";
+  status.textContent = "Indexing the structure and selecting relevant evidence…";
+  try {
+    const form = new FormData();
+    form.append("file", file);
+    const response = await authorizedFetch("/api/concept-paper", { method: "POST", body: form });
+    const data = (await response.json()) as { analysis?: ConceptPaperAnalysis; error?: string };
+    if (!response.ok || !data.analysis) throw new Error(data.error ?? "The concept paper could not be read.");
+    let analysis = data.analysis;
+    let storageWarning = "";
+    try {
+      const storedFile = await uploadAccountFile(file);
+      analysis = { ...analysis, storedFile };
+      accountFilesLoaded = false;
+    } catch (error) {
+      storageWarning = error instanceof Error ? error.message : "The original file could not be stored.";
+    }
+    applyConceptPaper(analysis);
+    status.textContent = storageWarning
+      ? `Plan brief created. ${storageWarning}`
+      : "Plan brief created and the original file was stored in your account — review the application name and Skills below.";
+    status.classList.toggle("error", Boolean(storageWarning));
+    toast("Project document imported — review the suggested brief");
+  } catch (error) {
+    status.textContent = error instanceof Error ? error.message : "The concept paper could not be read.";
+    status.classList.add("error");
+  } finally {
+    button.disabled = false;
+    button.textContent = "Make a plan from this document";
+  }
+});
+
+byId("concept-paper-result").addEventListener("click", (event) => {
+  if (!(event.target as HTMLElement).closest("#clear-concept-paper")) return;
+  importedConcept = null;
+  byId<HTMLInputElement>("concept-paper-file").value = "";
+  const status = byId("concept-paper-status");
+  status.textContent = "Document details removed from future saves; the current brief choices are unchanged.";
+  status.classList.remove("error");
+  renderConceptPaper();
+});
 
 // ---------------------------------------------------------------------------
 // Brief interactions
@@ -308,6 +632,11 @@ byId("refresh-registry").addEventListener("click", () => void loadAudit({ regist
 byId("save-blueprint").addEventListener("click", async () => {
   const saveButton = byId<HTMLButtonElement>("save-blueprint");
   if (saveButton.disabled) return;
+  if (authIsRequired() && !isSignedIn()) {
+    requestSignIn();
+    toast("Sign in to save this team plan");
+    return;
+  }
   saveButton.disabled = true;
   const originalLabel = saveButton.textContent;
   saveButton.textContent = "Saving…";
@@ -318,7 +647,7 @@ byId("save-blueprint").addEventListener("click", async () => {
   const strategy = boot.strategies[complete.planStyle] ?? boot.strategies.balanced;
 
   try {
-    const response = await fetch("/api/blueprints", {
+    const response = await authorizedFetch("/api/blueprints", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -348,6 +677,7 @@ byId("save-blueprint").addEventListener("click", async () => {
           })),
         },
         tools: recommendedTools(complete),
+        conceptPaper: importedConcept,
         catalogVersion: boot.catalogVersion,
         scoringVersion: boot.scoringVersion,
         taxonomyVersion: boot.taxonomyVersion,
@@ -360,8 +690,8 @@ byId("save-blueprint").addEventListener("click", async () => {
       toast(data.error ?? "The plan could not be saved");
       return;
     }
-    const link = byId<HTMLAnchorElement>("saved-markdown-link");
-    link.href = data.markdownUrl;
+    const link = byId<HTMLButtonElement>("saved-markdown-link");
+    link.dataset.downloadUrl = data.markdownUrl;
     link.hidden = false;
     toast("Team plan saved — draft specification ready");
     if (savedPlansLoaded) void loadSavedPlans();
@@ -370,6 +700,44 @@ byId("save-blueprint").addEventListener("click", async () => {
   } finally {
     saveButton.disabled = false;
     saveButton.textContent = originalLabel;
+  }
+});
+
+byId<HTMLButtonElement>("saved-markdown-link").addEventListener("click", async (event) => {
+  const button = event.currentTarget as HTMLButtonElement;
+  if (!button.dataset.downloadUrl) return;
+  button.disabled = true;
+  try {
+    await downloadProtected(button.dataset.downloadUrl, "llm-advisor-plan.md");
+  } catch (error) {
+    toast(error instanceof Error ? error.message : "The draft specification could not be downloaded");
+  } finally {
+    button.disabled = false;
+  }
+});
+
+byId("account-page-button").addEventListener("click", () => activateTab("account"));
+byId("account-back").addEventListener("click", () => activateTab("design"));
+byId("refresh-account-files").addEventListener("click", () => void loadAccountFiles());
+byId("account-file-list").addEventListener("click", async (event) => {
+  const target = (event.target as HTMLElement).closest<HTMLButtonElement>("button");
+  if (!target) return;
+  const downloadPath = target.dataset.downloadFile;
+  const deletePath = target.dataset.deleteFile;
+  const filename = target.dataset.fileName ?? "project-document";
+  target.disabled = true;
+  try {
+    if (downloadPath) await downloadAccountFile(downloadPath, filename);
+    if (deletePath) {
+      if (!window.confirm(`Delete ${filename} from your account? This cannot be undone.`)) return;
+      await deleteAccountFile(deletePath);
+      toast("Project file deleted");
+      await loadAccountFiles();
+    }
+  } catch (error) {
+    toast(error instanceof Error ? error.message : "The project file action failed");
+  } finally {
+    target.disabled = false;
   }
 });
 
@@ -401,6 +769,7 @@ function activateTab(target: string, selectedTab?: HTMLElement): void {
     void loadAudit();
   }
   if (target === "updates") renderUpdates(boot, catalog);
+  if (target === "account" && !accountFilesLoaded) void loadAccountFiles();
 }
 
 initSavedPlans(boot, (plan: SavedPlan) => {
@@ -422,6 +791,8 @@ initSavedPlans(boot, (plan: SavedPlan) => {
   brief.dataControl = Boolean(saved.dataControl);
   brief.openPreferred = Boolean(saved.openPreferred);
   brief.multiVendor = saved.multiVendor !== false;
+  importedConcept = (plan.payload.conceptPaper as ConceptPaperAnalysis | null | undefined) ?? null;
+  renderConceptPaper();
 
   const scope = trialScopeKey(brief, brief.planStyle);
   clearModelChoicesFor(brief, brief.planStyle);

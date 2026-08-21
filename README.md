@@ -11,6 +11,10 @@ Live site: [llm-application-routing-advisor.jeff-jones-7064.chatgpt.site](https:
 - **112 model variants** across 27 providers, each carrying its source URL, review date and sourcing state
 - **26 reviewed SLMs, 26 edge language models and 10 edge vision-language models**, with dedicated explorer filters and clear boundaries between language models, perception tools and device runtimes
 - **25 starting application types plus a custom type field**, including real-time asset tracking, predictive maintenance and edge vision safety
+- **A real signed-out landing page** — visitors see the product purpose, workflow and coverage before signing in; the working tabs and account page appear only after the Supabase session is restored
+- **Generic project-document import** — upload any readable project document as PDF or DOCX; the importer indexes its structure, selects a bounded evidence set, maps generic specification concepts with visible confidence, retains useful unmapped sections under their original headings, leaves weak guesses for review and keeps existing team/model architecture separate from advisor candidates
+- **Private account file storage** — the original PDF or DOCX is stored in a private Supabase bucket under the signed-in user's ID, with list, usage, download and permanent-delete controls on the Account page
+- **Downloadable concept-paper template** — a Markdown starter covering objective, context, inputs, output format, constraints, evaluation criteria, edge cases and verification steps
 - **14 plan styles** — Quality, Balanced, Cost, Visible ecosystem reach, Broad capability range and Focused specialist team as headline choices, plus eight more
 - **Published pricing** where providers publish it, driving the cost score instead of an estimate
 - **Full scoring breakdown** on every recommendation: each term, its value and its reasoning
@@ -21,6 +25,7 @@ Live site: [llm-application-routing-advisor.jeff-jones-7064.chatgpt.site](https:
 - **Provider-concentration warning** — when one provider leads most headline plans, the interface explains that this is a pattern in the current inputs rather than measured proof of general superiority
 - **Complete-team validation** — structural checks plus recordable trials for hand-offs, conflicts, provider failure, cost, latency and peak load
 - **Durable Saved plans** — reopen a brief, compare up to three teams, edit the plan name and draft specification, export it as Markdown, or delete it after confirmation
+- **Passwordless email accounts** — Supabase sends the one-time sign-in link, while D1 keeps each user's saved plans separate; the Advisor stores no passwords, shows delivery and rate-limit states clearly, and reserves Google sign-in for a later release
 - **Fill-in application specifications** — every save creates a draft covering objective, context, inputs, output contract, constraints, evaluation, edge cases and verification
 - **Six independent model lists** cross-referenced, with overlap between them reported and kept separate from provider confirmation
 - **A coverage check** that polls official provider pages and raises a review item when one changes
@@ -52,9 +57,11 @@ src/
     team-evaluation.ts     structural team checks and shared real-task trials
     explain.ts             turning a breakdown into readable prose
   server/
+    auth.ts                Supabase session validation and browser-safe auth configuration
     index.ts               worker entry and route table
     routes/api.ts          JSON endpoints
     blueprints/            Markdown application-specification generator
+    concepts/              structured PDF/DOCX extraction, source mapping and the starter template
     db/                    D1 schema, access and repository
     registry/              fetch, parse, normalise and reconcile the six lists
     render/                page shell and HTML rendering
@@ -66,6 +73,7 @@ src/
 test/                      unit and integration tests
 scripts/                   build, dev server, browser test
 migrations/                D1 schema as SQL
+supabase/                  private Storage bucket and row-level access policy
 SPECIFICATION.md            product and implementation specification for future rebuilds
 ```
 
@@ -84,7 +92,7 @@ npm run dev
 
 Then open <http://localhost:8787>. That builds the worker and serves it over plain
 Node HTTP with an in-memory SQLite stand-in for D1, so every part of the app
-works — page render, all seven tabs, the API routes, saved-plan editing and Markdown export.
+works — page render, all eight tabs, the API routes, saved-plan editing and Markdown export.
 
 `npm run dev` uses canned source payloads from `test/fixtures/registry.mjs`, so
 the Live registry tab works offline and no third-party gateway is contacted while
@@ -135,6 +143,8 @@ server/index.js
 .openai/hosting.json          # d1: DB, project_id: appgprj_6a851a9f65…
 .openai/drizzle/0001_initial.sql
 .openai/drizzle/0002_align_catalog_and_evidence.sql
+.openai/drizzle/0003_refresh_edge_catalog.sql
+.openai/drizzle/0004_user_accounts.sql
 ```
 
 Upload that archive to the existing project the same way you did before — the
@@ -145,6 +155,26 @@ worker is now generated from `src/` instead of being hand-edited.
 
 The database is not reset by a deploy. The schema is applied idempotently on
 first request (`ensureSchema`), so new tables appear without a migration step.
+
+The hosted account release uses these environment variables. Keep their values
+in the Sites environment rather than committing them to Git:
+
+```text
+AUTH_REQUIRED=true
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_PUBLISHABLE_KEY=<browser-safe publishable key>
+SUPABASE_GOOGLE_ENABLED=false
+```
+
+`CLAIM_LEGACY_PLANS=true` is a temporary private-release migration switch. It
+assigns plans created before accounts existed to the first signed-in owner. Turn
+it off after that owner has signed in and confirmed the plans, and before making
+the Site public. A Supabase secret or service-role key is neither required nor
+accepted by the application.
+
+Apply `supabase/account-file-storage.sql` once in the Supabase SQL editor. It creates the private `advisor-files` bucket, limits uploads to PDF and DOCX files up to 8 MB, and restricts every list, download and delete operation to the signed-in user's folder and object ownership.
+
+Supabase's built-in email sender is suitable only for testing: it sends only to project-team addresses and is limited to two emails per hour. Configure a custom SMTP provider in Supabase before inviting general users; the interface reports accepted requests and common delivery/rate-limit failures, but it cannot make the built-in test sender reliable.
 
 ### To Cloudflare Workers instead
 

@@ -19,6 +19,7 @@ import { verificationSummary } from "../db/repo.js";
 import { BRAND_MARK } from "../../client/brand.js";
 import { BODY_MARKUP } from "./shell.js";
 import { jsonScript } from "./html.js";
+import type { AuthBootstrap } from "../auth.js";
 
 /** Injected at build time by `scripts/build.mjs`. */
 declare const __STYLES__: string;
@@ -32,7 +33,7 @@ declare const __CLIENT__: string;
  * facts existed twice and could disagree. Here the server is the only source and
  * the client reads it, which is why adding a plan style is now a one-file change.
  */
-function bootstrapData(models: readonly Model[]): Record<string, unknown> {
+function bootstrapData(models: readonly Model[], auth: AuthBootstrap): Record<string, unknown> {
   return {
     models,
     capabilityLabels: CAPABILITY_LABELS,
@@ -56,6 +57,7 @@ function bootstrapData(models: readonly Model[]): Record<string, unknown> {
     catalogVersion: CATALOG_VERSION,
     scoringVersion: SCORING_VERSION,
     providerCount: Object.keys(PROVIDER_SOURCES).length,
+    auth,
   };
 }
 
@@ -76,7 +78,16 @@ function renderBody(models: readonly Model[]): string {
 }
 
 /** Render the full HTML document. */
-export function renderPage(models: readonly Model[]): string {
+export function renderPage(
+  models: readonly Model[],
+  auth: AuthBootstrap = {
+    required: false,
+    configured: false,
+    supabaseUrl: "",
+    publishableKey: "",
+    googleEnabled: false,
+  },
+): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -91,7 +102,7 @@ export function renderPage(models: readonly Model[]): string {
 </head>
 <body>
 ${renderBody(models)}
-<script id="bootstrap-data" type="application/json">${jsonScript(bootstrapData(models))}</script>
+<script id="bootstrap-data" type="application/json">${jsonScript(bootstrapData(models, auth))}</script>
 <script type="module">${__CLIENT__}</script>
 </body>
 </html>`;

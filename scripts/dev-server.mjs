@@ -45,6 +45,11 @@ const server = createServer(async (incoming, outgoing) => {
       new Request(url, { method: incoming.method, headers: incoming.headers, body }),
       {
         DB: db,
+        AUTH_REQUIRED: process.env.AUTH_REQUIRED,
+        SUPABASE_URL: process.env.SUPABASE_URL,
+        SUPABASE_PUBLISHABLE_KEY: process.env.SUPABASE_PUBLISHABLE_KEY,
+        SUPABASE_GOOGLE_ENABLED: process.env.SUPABASE_GOOGLE_ENABLED,
+        CLAIM_LEGACY_PLANS: process.env.CLAIM_LEGACY_PLANS,
       },
     );
     outgoing.writeHead(response.status, Object.fromEntries(response.headers));

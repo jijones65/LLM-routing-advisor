@@ -1,5 +1,6 @@
 import { byId, esc, setHtml, setText, toast, when } from "../dom.js";
 import type { Bootstrap, BriefInput } from "../state.js";
+import { authIsRequired, authorizedFetch, downloadProtected, isSignedIn, requestSignIn } from "../auth.js";
 
 type AnyRecord = Record<string, unknown>;
 
@@ -90,7 +91,7 @@ function renderList(): void {
               <div class="saved-plan-actions">
                 <button type="button" data-plan-reopen="${esc(plan.id)}">Reopen in design</button>
                 <button type="button" data-plan-open="${esc(plan.id)}">Edit draft</button>
-                <a href="/api/blueprints/${encodeURIComponent(plan.id)}/markdown" download>Export Markdown</a>
+                <button type="button" data-plan-export="${esc(plan.id)}">Export Markdown</button>
                 <button class="delete-plan" type="button" data-plan-delete="${esc(plan.id)}">Delete</button>
               </div>
             </article>`;
@@ -156,7 +157,7 @@ function renderDetail(plan: SavedPlanDetail): void {
     <label class="saved-edit-field"><span>Draft application specification</span><small>Known application and team facts are filled in. Complete every [Fill in: …] field, then save or export the Markdown file.</small><textarea id="saved-plan-markdown" rows="28" spellcheck="true">${esc(plan.specificationMarkdown)}</textarea></label>
     <div class="saved-detail-actions">
       <button class="save" type="button" id="update-saved-plan" data-plan-id="${esc(plan.id)}">Save edits</button>
-      <a href="/api/blueprints/${encodeURIComponent(plan.id)}/markdown" download>Export draft specification (.md)</a>
+      <button type="button" data-detail-export="${esc(plan.id)}">Export draft specification (.md)</button>
     </div>`,
   );
 }
@@ -166,7 +167,7 @@ async function loadDetail(id: string): Promise<void> {
   renderList();
   setHtml("saved-plan-detail", '<div class="saved-detail-loading">Loading the draft specification…</div>');
   try {
-    const response = await fetch(`/api/blueprints/${encodeURIComponent(id)}`, { cache: "no-store" });
+    const response = await authorizedFetch(`/api/blueprints/${encodeURIComponent(id)}`, { cache: "no-store" });
     const data = (await response.json()) as { blueprint?: SavedPlanDetail; error?: string };
     if (!response.ok || !data.blueprint) throw new Error(data.error ?? "The saved plan could not be loaded");
     renderDetail(data.blueprint);
@@ -180,7 +181,7 @@ async function loadDetail(id: string): Promise<void> {
 
 async function deletePlan(plan: SavedPlan): Promise<void> {
   try {
-    const response = await fetch(`/api/blueprints/${encodeURIComponent(plan.id)}`, { method: "DELETE" });
+    const response = await authorizedFetch(`/api/blueprints/${encodeURIComponent(plan.id)}`, { method: "DELETE" });
     const data = (await response.json()) as { deleted?: boolean; error?: string };
     if (!response.ok || !data.deleted) throw new Error(data.error ?? "The saved plan could not be deleted");
 
@@ -199,10 +200,23 @@ async function deletePlan(plan: SavedPlan): Promise<void> {
 
 export async function loadSavedPlans(): Promise<void> {
   if (loading) return;
+  if (authIsRequired() && !isSignedIn()) {
+    plans = [];
+    activeId = null;
+    comparedIds.clear();
+    setText("saved-plan-count", "0");
+    setText("saved-plan-status", "Sign in to see your saved plans");
+    setHtml(
+      "saved-plan-list",
+      '<div class="saved-empty"><strong>Your plans are private to your account</strong><p>Sign in with a secure, one-time email link to reopen, compare, edit, export or delete saved team plans.</p><button class="save" type="button" data-saved-sign-in>Sign in</button></div>',
+    );
+    setHtml("saved-plan-detail", "");
+    return;
+  }
   loading = true;
   setText("saved-plan-status", "Loading saved plans…");
   try {
-    const response = await fetch("/api/blueprints", { cache: "no-store" });
+    const response = await authorizedFetch("/api/blueprints", { cache: "no-store" });
     const data = (await response.json()) as { blueprints?: SavedPlan[]; error?: string };
     if (!response.ok || !Array.isArray(data.blueprints)) throw new Error(data.error ?? "Unexpected response");
     plans = data.blueprints;
@@ -229,6 +243,10 @@ export function initSavedPlans(context: Bootstrap, reopen: (plan: SavedPlan) => 
   byId("refresh-saved-plans").addEventListener("click", () => void loadSavedPlans());
   byId("saved-plan-list").addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
+    if (target.closest("[data-saved-sign-in]")) {
+      requestSignIn();
+      return;
+    }
     const compare = target.closest<HTMLInputElement>("input[data-plan-compare]");
     if (compare?.dataset.planCompare) {
       const id = compare.dataset.planCompare;
@@ -259,6 +277,13 @@ export function initSavedPlans(context: Bootstrap, reopen: (plan: SavedPlan) => 
       }
       return;
     }
+    const exportId = target.closest<HTMLElement>("[data-plan-export]")?.dataset.planExport;
+    if (exportId) {
+      void downloadProtected(`/api/blueprints/${encodeURIComponent(exportId)}/markdown`, "llm-advisor-plan.md").catch(
+        (error) => toast(error instanceof Error ? error.message : "The plan could not be exported"),
+      );
+      return;
+    }
     const open = target.closest<HTMLElement>("[data-plan-open]")?.dataset.planOpen;
     if (open) void loadDetail(open);
   });
@@ -277,11 +302,18 @@ export function initSavedPlans(context: Bootstrap, reopen: (plan: SavedPlan) => 
       if (plan) onReopen(plan);
       return;
     }
+    const exportId = target.closest<HTMLElement>("[data-detail-export]")?.dataset.detailExport;
+    if (exportId) {
+      void downloadProtected(`/api/blueprints/${encodeURIComponent(exportId)}/markdown`, "llm-advisor-plan.md").catch(
+        (error) => toast(error instanceof Error ? error.message : "The plan could not be exported"),
+      );
+      return;
+    }
     const save = target.closest<HTMLButtonElement>("#update-saved-plan");
     if (!save?.dataset.planId) return;
     save.disabled = true;
     try {
-      const response = await fetch(`/api/blueprints/${encodeURIComponent(save.dataset.planId)}`, {
+      const response = await authorizedFetch(`/api/blueprints/${encodeURIComponent(save.dataset.planId)}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({

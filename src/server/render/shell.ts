@@ -10,7 +10,82 @@ import { BRAND_MARK } from "../../client/brand.js";
  *
  * `{{...}}` placeholders are substituted in `page.ts`.
  */
-export const BODY_MARKUP = `<header class="topbar">
+export const BODY_MARKUP = `<section class="landing-page" id="landing-page">
+<header class="landing-nav">
+<a class="landing-brand" href="#landing-top" aria-label="LLM Application Routing Advisor home">
+<span class="mark" aria-hidden="true"><img src="${BRAND_MARK}" alt=""></span>
+<span>LLM Application Routing Advisor</span>
+</a>
+<nav aria-label="Landing page">
+<a href="#landing-how">How it works</a>
+<a href="#landing-included">What is included</a>
+<button type="button" id="landing-header-sign-in">Sign in</button>
+</nav>
+</header>
+<main class="landing-main" id="landing-top">
+<section class="landing-hero">
+<div class="landing-hero-copy">
+<div class="eyebrow">Application-first AI planning</div>
+<h1>Plan the application first.<br>Choose models second.</h1>
+<p>Describe the work, choose the Skills it needs and compare model teams built for quality, cost, evidence and real operating constraints. Every recommendation is a candidate to test—not a claim of a proven winner.</p>
+<div class="landing-actions">
+<button type="button" id="landing-sign-in">Sign in or create a free account</button>
+<a href="#landing-how">See how the Advisor works</a>
+</div>
+<small>Passwordless email sign-in. New users receive an account automatically.</small>
+</div>
+<div class="landing-preview" aria-label="Example application planning flow">
+<span class="landing-preview-label">Example plan</span>
+<strong>Document intelligence</strong>
+<p>Application brief → Skills → model-team jobs → comparable candidates → trials</p>
+<div class="landing-preview-team">
+<article><b>Primary</b><span>Best fit for the user-facing work</span></article>
+<article><b>Specialists</b><span>Models matched to focused jobs</span></article>
+<article><b>Checker</b><span>Independent quality and safety review</span></article>
+</div>
+<small>Close choices remain visible so the user can compare and decide.</small>
+</div>
+</section>
+<section class="landing-metrics" aria-label="Advisor coverage">
+<article><strong>{{MODEL_COUNT}}</strong><span>distinct model variants</span></article>
+<article><strong>{{PROVIDER_COUNT}}</strong><span>providers represented</span></article>
+<article><strong>37</strong><span>plain-language Skills</span></article>
+<article><strong>6</strong><span>headline plan styles</span></article>
+</section>
+<section class="landing-section" id="landing-how">
+<div class="landing-section-head">
+<div class="eyebrow">How it works</div>
+<h2>Turn an application idea into a team you can test.</h2>
+</div>
+<div class="landing-steps">
+<article><span>01</span><strong>Describe the work</strong><p>Start with an application type, select its Skills and add the business context, risks and operating limits.</p></article>
+<article><span>02</span><strong>Compare model teams</strong><p>See quality, balanced, cost, ecosystem, broad-capability and specialist plans with the reason for every job choice.</p></article>
+<article><span>03</span><strong>Test and save</strong><p>Record whole-team trials, save the plan and complete an editable draft application specification.</p></article>
+</div>
+</section>
+<section class="landing-section landing-included" id="landing-included">
+<div class="landing-section-head">
+<div class="eyebrow">Inside your account</div>
+<h2>Planning, evidence and project files in one workspace.</h2>
+</div>
+<div class="landing-feature-grid">
+<article><strong>Application design</strong><p>Create model teams from the jobs the application must perform.</p></article>
+<article><strong>Transparent choices</strong><p>Inspect fit, source confidence, ecosystem visibility, performance evidence and close alternatives separately.</p></article>
+<article><strong>Saved plans</strong><p>Reopen, compare, edit, export or delete team plans and their draft specifications.</p></article>
+<article><strong>Private project files</strong><p>Keep uploaded PDF and DOCX source documents in your account, then download or delete them when needed.</p></article>
+<article><strong>Model and source checks</strong><p>Explore the main catalogue, outside registries, coverage gaps and update history.</p></article>
+<article><strong>Whole-team trials</strong><p>Check hand-offs, complementarity, redundancy, routing, failures, quality, cost and speed.</p></article>
+</div>
+</section>
+<section class="landing-final">
+<div><div class="eyebrow">Start with the application</div><h2>Build a model team you can explain and test.</h2></div>
+<button type="button" id="landing-final-sign-in">Sign in or create a free account</button>
+</section>
+</main>
+<footer class="landing-footer"><span>LLM Application Routing Advisor</span><span>Candidates to test, not proven winners.</span></footer>
+</section>
+<div class="advisor-app" id="advisor-app" hidden>
+<header class="topbar">
 <div class="brand">
 <span class="mark" aria-hidden="true">
 <img src="${BRAND_MARK}" alt="">
@@ -25,10 +100,19 @@ export const BODY_MARKUP = `<header class="topbar">
 <button class="tab" data-tab="audit-layer">Coverage check</button>
 <button class="tab" data-tab="updates">Update centre</button>
 <button class="tab" data-tab="about">About</button>
+<button class="tab" data-tab="account">Account</button>
 </nav>
+<div class="topbar-actions">
 <div class="live" id="live-state">
 <i>
 </i>Checks for updates · 60s</div>
+<button class="account-button" type="button" id="account-button">Sign in</button>
+<div class="account-user" id="account-user" hidden>
+<span id="account-email"></span>
+<button type="button" id="account-page-button">Account</button>
+<button type="button" id="account-sign-out">Sign out</button>
+</div>
+</div>
 </header>
 <main>
 <section class="page active" id="design-page">
@@ -37,6 +121,25 @@ export const BODY_MARKUP = `<header class="topbar">
 <div class="eyebrow">01 · Describe the application</div>
 <h1>Plan the application first. Choose models second.</h1>
 <p class="lede">Describe the application, its work and its context. The advisor will then build different model teams for quality, balance, cost, ecosystem reach and capability range.</p>
+<section class="concept-import" aria-labelledby="concept-import-title">
+<div class="concept-import-head">
+<div>
+<span class="label" id="concept-import-title">Start with a project document</span>
+<p>Upload any readable project document as PDF or DOCX. The advisor indexes its structure, selects relevant evidence and proposes a reviewable brief. Useful sections that do not fit a standard field are kept under their original headings in the saved plan; weak guesses are flagged instead of treated as facts.</p>
+</div>
+<span class="concept-private" id="concept-storage-state">Stored in your account</span>
+</div>
+<label class="concept-file" for="concept-paper-file">
+<span>Choose PDF or DOCX</span>
+<input id="concept-paper-file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+</label>
+<div class="concept-import-actions">
+<button type="button" id="import-concept-paper">Make a plan from this document</button>
+<a href="/api/concept-paper-template" download>Download a starter template (.md)</a>
+</div>
+<p class="concept-import-status" id="concept-paper-status" role="status">PDF or DOCX · up to 8 MB · scanned PDFs need OCR</p>
+<div class="concept-import-result" id="concept-paper-result" hidden></div>
+</section>
 <section class="brief-section">
 <label class="label" for="archetype">Starting application type</label>
 <select class="select" id="archetype">
@@ -159,7 +262,7 @@ export const BODY_MARKUP = `<header class="topbar">
 </div>
 <div class="save-plan-actions">
 <button class="save" id="save-blueprint">Save this team plan</button>
-<a id="saved-markdown-link" href="#" download hidden>Download draft specification (.md)</a>
+<button type="button" id="saved-markdown-link" hidden>Download draft specification (.md)</button>
 </div>
 </div>
 <div class="team-compare" id="team-compare">
@@ -698,12 +801,20 @@ export const BODY_MARKUP = `<header class="topbar">
 <span class="about-number">02</span>
 <div>
 <h2>Saved plans</h2>
-<p>Reopen or compare saved teams, edit the plan name and draft application specification, export the specification as a Markdown file, or permanently delete a plan you no longer need.</p>
+<p>Sign in with a secure, one-time email link. Then reopen or compare your saved teams, edit the plan name and draft application specification, export the specification as a Markdown file, or permanently delete a plan you no longer need. Each account sees only its own plans.</p>
 <small><strong>It cannot do:</strong> complete the fill-in decisions or prove that the saved team works. The draft keeps the advisor's facts separate from choices and trial results you must supply.</small>
 </div>
 </article>
 <article class="about-card">
 <span class="about-number">03</span>
+<div>
+<h2>Account</h2>
+<p>See the signed-in identity, free account tier, saved-plan count and private PDF or DOCX project files. Download or permanently delete an original file, or sign out.</p>
+<small><strong>It cannot do:</strong> recover a deleted file or make the Supabase testing email service suitable for general users. Custom SMTP is required before public release.</small>
+</div>
+</article>
+<article class="about-card">
+<span class="about-number">04</span>
 <div>
 <h2>Model explorer</h2>
 <p>Browse every distinct model variant in the main catalogue. Filter the list and open the provider or Ollama page where available.</p>
@@ -711,7 +822,7 @@ export const BODY_MARKUP = `<header class="topbar">
 </div>
 </article>
 <article class="about-card">
-<span class="about-number">04</span>
+<span class="about-number">05</span>
 <div>
 <h2>Live registry</h2>
 <p>Compare model names found across six outside discovery sources. See where lists overlap, where a name may match the main catalogue and where more checking is needed.</p>
@@ -719,7 +830,7 @@ export const BODY_MARKUP = `<header class="topbar">
 </div>
 </article>
 <article class="about-card">
-<span class="about-number">05</span>
+<span class="about-number">06</span>
 <div>
 <h2>Coverage check</h2>
 <p>See official provider pages, review dates, sourcing state and the four application layers: ranking, source evidence, registry snapshots and coverage audit.</p>
@@ -727,7 +838,7 @@ export const BODY_MARKUP = `<header class="topbar">
 </div>
 </article>
 <article class="about-card">
-<span class="about-number">06</span>
+<span class="about-number">07</span>
 <div>
 <h2>Update centre</h2>
 <p>Read what changed, why it changed, which models were removed and how the catalogue and planning categories are kept current.</p>
@@ -813,7 +924,57 @@ export const BODY_MARKUP = `<header class="topbar">
 <article><strong>Useful-work efficiency is not token throughput.</strong><span>It means successful tasks meeting the output rubric per total dollar and elapsed minute, including tools, retries, fallbacks and corrections.</span></article>
 </div>
 </section>
+<section class="page inner account-page" id="account-page">
+<div class="page-head account-page-head">
+<div>
+<div class="eyebrow">Your Advisor account</div>
+<h1>Plans and project files that belong to you.</h1>
+<p class="lede">Your passwordless sign-in controls access to saved plans and original PDF or DOCX project files. Only your signed-in account can list, download or delete them.</p>
+</div>
+<button type="button" class="account-back" id="account-back">Back to application design</button>
+</div>
+<div class="account-grid">
+<section class="account-card">
+<div class="eyebrow">Profile</div>
+<h2 id="account-profile-email">Signed-in user</h2>
+<dl>
+<div><dt>Plan</dt><dd id="account-tier">Free</dd></div>
+<div><dt>Sign-in method</dt><dd>Passwordless email link</dd></div>
+<div><dt>Saved plans</dt><dd id="account-plan-count">Open Saved plans to view</dd></div>
+</dl>
+<button type="button" id="account-page-sign-out">Sign out</button>
+</section>
+<section class="account-card account-files-card">
+<div class="account-files-head">
+<div><div class="eyebrow">Project file storage</div><h2>Your uploaded documents</h2></div>
+<button type="button" id="refresh-account-files">Refresh</button>
+</div>
+<p>PDF and DOCX files imported into a plan are kept in private account storage. Deleting a file does not delete a saved plan or its extracted brief.</p>
+<div class="account-storage-summary"><strong id="account-file-count">0 files</strong><span id="account-storage-used">0 bytes stored</span></div>
+<div class="account-file-list" id="account-file-list"><div class="account-file-empty">No project files have been stored yet.</div></div>
+<p class="account-file-status" id="account-file-status" role="status"></p>
+</section>
+</div>
+<section class="account-privacy">
+<strong>Storage and privacy</strong>
+<p>Files are kept in a private Supabase Storage bucket under your account ID. The Advisor reads a bounded evidence set to create the brief; it does not place the complete source document inside the saved Markdown. You can download or permanently delete the original file here.</p>
+</section>
+</section>
 </main>
+</div>
+<dialog class="auth-dialog" id="auth-dialog" aria-labelledby="auth-title">
+<form method="dialog" class="auth-dialog-close"><button type="submit" aria-label="Close sign in">×</button></form>
+<div class="eyebrow">Your Advisor account</div>
+<h2 id="auth-title">Sign in or create your account</h2>
+<p>Receive a secure, one-time sign-in link by email. Signing in opens the Advisor and your private plans and files. The Advisor does not store passwords.</p>
+<form id="auth-email-form">
+<label for="auth-email">Email address</label>
+<input id="auth-email" name="email" type="email" autocomplete="email" required placeholder="you@example.com">
+<button class="save" type="submit">Email me a sign-in link</button>
+</form>
+<p class="auth-status" id="auth-status" role="status"></p>
+<small>New users receive a free account automatically. Google sign-in may be added later.</small>
+</dialog>
 <div class="toast" id="toast" role="status">
 </div>
 `;

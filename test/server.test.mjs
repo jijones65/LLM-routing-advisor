@@ -32,7 +32,14 @@ test("the schema applies and is idempotent", async () => {
   const tables = await db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all();
   assert.deepEqual(
     tables.results.map((row) => row.name),
-    ["application_blueprints", "catalog_models", "registry_snapshots", "source_evidence"],
+    [
+      "application_blueprint_owners",
+      "application_blueprints",
+      "application_users",
+      "catalog_models",
+      "registry_snapshots",
+      "source_evidence",
+    ],
   );
   db.close();
 });
@@ -95,6 +102,7 @@ test("GET / renders a complete page", async () => {
   for (const tab of [
     "Application design",
     "Saved plans",
+    "Account",
     "Model explorer",
     "Live registry",
     "Coverage check",
@@ -117,8 +125,8 @@ test("GET / renders a complete page", async () => {
   ]) {
     assert.match(html, new RegExp(framework), `the Skills guide is missing ${framework}`);
   }
-  assert.equal((html.match(/class="about-card"/g) ?? []).length, 6);
-  assert.equal((html.match(/class="tab(?: active)?" data-tab=/g) ?? []).length, 7);
+  assert.equal((html.match(/class="about-card"/g) ?? []).length, 7);
+  assert.equal((html.match(/class="tab(?: active)?" data-tab=/g) ?? []).length, 8);
   for (const label of [
     "Recommendation ranking",
     "Source-evidence layer",
@@ -131,6 +139,10 @@ test("GET / renders a complete page", async () => {
   for (const id of [
     "archetype",
     "custom-application",
+    "concept-paper-file",
+    "import-concept-paper",
+    "concept-paper-status",
+    "concept-paper-result",
     "capabilities",
     "primary-styles",
     "other-style",
@@ -168,6 +180,31 @@ test("GET / renders a complete page", async () => {
     "saved-plan-detail",
     "refresh-saved-plans",
     "saved-markdown-link",
+    "landing-page",
+    "landing-header-sign-in",
+    "landing-sign-in",
+    "landing-final-sign-in",
+    "advisor-app",
+    "account-button",
+    "account-user",
+    "account-email",
+    "account-page-button",
+    "account-sign-out",
+    "account-page",
+    "account-profile-email",
+    "account-tier",
+    "account-plan-count",
+    "account-file-count",
+    "account-storage-used",
+    "account-file-list",
+    "account-file-status",
+    "refresh-account-files",
+    "account-page-sign-out",
+    "account-back",
+    "auth-dialog",
+    "auth-email-form",
+    "auth-email",
+    "auth-status",
     "toast",
     "save-blueprint",
     "check-source",
@@ -175,7 +212,24 @@ test("GET / renders a complete page", async () => {
   ]) {
     assert.match(html, new RegExp(`id="${id}"`), `the shell is missing #${id}`);
   }
+  assert.match(html, /<button[^>]*type="button"[^>]*id="saved-markdown-link"/);
+  assert.match(html, /<div class="advisor-app" id="advisor-app" hidden>/);
+  assert.match(html, /Sign in or create a free account/);
+  assert.match(html, /Stored in your account/);
+  assert.doesNotMatch(html, /Sign in with Google/);
   db.close();
+});
+
+test("the account client gates the dashboard and supports private project files", () => {
+  const main = readFileSync(new URL("../build/client/main.js", import.meta.url), "utf8");
+  const auth = readFileSync(new URL("../build/client/auth.js", import.meta.url), "utf8");
+  assert.match(main, /landing\.hidden = Boolean\(user\)/);
+  assert.match(main, /app\.hidden = !user/);
+  assert.match(main, /uploadAccountFile/);
+  assert.match(main, /deleteAccountFile/);
+  assert.match(auth, /advisor-files/);
+  assert.match(auth, /15 seconds/);
+  assert.match(auth, /60 seconds/);
 });
 
 test("the planning client renders accessible Skill help and model-fit rationales", () => {
@@ -245,12 +299,39 @@ test("the bootstrap payload is valid JSON and carries what the client needs", as
     "verification",
     "scoringVersion",
     "taxonomyVersion",
+    "auth",
   ]) {
     assert.ok(data[key], `bootstrap is missing ${key}`);
   }
   assert.ok(data.models.length > 100);
   // No raw closing tag may survive, or the script block terminates early.
   assert.ok(!match[1].includes("</script"), "an unescaped closing tag is in the payload");
+  db.close();
+});
+
+test("the auth bootstrap exposes only the browser-safe account configuration", async () => {
+  const db = freshDb();
+  const html = await (
+    await worker.fetch(request("/"), {
+      DB: db,
+      AUTH_REQUIRED: "true",
+      SUPABASE_URL: "https://project-ref.supabase.co/",
+      SUPABASE_PUBLISHABLE_KEY: "publishable-browser-key",
+      SUPABASE_GOOGLE_ENABLED: "false",
+      SUPABASE_SECRET_KEY: "must-never-reach-the-browser",
+    })
+  ).text();
+  const match = /<script id="bootstrap-data" type="application\/json">([\s\S]*?)<\/script>/.exec(html);
+  assert.ok(match);
+  const data = JSON.parse(match[1]);
+  assert.deepEqual(data.auth, {
+    required: true,
+    configured: true,
+    supabaseUrl: "https://project-ref.supabase.co",
+    publishableKey: "publishable-browser-key",
+    googleEnabled: false,
+  });
+  assert.doesNotMatch(match[1], /must-never-reach-the-browser/);
   db.close();
 });
 
@@ -371,6 +452,41 @@ test("saving a plan validates the payload", async () => {
         links: [{ name: "Google AI Edge Gallery", url: "https://github.com/google-ai-edge/gallery" }],
       },
     ],
+    conceptPaper: {
+      fileName: "school-supplier-concept.docx",
+      importedAt: "2026-08-18T11:55:00.000Z",
+      documentKind: "implementation-specification",
+      analysisStrategy: "structure-first-v1",
+      analysedCharacters: 12000,
+      inferenceConfidence: { documentKind: "high" },
+      reviewRequired: ["Outputs should be confirmed by the application owner."],
+      additionalSourceMaterial: [
+        {
+          heading: "Decision ownership",
+          content: "The school procurement committee owns the final supplier decision.",
+          sourceLevel: 2,
+          truncated: false,
+        },
+      ],
+      additionalSourceSectionsOmitted: 0,
+      objective: "Compare current supplier evidence and explain the trade-offs to school procurement staff.",
+      context: "A school is replacing a manual supplier comparison process.",
+      users: "Procurement staff and a responsible human approver.",
+      inputs: "Supplier contracts, price tables and current external evidence.",
+      outputs: "A cited comparison report and shortlist.",
+      constraints: "Keep confidential supplier information in an approved environment.",
+      outOfScope: "Do not place purchase orders automatically.",
+      evaluationCriteria: "At least 95% of cited facts must match their source.",
+      edgeCases: "Missing prices and conflicting supplier claims.",
+      verificationSteps: "Run ten representative comparisons and simulate a source outage.",
+      existingArchitecture: "A procurement lead reviews the research agent's shortlist before release.",
+      existingModelGuidance: "Use an efficient extraction model and an independent evidence checker.",
+      sourceMappings: {
+        objective: { source: "1. Objective", confidence: "high", method: "named-section" },
+        outOfScope: { source: "8. Exclusions", confidence: "high", method: "named-section" },
+        existingArchitecture: { source: "4. Existing workflow", confidence: "high", method: "named-section" },
+      },
+    },
     catalogVersion: "catalog-test",
     scoringVersion: "scoring-test",
     taxonomyVersion: "taxonomy-test",
@@ -397,6 +513,27 @@ test("saving a plan validates the payload", async () => {
   assert.match(stored.specificationMarkdown, /not measured proof for this application/);
   assert.match(stored.specificationMarkdown, /Required non-model components/);
   assert.match(stored.specificationMarkdown, /Google AI Edge Gallery/);
+  assert.match(stored.specificationMarkdown, /school-supplier-concept\.docx/);
+  assert.match(stored.specificationMarkdown, /Compare current supplier evidence/);
+  assert.match(stored.specificationMarkdown, /At least 95% of cited facts/);
+  assert.match(stored.specificationMarkdown, /Missing prices and conflicting supplier claims/);
+  assert.match(
+    stored.specificationMarkdown,
+    /Suggested document type:\*\* implementation specification · high confidence/,
+  );
+  assert.match(stored.specificationMarkdown, /Structure-first mapping · 12,000 characters of selected evidence/);
+  assert.match(stored.specificationMarkdown, /Import review checklist/);
+  assert.match(stored.specificationMarkdown, /Outputs should be confirmed/);
+  assert.match(stored.specificationMarkdown, /Additional material from the uploaded document/);
+  assert.match(stored.specificationMarkdown, /Decision ownership/);
+  assert.match(stored.specificationMarkdown, /procurement committee owns the final supplier decision/);
+  assert.match(stored.specificationMarkdown, /How the uploaded document was mapped/);
+  assert.match(stored.specificationMarkdown, /1\. Objective/);
+  assert.match(stored.specificationMarkdown, /Do not place purchase orders automatically/);
+  assert.match(stored.specificationMarkdown, /Architecture already described in the uploaded document/);
+  assert.match(stored.specificationMarkdown, /procurement lead reviews the research agent/);
+  assert.match(stored.specificationMarkdown, /do not silently replace the source document's stated team/i);
+  assert.equal((stored.specificationMarkdown.match(/\*\*Specification approach:\*\*/g) ?? []).length, 1);
   assert.match(stored.specificationMarkdown, /\[Fill in:/);
 
   const detail = await (await worker.fetch(request(`/api/blueprints/${id}`), { DB: db })).json();
@@ -462,6 +599,170 @@ test("a long plan name is truncated rather than rejected", async () => {
   const rows = await listBlueprints(db);
   assert.equal(rows[0].name.length, 160);
   db.close();
+});
+
+test("account-only operations require a valid email session when auth is enabled", async () => {
+  const db = freshDb();
+  const env = {
+    DB: db,
+    AUTH_REQUIRED: "true",
+    SUPABASE_URL: "https://project-ref.supabase.co",
+    SUPABASE_PUBLISHABLE_KEY: "publishable-browser-key",
+  };
+
+  assert.equal((await worker.fetch(request("/api/account"), env)).status, 401);
+  assert.equal((await worker.fetch(request("/api/blueprints"), env)).status, 401);
+  assert.equal(
+    (
+      await worker.fetch(
+        request("/api/concept-paper", {
+          method: "POST",
+          body: new FormData(),
+        }),
+        env,
+      )
+    ).status,
+    401,
+  );
+  db.close();
+});
+
+test("saved plans are isolated by the validated Supabase user", async () => {
+  const db = freshDb();
+  const originalFetch = globalThis.fetch;
+  const validated = [];
+  globalThis.fetch = async (url, init = {}) => {
+    assert.equal(String(url), "https://project-ref.supabase.co/auth/v1/user");
+    const headers = new Headers(init.headers);
+    assert.equal(headers.get("apikey"), "publishable-browser-key");
+    const token = (headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+    validated.push(token);
+    const user =
+      token === "session-for-user-a-123456789"
+        ? { id: "user-a", email: "a@example.test", user_metadata: { full_name: "User A" } }
+        : token === "session-for-user-b-123456789"
+          ? { id: "user-b", email: "b@example.test", user_metadata: {} }
+          : null;
+    return user
+      ? new Response(JSON.stringify(user), { status: 200, headers: { "content-type": "application/json" } })
+      : new Response(JSON.stringify({ error: "invalid token" }), { status: 401 });
+  };
+
+  const env = {
+    DB: db,
+    AUTH_REQUIRED: "true",
+    SUPABASE_URL: "https://project-ref.supabase.co",
+    SUPABASE_PUBLISHABLE_KEY: "publishable-browser-key",
+  };
+  const auth = (token) => ({ authorization: `Bearer ${token}` });
+  const plan = {
+    name: "User A private plan",
+    features: ["research"],
+    routing: [{ role: "primary", modelName: "Example model" }],
+  };
+
+  try {
+    const account = await worker.fetch(request("/api/account", { headers: auth("session-for-user-a-123456789") }), env);
+    assert.equal(account.status, 200);
+    assert.deepEqual((await account.json()).user, {
+      id: "user-a",
+      email: "a@example.test",
+      displayName: "User A",
+      accountTier: "free",
+    });
+
+    const saved = await worker.fetch(
+      request("/api/blueprints", {
+        method: "POST",
+        headers: { ...auth("session-for-user-a-123456789"), "content-type": "application/json" },
+        body: JSON.stringify(plan),
+      }),
+      env,
+    );
+    assert.equal(saved.status, 201);
+    const { id } = await saved.json();
+
+    const listA = await (
+      await worker.fetch(request("/api/blueprints", { headers: auth("session-for-user-a-123456789") }), env)
+    ).json();
+    assert.equal(listA.blueprints.length, 1);
+    assert.equal(listA.blueprints[0].id, id);
+
+    const listB = await (
+      await worker.fetch(request("/api/blueprints", { headers: auth("session-for-user-b-123456789") }), env)
+    ).json();
+    assert.equal(listB.blueprints.length, 0);
+    assert.equal(
+      (await worker.fetch(request(`/api/blueprints/${id}`, { headers: auth("session-for-user-b-123456789") }), env))
+        .status,
+      404,
+    );
+    assert.equal(
+      (
+        await worker.fetch(
+          request(`/api/blueprints/${id}`, {
+            method: "DELETE",
+            headers: auth("session-for-user-b-123456789"),
+          }),
+          env,
+        )
+      ).status,
+      404,
+    );
+    assert.ok(validated.length >= 5, "each protected request should revalidate its session");
+  } finally {
+    globalThis.fetch = originalFetch;
+    db.close();
+  }
+});
+
+test("the private migration flag assigns each unowned legacy plan only once", async () => {
+  const db = freshDb();
+  await ensureSchema(db);
+  await db
+    .prepare("INSERT INTO application_blueprints (id, name, payload_json, created_at) VALUES (?, ?, ?, ?)")
+    .bind(
+      "legacy-plan",
+      "Existing private plan",
+      JSON.stringify({ name: "Existing private plan", features: ["research"], routing: ["model"] }),
+      "2026-08-17T00:00:00.000Z",
+    )
+    .run();
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, init = {}) => {
+    const token = (new Headers(init.headers).get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+    const user = token.includes("owner-a")
+      ? { id: "owner-a", email: "owner-a@example.test", user_metadata: {} }
+      : { id: "owner-b", email: "owner-b@example.test", user_metadata: {} };
+    return new Response(JSON.stringify(user), { status: 200, headers: { "content-type": "application/json" } });
+  };
+  const env = {
+    DB: db,
+    AUTH_REQUIRED: "true",
+    CLAIM_LEGACY_PLANS: "true",
+    SUPABASE_URL: "https://project-ref.supabase.co",
+    SUPABASE_PUBLISHABLE_KEY: "publishable-browser-key",
+  };
+
+  try {
+    const listA = await worker.fetch(
+      request("/api/blueprints", { headers: { authorization: "Bearer session-owner-a-123456789" } }),
+      env,
+    );
+    assert.equal(listA.status, 200);
+    assert.equal((await listA.json()).blueprints[0].id, "legacy-plan");
+
+    const listB = await worker.fetch(
+      request("/api/blueprints", { headers: { authorization: "Bearer session-owner-b-123456789" } }),
+      env,
+    );
+    assert.equal(listB.status, 200);
+    assert.equal((await listB.json()).blueprints.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+    db.close();
+  }
 });
 
 test("a registry source is fetched, stored and reconciled", async () => {

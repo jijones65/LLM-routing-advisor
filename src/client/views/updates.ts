@@ -11,6 +11,46 @@ import type { Model } from "../../shared/types.js";
 const CHANGES: readonly { state: string; title: string; scope: string; date: string; detail: string }[] = [
   {
     state: "Added",
+    title: "A signed-out landing page and private account workspace",
+    scope: "Accounts · navigation · onboarding",
+    date: "20 Aug 2026",
+    detail:
+      "Signed-out visitors now see a product landing page instead of the complete dashboard. Signing in reveals the working tabs, and signing out returns to the landing page. The new Account page shows the signed-in identity, saved-plan count and private project-file storage, with download and confirmed delete controls.",
+  },
+  {
+    state: "Added",
+    title: "Original project documents can be kept in the user's account",
+    scope: "Project files · privacy · storage",
+    date: "20 Aug 2026",
+    detail:
+      "After a PDF or DOCX is analysed, the original is stored in a private Supabase Storage bucket under the signed-in user's ID. Storage policies restrict listing, reading and deletion to that account. The complete file is not copied into the saved Markdown or D1, and deleting it does not remove the extracted plan brief.",
+  },
+  {
+    state: "Refined",
+    title: "Email sign-in reports delivery limits instead of appearing to hang",
+    scope: "Accounts · email delivery",
+    date: "20 Aug 2026",
+    detail:
+      "The sign-in request now stops waiting after 15 seconds, distinguishes rate limiting and unauthorised test addresses, and enforces the provider's 60-second resend window after an accepted request. Supabase's built-in sender is explicitly treated as a testing service; custom SMTP is required before general-user release.",
+  },
+  {
+    state: "Added",
+    title: "Passwordless email accounts keep saved plans separate",
+    scope: "Accounts · saved plans · privacy",
+    date: "20 Aug 2026",
+    detail:
+      "Users can request a secure, one-time sign-in link by email without creating a password. Supabase validates the session; the Advisor stores only the local account record and plan ownership in D1. Every saved-plan read, edit, export and delete, plus project-document import, is checked on the server against the signed-in user. Google sign-in is deliberately deferred to a later release.",
+  },
+  {
+    state: "Refined",
+    title: "Project-document import is now generic and structure-first",
+    scope: "Application design · plans · specifications",
+    date: "19 Aug 2026",
+    detail:
+      "Upload any readable project document as PDF or DOCX. The importer indexes headings, selects a bounded evidence set, maps generic specification concepts and reports confidence and review items. Useful named sections that do not fit a standard field are retained under their original headings in the saved Markdown instead of being discarded or forced into the wrong field. It does not treat any example document's wording as special. Unsupported categories do not overwrite current choices, negated statements are not counted as positive evidence, and existing team or model architecture stays separate from advisor candidates. The parser treats the request bytes transiently; account storage can retain the original separately.",
+  },
+  {
+    state: "Added",
     title: "Compact, edge and IoT choices now have a clear place",
     scope: "Catalogue · applications · architecture",
     date: "19 Aug 2026",

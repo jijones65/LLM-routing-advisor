@@ -64,6 +64,81 @@ export function generateBlueprintSpecification(payload: AnyRecord): string {
   const checks = records(evaluation.checks);
   const tools = records(payload.tools);
   const created = text(payload.savedAt, new Date().toISOString());
+  const concept = record(payload.conceptPaper);
+  const conceptFile = typeof concept.fileName === "string" ? concept.fileName.trim() : "";
+  const sourceMappings = record(concept.sourceMappings);
+  const conceptValue = (field: string, fallback: string): string =>
+    typeof concept[field] === "string" && String(concept[field]).trim() ? oneLine(concept[field]) : fallback;
+  const documentKind = oneLine(concept.documentKind, "application document").replaceAll("-", " ");
+  const inferenceConfidence = record(concept.inferenceConfidence);
+  const reviewRequired = strings(concept.reviewRequired);
+  const additionalSourceSections = records(concept.additionalSourceMaterial);
+  const additionalSourceSectionsOmitted =
+    typeof concept.additionalSourceSectionsOmitted === "number" ? concept.additionalSourceSectionsOmitted : 0;
+  const selectedEvidence =
+    typeof concept.analysedCharacters === "number" ? concept.analysedCharacters.toLocaleString() : "not recorded";
+
+  const sourceMapLabels: readonly [string, string][] = [
+    ["applicationType", "Application name"],
+    ["objective", "Objective"],
+    ["context", "Context"],
+    ["users", "People and users"],
+    ["inputs", "Inputs"],
+    ["outputs", "Outputs"],
+    ["constraints", "Constraints"],
+    ["outOfScope", "Out of scope"],
+    ["evaluationCriteria", "Evaluation criteria"],
+    ["edgeCases", "Edge cases"],
+    ["verificationSteps", "Verification"],
+    ["existingArchitecture", "Existing architecture"],
+    ["existingModelGuidance", "Existing model guidance"],
+  ];
+  const sourceMapRows = sourceMapLabels
+    .map(([field, label]) => ({ label, mapping: record(sourceMappings[field]) }))
+    .filter(({ mapping }) => typeof mapping.source === "string" && mapping.source.trim())
+    .map(
+      ({ label, mapping }) =>
+        `| ${oneLine(label)} | ${oneLine(mapping.source)} | ${oneLine(mapping.confidence, "review")} |`,
+    )
+    .join("\n");
+  const additionalSourceMarkdown = additionalSourceSections.length
+    ? `### Additional material from the uploaded document
+
+These named source sections did not map directly into the standard specification fields. They are retained for review rather than discarded or silently forced into an unrelated field.
+
+${additionalSourceSections
+  .map((section) => {
+    const shortened = section.truncated === true ? " · bounded excerpt" : "";
+    return `#### ${oneLine(section.heading)}
+
+_Original heading level ${oneLine(section.sourceLevel, "not recorded")}${shortened}_
+
+${oneLine(section.content)}`;
+  })
+  .join("\n\n")}
+
+${
+  additionalSourceSectionsOmitted
+    ? `> ${additionalSourceSectionsOmitted} further useful source ${additionalSourceSectionsOmitted === 1 ? "section was" : "sections were"} not retained because the bounded additional-material limit was reached.`
+    : ""
+}
+`
+    : "";
+
+  const existingArchitecture = conceptValue("existingArchitecture", "");
+  const existingModelGuidance = conceptValue("existingModelGuidance", "");
+  const sourceArchitecture =
+    existingArchitecture || existingModelGuidance
+      ? `### Architecture already described in the uploaded document
+
+${existingArchitecture || "[The document contains model guidance but no clearly mapped team structure.]"}
+
+${existingModelGuidance ? `### Model guidance already stated in the document\n\n${existingModelGuidance}\n` : ""}
+> The advisor candidates below are a comparison and refinement layer. They do not silently replace the source document's stated team, roles or model policy.
+
+### Advisor candidate team
+`
+      : "";
 
   const modelTable = routing.length
     ? routing
@@ -150,7 +225,8 @@ export function generateBlueprintSpecification(payload: AnyRecord): string {
 >
 > **Plan:** ${oneLine(payload.name)}  
 > **Created:** ${oneLine(created)}  
-> **Specification approach:** This draft follows the specification-engineering structure described in [KDnuggets](${SPECIFICATION_GUIDE_URL}): objective, context, inputs, output format, constraints, evaluation criteria, edge cases, and verification steps.
+${conceptFile ? `> **Imported document:** ${oneLine(conceptFile)} · imported ${oneLine(concept.importedAt, "date not recorded")}  \n` : ""}> **Specification approach:** This draft follows the specification-engineering structure described in [KDnuggets](${SPECIFICATION_GUIDE_URL}): objective, context, inputs, output format, constraints, evaluation criteria, edge cases, and verification steps.
+${conceptFile ? `> **Suggested document type:** ${documentKind} · ${oneLine(inferenceConfidence.documentKind, "unrated")} confidence  \n> **Import method:** Structure-first mapping · ${selectedEvidence} characters of selected evidence · ${reviewRequired.length} review items  \n` : ""}
 
 ## 1. Objective
 
@@ -158,13 +234,13 @@ export function generateBlueprintSpecification(payload: AnyRecord): string {
 **Business-goal category:** ${oneLine(optionName(BUSINESS_GOALS, brief.businessGoal, "Not selected"))}
 
 **Objective statement**  
-[Fill in: In one or two sentences, state the user problem, the intended outcome, and why an AI-supported application is appropriate.]
+${conceptValue("objective", "[Fill in: In one or two sentences, state the user problem, the intended outcome, and why an AI-supported application is appropriate.]")}
 
 **Success for users**  
-[Fill in: Describe the observable improvement for the people who will use or be affected by the application.]
+${conceptValue("evaluationCriteria", "[Fill in: Describe the observable improvement for the people who will use or be affected by the application.]")}
 
 **Out of scope**  
-[Fill in: List work this application must not attempt.]
+${conceptValue("outOfScope", "[Fill in: List work this application must not attempt.]")}
 
 ## 2. Context
 
@@ -172,8 +248,33 @@ export function generateBlueprintSpecification(payload: AnyRecord): string {
 - **Knowledge area:** ${oneLine(optionName(DOMAINS, brief.domain, "General knowledge"))}
 - **Risk level:** ${oneLine(optionName(RISK_LEVELS, brief.risk, "Not selected"))}
 - **Selected plan style:** ${oneLine(strategy.name)} — ${oneLine(strategy.description)}
-- **People and operating setting:** [Fill in: users, decision owners, locations, languages, accessibility needs, and existing workflow.]
+- **Concept-paper context:** ${conceptValue("context", "[Fill in: background, current state, rationale and operating environment.]")}
+- **People and operating setting:** ${conceptValue("users", "[Fill in: users, decision owners, locations, languages, accessibility needs, and existing workflow.]")}
 - **Important domain rules:** [Fill in: laws, policies, professional standards, or internal rules that apply.]
+
+${
+  sourceMapRows
+    ? `### How the uploaded document was mapped
+
+| Draft area | Source section or label | Mapping confidence |
+|---|---|---|
+${sourceMapRows}
+
+Blank draft fields were left for review rather than filled from a weak phrase match.
+
+${
+  reviewRequired.length
+    ? `### Import review checklist
+
+${reviewRequired.map((item) => `- [ ] ${oneLine(item)}`).join("\n")}
+`
+    : ""
+}
+`
+    : ""
+}
+
+${additionalSourceMarkdown}
 
 ## 3. Inputs
 
@@ -187,7 +288,7 @@ ${capabilities.length ? capabilities.map((capability) => `- ${oneLine(capability
 
 ### Input contract to complete
 
-- **Input sources:** [Fill in: documents, databases, APIs, messages, images, audio, sensors, or user entries.]
+- **Input sources:** ${conceptValue("inputs", "[Fill in: documents, databases, APIs, messages, images, audio, sensors, or user entries.]")}
 - **Required fields or schema:** [Fill in: names, types, required/optional fields, units, and identifiers.]
 - **Volume and frequency:** [Fill in: typical and peak items, users, requests, and batch sizes.]
 - **Data quality:** [Fill in: missing, duplicated, conflicting, outdated, or low-confidence input handling.]
@@ -196,14 +297,16 @@ ${capabilities.length ? capabilities.map((capability) => `- ${oneLine(capability
 
 ## 4. Output format
 
-- **User-facing outputs:** [Fill in: answer, report, recommendation, generated file, alert, action, or conversation.]
+- **User-facing outputs:** ${conceptValue("outputs", "[Fill in: answer, report, recommendation, generated file, alert, action, or conversation.]")}
 - **Machine-readable contract:** [Fill in: JSON schema, database fields, API response, event, or file format.]
 - **Evidence and citations:** [Fill in: which claims require a source and how the source must be shown.]
 - **Uncertainty:** [Fill in: confidence wording, refusal rules, and when to say that evidence is insufficient.]
 - **Accessibility and language:** [Fill in: reading level, supported languages, alt text, captions, or other requirements.]
 - **Record keeping:** [Fill in: what is logged, retained, versioned, or deliberately not stored.]
 
-## 5. Candidate model team
+## 5. Existing architecture and candidate model team
+
+${sourceArchitecture}
 
 > These are candidates selected by the advisor's current rules. They are not proven winners. Test the complete team on the same representative application tasks before making a final choice.
 
@@ -247,6 +350,7 @@ ${closeCalls.length ? closeCalls.join("\n") : "- No close-call, catalogue tie-br
 
 ## 6. Constraints
 
+${conceptFile ? `- **Requirements inferred from the concept paper:** ${conceptValue("constraints", "No explicit constraints were found; complete the fields below.")}` : ""}
 - **Data control:** ${brief.dataControl ? "Prefer a controlled, private, or local setup." : "No special deployment preference was selected; confirm the real data-handling requirement."}
 - **Downloadable-model preference:** ${brief.openPreferred ? "Preferred." : "Not selected."}
 - **Provider diversity:** ${brief.multiVendor ? "Use different providers where a close fit is available." : "Not selected in the saved brief."}
@@ -265,6 +369,7 @@ ${checkLines}
 
 ### Acceptance measures to complete
 
+${conceptFile ? `- **Concept-paper success criteria:** ${conceptValue("evaluationCriteria", "No explicit success criteria were found; define measurable acceptance targets below.")}` : ""}
 - **Task completion:** [Fill in: target percentage and scoring rubric for representative tasks.]
 - **Correction rate:** [Fill in: maximum factual, reasoning, formatting, or policy corrections.]
 - **Evidence quality:** [Fill in: citation accuracy, coverage, and source-quality thresholds.]
@@ -276,6 +381,7 @@ ${checkLines}
 
 ## 8. Edge cases and failure handling
 
+${conceptFile ? `- **From the concept paper:** ${conceptValue("edgeCases", "No explicit edge cases or failure modes were found.")}` : ""}
 - [Fill in: empty, malformed, oversized, contradictory, adversarial, and unsupported inputs.]
 - [Fill in: stale or missing knowledge, unavailable tools, expired credentials, and provider outages.]
 - [Fill in: routing loops, duplicate work, incompatible outputs, and context lost between members.]
@@ -285,6 +391,7 @@ ${checkLines}
 
 ## 9. Verification steps
 
+${conceptFile ? `- [ ] **Concept-paper verification:** ${conceptValue("verificationSteps", "No explicit verification steps were found; define representative tests below.")}` : ""}
 ${trialLines}
 
 - [ ] Confirm every output contract with valid and invalid examples.
@@ -306,7 +413,7 @@ ${trialLines}
 - **Catalogue:** ${oneLine(payload.catalogVersion)}
 - **Scoring:** ${oneLine(payload.scoringVersion)}
 - **Application categories:** ${oneLine(payload.taxonomyVersion)}
-- **Draft specification format:** 1.0
+- **Draft specification format:** 1.1
 - **Last edited:** ${oneLine(payload.lastEditedAt, created)}
 `;
 }
