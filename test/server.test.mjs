@@ -581,7 +581,7 @@ test("saving a plan validates the payload", async () => {
   );
   assert.equal(resultsResponse.status, 200);
   const evaluated = await resultsResponse.json();
-  assert.equal(evaluated.evaluation.status, "evidence-recorded");
+  assert.equal(evaluated.evaluation.status, "in-progress");
   assert.equal(evaluated.evaluation.qualityScore, 89);
   assert.equal(evaluated.evaluation.totalCostUsd, 1.2);
   assert.match(evaluated.blueprint.specificationMarkdown, /## Team validation evidence/);

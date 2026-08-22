@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  buildApplicationRubric,
   ValidationDocumentError,
   evaluateValidationResults,
   generateValidationProtocol,
@@ -9,10 +10,38 @@ import {
 
 const payload = {
   name: "Balanced team · document intelligence",
-  brief: { customApplicationType: "Document intelligence" },
+  brief: {
+    customApplicationType: "Document intelligence",
+    needs: ["documents", "structured-data", "current-research", "validate"],
+    businessGoal: "operations",
+    industry: "financial",
+    domain: "business",
+    risk: "high",
+  },
+  conceptPaper: {
+    objective: "Extract and verify current supplier obligations from contracts and approved external sources.",
+    users: "Procurement analysts and the accountable contract owner.",
+    inputs: "Contracts, supplier records, tables and current official notices.",
+    outputs: "A structured obligation register with exact evidence, conflicts, confidence and review status.",
+    edgeCases: "Scanned pages, missing schedules, conflicting dates and unavailable external sources.",
+  },
   routing: [
-    { roleLabel: "Primary model", modelName: "Model A", provider: "Provider A" },
-    { roleLabel: "Quality checker", modelName: "Model B", provider: "Provider B" },
+    {
+      role: "primary",
+      roleLabel: "Primary model",
+      modelName: "Model A",
+      provider: "Provider A",
+      skillFit: { skills: [{ name: "Read text and documents" }, { name: "Work with tables and structured data" }] },
+    },
+    {
+      role: "researcher",
+      roleLabel: "Research specialist",
+      modelName: "Model R",
+      provider: "Provider R",
+      skillFit: { skills: [{ name: "Search current sources" }] },
+    },
+    { role: "private", roleLabel: "Private or local model", modelName: "Model P", provider: "Provider P" },
+    { role: "validator", roleLabel: "Quality and safety checker", modelName: "Model B", provider: "Provider B" },
   ],
   teamEvaluation: {
     trials: [
@@ -66,17 +95,51 @@ test("validation protocols adapt to every supported compute environment", () => 
     assert.match(markdown, /Safety failures/);
     assert.match(markdown, /Routing failures/);
     assert.match(markdown, /Human corrections/);
+    assert.match(markdown, /Application-specific workflow and job trials/);
+    assert.match(markdown, /Primary model — Model A/);
+    assert.match(markdown, /Research specialist — Model R/);
+    assert.match(markdown, /Private or local model — Model P/);
+    assert.match(markdown, /Application-specific 0–100 quality rubric/);
+    assert.match(markdown, /\*\*Total\*\* \| \*\*100\*\*/);
+    assert.match(markdown, /Detailed comparison contract/);
+    assert.match(markdown, /Draft prompts for writing job-specific trials/);
+    assert.match(markdown, /Produce 12 cases/);
+    assert.match(markdown, /advisor_trial_runner\.py --trial representative-task/);
   }
+  const mac = generateValidationProtocol(payload, "plan-123", "macos");
+  assert.match(mac, /Terminal with Python 3\.11 or later/);
+  assert.match(mac, /python3 --version/);
 });
 
-test("completed validation evidence is parsed and produces actionable, separate results", () => {
+test("application rubrics are plan-specific and always total 100 points", () => {
+  const rubric = buildApplicationRubric(payload);
+  assert.equal(
+    rubric.reduce((total, criterion) => total + criterion.weight, 0),
+    100,
+  );
+  assert.equal(rubric.length, 8);
+  assert.ok(rubric.find((criterion) => criterion.id === "safety")?.rationale.includes("High"));
+  const simpler = buildApplicationRubric({
+    brief: { customApplicationType: "Writing helper", needs: ["write-explain"] },
+  });
+  assert.equal(
+    simpler.reduce((total, criterion) => total + criterion.weight, 0),
+    100,
+  );
+  assert.notDeepEqual(
+    rubric.map((criterion) => criterion.weight),
+    simpler.map((criterion) => criterion.weight),
+  );
+});
+
+test("partial validation evidence is parsed and produces actionable, separate results", () => {
   const parsed = parseValidationResults(completedProtocol(), "plan-123");
   assert.equal(parsed.sharedTestSetId, "frozen-set-1");
-  assert.equal(parsed.rows.length, 2);
+  assert.equal(parsed.rows.length, 5);
   assert.equal(parsed.rows[0].quality, 91);
   const evaluation = evaluateValidationResults(parsed, payload);
   assert.equal(evaluation.status, "review-required");
-  assert.equal(evaluation.completionPercent, 100);
+  assert.equal(evaluation.completionPercent, 40);
   assert.equal(evaluation.successRate, 85);
   assert.equal(evaluation.qualityScore, 87.5);
   assert.equal(evaluation.totalCostUsd, 2);

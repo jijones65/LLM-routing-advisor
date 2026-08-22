@@ -10,6 +10,14 @@ import type { Model } from "../../shared/types.js";
  */
 const CHANGES: readonly { state: string; title: string; scope: string; date: string; detail: string }[] = [
   {
+    state: "Refined",
+    title: "Team trials now follow the application's jobs and Skills",
+    scope: "Saved plans · role workflows · testing rubric",
+    date: "22 Aug 2026",
+    detail:
+      "Each downloaded protocol now turns the saved objective, inputs, outputs, Skills, risks and assigned models into application-specific workflows for every team job. It includes a detailed comparison contract, a plan-derived 100-point rubric, concrete versions of the five team trials, macOS/Windows/Linux/cloud preflight and Python runner commands, plus draft prompts for producing reviewed test cases for each model without treating provider reputation as proof.",
+  },
+  {
     state: "Added",
     title: "Saved plans now carry a controlled team-validation workflow",
     scope: "Saved plans · test evidence · recommendations",

@@ -22,6 +22,7 @@ import {
   evaluateValidationResults,
   generateValidationProtocol,
   parseValidationResults,
+  VALIDATION_PROTOCOL_VERSION,
   type ValidationEnvironment,
   type ValidationState,
 } from "../blueprints/validation.js";
@@ -666,7 +667,7 @@ export async function updateBlueprintValidationProtocol(
   const environmentChanged = previous.environment !== environment;
   const validation: ValidationState = {
     ...(environmentChanged && previous.currentEvaluation ? { resultHistory: previous.resultHistory } : previous),
-    protocolVersion: "1.0",
+    protocolVersion: VALIDATION_PROTOCOL_VERSION,
     status: environmentChanged ? "protocol-ready" : (previous.currentEvaluation?.status ?? "protocol-ready"),
     environment,
     protocolMarkdown: generateValidationProtocol(

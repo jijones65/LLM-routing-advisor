@@ -228,10 +228,10 @@ function renderValidationWorkspace(plan: SavedPlanDetail): string {
       <div><span>Controlled team testing</span><h3 id="validation-workspace-title">${esc(status)}</h3></div>
       <em>${esc(ENVIRONMENT_NAMES[environment] ?? "Environment not selected")}</em>
     </div>
-    <p>Compare quality, total cost, P95 speed, safety, routing and recovery using the same frozen examples. Keep raw outputs and logs in the approved test environment; the completed Markdown summary stays with this saved plan.</p>
+    <p>Compare quality, total cost, P95 speed, safety, routing and recovery using the same frozen examples. The guide turns this plan's application, Skills and assigned models into job-specific workflows, cases, a 100-point rubric and draft trial-writing prompts. Keep raw outputs and logs in the approved test environment; the completed Markdown summary stays with this saved plan.</p>
     <ol class="validation-steps">
-      <li><b>1</b><span><strong>Choose the run environment</strong><small>The guide adapts to local or cloud compute.</small></span></li>
-      <li><b>2</b><span><strong>Download and run the protocol</strong><small>Use the same test set and rubric for every team.</small></span></li>
+      <li><b>1</b><span><strong>Choose the run environment</strong><small>Get environment-specific preflight checks and draft Python runner commands.</small></span></li>
+      <li><b>2</b><span><strong>Review, download and run the protocol</strong><small>Complete its assumptions, then freeze the same cases, 100-point rubric and comparison rules for every team.</small></span></li>
       <li><b>3</b><span><strong>Upload the completed .md</strong><small>The advisor evaluates evidence and proposes refinements.</small></span></li>
     </ol>
     <div class="validation-controls">

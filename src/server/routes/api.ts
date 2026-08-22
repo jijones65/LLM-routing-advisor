@@ -25,6 +25,7 @@ import { generateBlueprintSpecification, specificationFilename } from "../bluepr
 import {
   createValidationState,
   isValidationEnvironment,
+  VALIDATION_PROTOCOL_VERSION,
   ValidationDocumentError,
   type ValidationState,
 } from "../blueprints/validation.js";
@@ -274,8 +275,15 @@ export async function blueprintValidationRoute(
 
   if (action === "validation.md") {
     if (request.method !== "GET") return new Response("Method not allowed", { status: 405 });
-    if (!existing.payload.validation || typeof existing.payload.validation !== "object") {
-      existing = await updateBlueprintValidationProtocol(db, id, "not-selected", user.id);
+    const savedValidation =
+      existing.payload.validation && typeof existing.payload.validation === "object"
+        ? (existing.payload.validation as Partial<ValidationState>)
+        : null;
+    if (!savedValidation || savedValidation.protocolVersion !== VALIDATION_PROTOCOL_VERSION) {
+      const savedEnvironment = isValidationEnvironment(savedValidation?.environment)
+        ? savedValidation.environment
+        : "not-selected";
+      existing = await updateBlueprintValidationProtocol(db, id, savedEnvironment, user.id);
     }
     const validation = (existing?.payload.validation ??
       createValidationState(existing?.payload ?? {}, id)) as ValidationState;

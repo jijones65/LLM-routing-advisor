@@ -1,6 +1,6 @@
 # LLM Application Routing Advisor — Product and Implementation Specification
 
-**Specification version:** 2.6
+**Specification version:** 2.7
 **Current implementation baseline:** 22 August 2026 · catalogue `2026.08.19-1` · scoring `2026.08.19-1` · taxonomy `2026.08.19-3`
 **Status:** Living specification for refinement, maintenance, and future rebuilds
 
@@ -1000,10 +1000,17 @@ Interface requirements:
 - Structural checks cover requirement coverage, assigned-job fit, job-quality targets, quality-and-cost routing, complementarity, duplication, checker independence, routing complexity and fallback independence.
 - Coordination quality and end-to-end operation always require a real trial until evidence is recorded.
 - The same five trial definitions are available for every plan style.
+- Protocol version 1.1 derives its application profile from the saved brief and imported concept-paper fields: objective, context, users, inputs, outputs, constraints, evaluation criteria, edge cases, business goal, industry, knowledge area, risk and selected Skills. Missing facts remain explicit fill-in assumptions.
+- Every assigned team job receives an application-specific task, workflow, observable success conditions, selected Skill list, candidate model and provider. Primary, planning, routine work, research/evidence, coding, vision, voice, private/local and quality-checking jobs have distinct workflow contracts.
+- Every plan receives an integer 0–100 rubric whose points are normalised to exactly 100. The criteria are task correctness, requirement coverage, output-contract compliance, evidence and uncertainty, safety/privacy/human control, domain usefulness, routing/handoffs/recovery and useful-work efficiency. Skill and risk choices alter emphasis without removing any criterion.
+- The five trial guides turn the plan into concrete case requirements: representative normal/boundary/ambiguous/high-impact cases; correlation-ID handoffs; stale and conflicting evidence; per-member and primary-provider fault injection; and repeated cold/warm load runs.
 - The load trial measures successful rubric-meeting tasks per total dollar and elapsed minute, including tools, retries, fallbacks and human corrections.
 - A new saved plan is labelled **Test protocol ready**, not **Not yet validated**. This means the structural review and controlled-test design exist; it does not claim observed performance.
 - The saved protocol supports macOS, Windows 11, Ubuntu Linux and cloud GPU servers. It records OS/runtime, hardware, pinned model and tool versions, routing configuration and secrets-handling guidance appropriate to that environment.
-- Fair comparisons use a shared frozen test-set ID, the same inputs, output rubric and success thresholds, and disclose every prompt, tool, route, retry and fallback difference.
+- Every environment section includes preflight checks, reproducibility commands and a five-trial runner contract. macOS explicitly uses Terminal with a current Python 3 runtime; Windows uses PowerShell and `py`; Linux/cloud use a pinned shell, Python and optional GPU runtime. The named Python harness is an interface requirement, not a claim that the Advisor runs tests itself.
+- Fair comparisons use a hashed shared frozen test-set ID, the same inputs, output rubric and success thresholds, and disclose every prompt, tool, route, retry, fallback, context, budget and environment difference. Review is blinded and candidate order randomised where practical; warm-up is excluded; load/timing runs are repeated.
+- Decisions apply safety and required-human-review gates before quality, then compare cost, P95 speed, recovery and operating fit only within an application-defined quality-equivalence band. An inexpensive rejected result is not useful work.
+- A model-neutral draft prompt is generated for every assigned model/job. It asks an independent testing AI for normal, boundary, ambiguous, conflict, failure and adversarial cases with fixtures, expected observable results, routes, forbidden behaviour and criterion-level anchors. These prompts require owner/domain review and never count as executed evidence.
 - The Markdown results table records per-trial outcome, attempted and passed cases, 0–100 quality, complete-team USD cost, median and P95 latency, safety failures, routing failures, human corrections and notes.
 - Upload validation is data parsing, not prompt execution: the plan ID and protocol version must match, numeric ranges are checked, unknown trials are rejected and a file larger than 300 KB is refused.
 - Interpreted results remain separate from model fit, source confidence, ecosystem visibility and catalogue performance readings.
