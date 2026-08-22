@@ -240,7 +240,7 @@ export async function blueprintRoute(
   if (typeof change.specificationMarkdown !== "string" || change.specificationMarkdown.trim().length === 0) {
     return json({ error: "The draft specification cannot be empty." }, 400);
   }
-  if (change.specificationMarkdown.length > 200_000) {
+  if (change.specificationMarkdown.length > 1_000_000) {
     return json({ error: "The draft specification is too large to save." }, 413);
   }
 

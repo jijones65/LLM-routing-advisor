@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import JSZip from "jszip";
 import worker from "../build/server/index.js";
+import { generateBlueprintSpecification } from "../build/server/blueprints/specification.js";
 import { analyseConceptPaper } from "../build/server/concepts/analyse.js";
 import { structuredTextFromDocxHtml } from "../build/server/concepts/parse.js";
 
@@ -58,6 +59,55 @@ function pdfFile(text) {
   return new File([body], "asset-tracking-concept.pdf", { type: "application/pdf" });
 }
 
+function specificationFor(analysis) {
+  return generateBlueprintSpecification({
+    name: "Import round-trip fixture",
+    savedAt: "2026-08-22T00:00:00.000Z",
+    lastEditedAt: "2026-08-22T00:00:00.000Z",
+    brief: {
+      customApplicationType: analysis.applicationType,
+      archetype: analysis.suggestedArchetype,
+      planStyle: "balanced",
+      needs: analysis.suggestedNeeds,
+      businessGoal: analysis.businessGoal,
+      industry: analysis.industry,
+      domain: analysis.domain,
+      risk: analysis.risk,
+      dataControl: analysis.dataControl,
+      openPreferred: analysis.openPreferred,
+      multiVendor: true,
+    },
+    features: [],
+    routing: [],
+    teamEvaluation: { trials: [], checks: [] },
+    tools: [],
+    conceptPaper: analysis,
+    catalogVersion: "fixture",
+    scoringVersion: "fixture",
+    taxonomyVersion: "fixture",
+  });
+}
+
+function normalizedWords(value) {
+  return (
+    value
+      .replace(/\[\[(?:H[1-6]|P|LI|CODE|TR|TC|IMAGE|OL|UL|\/?LIST|\/?TABLE|BR)\]\]/g, " ")
+      .toLowerCase()
+      .match(/[\p{L}\p{N}_.:/-]+/gu) ?? []
+  );
+}
+
+function orderedWordRetention(source, rendered) {
+  const sourceWords = normalizedWords(source);
+  const renderedWords = normalizedWords(rendered);
+  let matched = 0;
+  for (const word of renderedWords) {
+    if (word === sourceWords[matched]) matched += 1;
+    if (matched === sourceWords.length) break;
+  }
+  return sourceWords.length ? matched / sourceWords.length : 1;
+}
+
 test("an arbitrary concept paper becomes a reviewable brief", () => {
   const analysis = analyseConceptPaper(
     `School Supplier Review Assistant
@@ -91,13 +141,34 @@ Run ten representative supplier comparisons and simulate a provider failure.`,
   assert.equal(analysis.pageCount, 2);
 });
 
-test("Word heading levels survive extraction for section-aware mapping", () => {
+test("Word headings, paragraphs, lists, code and tables survive extraction", () => {
   const text = structuredTextFromDocxHtml(
-    "<h1>Example specification</h1><p><strong>Audience.</strong> Operations staff.</p><h2>Integration check</h2><p>Run ten representative cases.</p>",
+    "<h1>Example specification</h1><p><strong>Audience.</strong> Operations staff.</p><h2>Integration check</h2><p>Run ten representative cases.</p><ul><li>First check<ol><li>Nested numbered check</li></ol></li><li>Second check</li></ul><pre>const result = verify();</pre><table><tr><th>Case</th><th>Expected</th></tr><tr><td>Valid</td><td>Pass</td></tr></table>",
   );
   assert.match(text, /\[\[H1\]\]Example specification/);
   assert.match(text, /\[\[H2\]\]Integration check/);
   assert.match(text, /Audience\. Operations staff/);
+  assert.match(text, /\[\[LI\]\]First check/);
+  assert.match(text, /\[\[CODE\]\]const result = verify\(\);/);
+  assert.match(text, /\[\[TR\]\]Case\[\[TC\]\]Expected/);
+
+  const analysis = analyseConceptPaper(text, { fileName: "structured.docx", fileType: "docx" });
+  assert.equal(analysis.sourceDocument.coverage.headingCount, 2);
+  assert.equal(analysis.sourceDocument.coverage.listItemCount, 3);
+  assert.equal(analysis.sourceDocument.coverage.codeBlockCount, 1);
+  assert.equal(analysis.sourceDocument.coverage.tableRowCount, 2);
+  assert.equal(analysis.sourceDocument.coverage.retainedTextPercent, 100);
+
+  const specification = specificationFor(analysis);
+  assert.match(specification, /Imported source document — complete extracted text/);
+  assert.match(specification, /### Example specification/);
+  assert.match(specification, /- First check/);
+  assert.match(specification, /  1\. Nested numbered check/);
+  assert.match(specification, /- Second check/);
+  assert.match(specification, /~~~text\nconst result = verify\(\);\n~~~/);
+  assert.match(specification, /\| Case \| Expected \|\n\| --- \| --- \|\n\| Valid \| Pass \|/);
+  assert.doesNotMatch(specification, /bounded excerpt/i);
+  assert.ok(orderedWordRetention(text, specification.split("### Source content")[1]) >= 0.95);
 });
 
 test("a long implementation specification is indexed but only bounded evidence drives suggestions", () => {
@@ -138,7 +209,8 @@ Confirm twenty role files, the complete hand-off path, the approval gate and bot
   assert.equal(analysis.indexedCharacters, analysis.extractedCharacters);
   assert.ok(analysis.analysedCharacters < analysis.indexedCharacters);
   assert.ok(analysis.analysedCharacters <= 50_000);
-  assert.equal(analysis.analysisStrategy, "structure-first-v1");
+  assert.equal(analysis.analysisStrategy, "structure-first-v2");
+  assert.equal(analysis.evidenceIsSampled, true);
   assert.equal(analysis.documentKind, "implementation-specification");
   assert.equal(analysis.applicationType, "AI Business Intelligence Engine");
   assert.equal(analysis.objective, "");
@@ -148,13 +220,29 @@ Confirm twenty role files, the complete hand-off path, the approval gate and bot
   assert.match(analysis.verificationSteps, /twenty role files/i);
   assert.match(analysis.existingArchitecture, /nineteen temporary (?:specialist )?roles/i);
   assert.match(analysis.existingModelGuidance, /premium model for director synthesis/i);
-  assert.ok(analysis.additionalSourceMaterial.some((section) => /Build order/i.test(section.heading)));
-  assert.ok(analysis.additionalSourceMaterial.find((section) => /Build order/i.test(section.heading)).truncated);
+  const buildOrder = analysis.sourceDocument.sections.find((section) => /Build order/i.test(section.heading));
+  assert.ok(buildOrder);
+  assert.ok(buildOrder.blocks.reduce((length, block) => length + block.text.length, 0) > 100_000);
+  assert.equal(analysis.sourceDocument.coverage.retainedTextPercent, 100);
+  assert.equal(analysis.sourceDocument.coverage.sourceIndexTruncated, false);
   assert.equal(analysis.additionalSourceSectionsOmitted, 0);
   assert.equal(analysis.sourceMappings.verificationSteps.source, "17. Integration check");
   assert.ok(["data-insight", "finance-insight"].includes(analysis.suggestedArchetype));
   assert.equal(analysis.openPreferred, false);
   assert.notEqual(analysis.inferenceConfidence.openPreferred, "none");
+
+  const specification = specificationFor(analysis);
+  assert.match(specification, /## 12\. Imported source document — complete extracted text/);
+  assert.match(specification, new RegExp(filler.slice(-200).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.doesNotMatch(specification, /bounded excerpt/i);
+  assert.ok(
+    orderedWordRetention(
+      analysis.sourceDocument.sections
+        .flatMap((section) => [section.heading, ...section.blocks.map((block) => block.text)])
+        .join("\n"),
+      specification.split("### Source content")[1],
+    ) >= 0.95,
+  );
 });
 
 test("an unfamiliar requirements document maps generic headings without inventing architecture", () => {
@@ -188,9 +276,12 @@ Test daylight, night, poor weather, missing coordinates and an unavailable field
   assert.match(analysis.verificationSteps, /daylight/i);
   assert.equal(analysis.existingArchitecture, "");
   assert.equal(analysis.existingModelGuidance, "");
-  assert.ok(analysis.additionalSourceMaterial.some((section) => section.heading === "Operational assumptions"));
+  assert.ok(analysis.sourceDocument.sections.some((section) => section.heading === "Operational assumptions"));
   assert.match(
-    analysis.additionalSourceMaterial.find((section) => section.heading === "Operational assumptions").content,
+    analysis.sourceDocument.sections
+      .find((section) => section.heading === "Operational assumptions")
+      .blocks.map((block) => block.text)
+      .join(" "),
     /twice each day/i,
   );
   assert.ok(analysis.suggestedNeeds.includes("computer-vision"));
@@ -264,7 +355,8 @@ Test normal operation, missing sensor data and an unavailable provider.`);
   assert.ok(body.analysis.suggestedNeeds.includes("sensor-streams"));
   assert.ok(body.analysis.suggestedNeeds.includes("field-mobile"));
   assert.ok(body.analysis.objective.includes("maintenance"));
-  assert.ok(body.analysis.notes.some((note) => /not retained/i.test(note)));
+  assert.ok(body.analysis.notes.some((note) => /complete source appendix/i.test(note)));
+  assert.equal(body.analysis.sourceDocument.coverage.retainedTextPercent, 100);
 });
 
 test("a text PDF is read into an application brief", async () => {

@@ -1,11 +1,12 @@
 import { ARCHETYPES, BUSINESS_GOALS, DOMAINS, INDUSTRIES, NEED_INDEX, type Archetype } from "../../data/taxonomy.js";
 import type {
-  ConceptAdditionalSourceSection,
   ConceptConfidence,
   ConceptDocumentKind,
   ConceptInferenceField,
   ConceptPaperAnalysis,
   ConceptPaperField,
+  ConceptSourceBlock,
+  ConceptSourceDocument,
   ConceptSourceMapping,
 } from "../../shared/concept-paper.js";
 
@@ -269,19 +270,18 @@ const MAX_INDEX_CHARACTERS = 500_000;
 const MAX_EVIDENCE_CHARACTERS = 50_000;
 const MAX_SECTION_EVIDENCE = 400;
 const MAX_REPRESENTATIVE_SECTIONS = 48;
-const MAX_ADDITIONAL_SECTION_CHARACTERS = 1_200;
-const MAX_ADDITIONAL_TOTAL_CHARACTERS = 200_000;
-const MAX_ADDITIONAL_SECTIONS = 200;
 
 interface DocumentSection {
+  readonly id: string;
   readonly level: number;
   readonly heading: string;
-  readonly body: string;
+  readonly blocks: readonly ConceptSourceBlock[];
 }
 
 interface ParsedDocument {
   readonly lines: readonly string[];
   readonly opening: string;
+  readonly openingBlocks: readonly ConceptSourceBlock[];
   readonly sections: readonly DocumentSection[];
   readonly hasStyledHeadings: boolean;
 }
@@ -301,7 +301,6 @@ function clean(value: string): string {
   return value
     .replace(/\u0000/g, " ")
     .replace(/\r\n?/g, "\n")
-    .replace(/[\t ]+/g, " ")
     .trim();
 }
 
@@ -338,36 +337,129 @@ function isPlainHeading(line: string): boolean {
   return [...HEADING_TERMS].some((term) => candidate === term || candidate.startsWith(`${term} `));
 }
 
+function blockText(block: ConceptSourceBlock): string {
+  return block.kind === "table-row" ? (block.cells ?? []).join(" | ") : block.text;
+}
+
+function blocksText(blocks: readonly ConceptSourceBlock[]): string {
+  return blocks.map(blockText).filter(Boolean).join("\n").trim();
+}
+
+function sourceText(document: ParsedDocument): string {
+  return [
+    blocksText(document.openingBlocks),
+    ...document.sections.flatMap((section) => [section.heading, blocksText(section.blocks)]),
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function markerText(line: string, marker: string): string {
+  return line.slice(marker.length).replaceAll("[[BR]]", "\n").trim();
+}
+
 function parseDocument(cleaned: string): ParsedDocument {
-  const rawLines = cleaned.split("\n").map(oneLine).filter(Boolean);
+  const rawLines = cleaned
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .filter((line) => line.trim());
   const styled = rawLines.some((line) => /^\[\[H[1-6]\]\]/.test(line));
   const sections: DocumentSection[] = [];
-  const opening: string[] = [];
-  let current: { level: number; heading: string; body: string[] } | undefined;
+  const openingBlocks: ConceptSourceBlock[] = [];
+  const semanticLines: string[] = [];
+  let current: { level: number; heading: string; blocks: ConceptSourceBlock[] } | undefined;
+  const listStack: boolean[] = [];
+
+  const addBlock = (block: ConceptSourceBlock): void => {
+    const target = current?.blocks ?? openingBlocks;
+    if (!blockText(block).trim()) return;
+    target.push(block);
+    semanticLines.push(blockText(block));
+  };
 
   const finish = (): void => {
     if (!current) return;
-    sections.push({ level: current.level, heading: current.heading, body: oneLine(current.body.join("\n")) });
+    sections.push({
+      id: `source-section-${sections.length + 1}`,
+      level: current.level,
+      heading: current.heading,
+      blocks: current.blocks,
+    });
   };
 
-  for (const line of rawLines) {
-    const marker = /^\[\[H([1-6])\]\]\s*(.+)$/.exec(line);
+  for (const rawLine of rawLines) {
+    const line = rawLine.trimStart();
+    const headingMarker = /^\[\[H([1-6])\]\]\s*(.+)$/.exec(line);
     const plain = !styled && isPlainHeading(line);
-    if (marker || plain) {
+    if (headingMarker || plain) {
       finish();
-      current = { level: marker ? Number(marker[1]) : 2, heading: marker ? marker[2] : line, body: [] };
+      const level = headingMarker ? Number(headingMarker[1]) : 2;
+      const heading = headingMarker ? headingMarker[2].trim() : line.trim();
+      current = { level, heading, blocks: [] };
+      semanticLines.push(`[[H${level}]]${heading}`);
       continue;
     }
-    if (current) current.body.push(line);
-    else opening.push(line);
+    if (line === "[[OL]]") {
+      listStack.push(true);
+      continue;
+    }
+    if (line === "[[UL]]") {
+      listStack.push(false);
+      continue;
+    }
+    if (line === "[[/LIST]]") {
+      listStack.pop();
+      continue;
+    }
+    if (line === "[[TABLE]]" || line === "[[/TABLE]]") continue;
+
+    if (line.startsWith("[[P]]")) {
+      addBlock({ kind: "paragraph", text: markerText(line, "[[P]]") });
+      continue;
+    }
+    if (line.startsWith("[[LI]]")) {
+      addBlock({
+        kind: "list-item",
+        text: markerText(line, "[[LI]]"),
+        ordered: listStack[listStack.length - 1] ?? false,
+        level: Math.max(0, listStack.length - 1),
+      });
+      continue;
+    }
+    if (line.startsWith("[[CODE]]")) {
+      addBlock({ kind: "code", text: markerText(line, "[[CODE]]") });
+      continue;
+    }
+    if (line.startsWith("[[TR]]")) {
+      const cells = markerText(line, "[[TR]]")
+        .split("[[TC]]")
+        .map((cell) => cell.trim())
+        .filter(Boolean);
+      addBlock({ kind: "table-row", text: cells.join(" | "), cells });
+      continue;
+    }
+    if (line.startsWith("[[IMAGE]]")) {
+      addBlock({ kind: "image", text: markerText(line, "[[IMAGE]]") || "Embedded image" });
+      continue;
+    }
+
+    const target = current?.blocks ?? openingBlocks;
+    const previous = target[target.length - 1];
+    if (previous?.kind === "code") {
+      target[target.length - 1] = { ...previous, text: `${previous.text}\n${line}`.trim() };
+      semanticLines[semanticLines.length - 1] = blockText(target[target.length - 1]);
+    } else {
+      addBlock({ kind: "paragraph", text: line.replaceAll("[[BR]]", "\n").trim() });
+    }
   }
   finish();
 
   const first = sections[0];
-  const titleSectionOpening = styled && first?.level === 1 ? first.body : "";
+  const titleSectionOpening = styled && first?.level === 1 ? blocksText(first.blocks) : "";
   return {
-    lines: rawLines,
-    opening: oneLine([opening.join(" "), titleSectionOpening].filter(Boolean).join(" ")),
+    lines: semanticLines,
+    opening: oneLine([blocksText(openingBlocks), titleSectionOpening].filter(Boolean).join(" ")),
+    openingBlocks,
     sections,
     hasStyledHeadings: styled,
   };
@@ -493,11 +585,11 @@ function mapSections(
   options: { limit?: number; minimum?: number; maxLevel?: number; maxLength?: number } = {},
 ): MappedValue {
   const ranked = document.sections
-    .map((section) => ({ section, score: headingScore(section.heading, terms) }))
+    .map((section) => ({ section, body: blocksText(section.blocks), score: headingScore(section.heading, terms) }))
     .filter(
-      ({ section, score }) =>
+      ({ section, body, score }) =>
         score >= (options.minimum ?? 12) &&
-        section.body.length >= 20 &&
+        body.length >= 20 &&
         (!options.maxLevel || section.level <= options.maxLevel),
     )
     .sort((left, right) => right.score - left.score)
@@ -505,11 +597,12 @@ function mapSections(
   if (!ranked.length) return { value: "" };
   return {
     value: truncate(
-      ranked.map(({ section }) => `${section.heading}: ${section.body}`).join(" "),
+      ranked.map(({ section, body }) => `${section.heading}: ${body}`).join(" "),
       options.maxLength ?? MAX_FIELD,
     ),
     mapping: {
       source: ranked.map(({ section }) => section.heading).join("; "),
+      sourceIds: ranked.map(({ section }) => section.id),
       confidence: ranked[0].score >= 22 ? "high" : "medium",
       method: "named-section",
     },
@@ -679,7 +772,18 @@ const FIELD_SECTION_TERMS: Record<FieldName, readonly string[]> = {
     "source systems",
     "source map",
   ],
-  outputs: ["outputs", "output format", "deliverables", "required results", "results", "responses", "reports"],
+  outputs: [
+    "outputs",
+    "output format",
+    "deliverables",
+    "required results",
+    "results",
+    "responses",
+    "reports",
+    "delivery",
+    "approval gate and delivery",
+    "report format",
+  ],
   constraints: [
     "constraints",
     "requirements",
@@ -688,10 +792,31 @@ const FIELD_SECTION_TERMS: Record<FieldName, readonly string[]> = {
     "rules",
     "guardrails",
     "dependencies",
+    "preflight",
+    "stop conditions",
+    "runtime requirements",
+    "security requirements",
   ],
   outOfScope: ["what is not in scope", "not in scope", "out of scope", "exclusions", "boundaries"],
-  evaluationCriteria: ["evaluation criteria", "success criteria", "acceptance criteria", "measures", "metrics"],
-  edgeCases: ["edge cases", "failure modes", "risks", "exceptions", "fallbacks", "known limitations"],
+  evaluationCriteria: [
+    "evaluation criteria",
+    "success criteria",
+    "acceptance criteria",
+    "measures",
+    "metrics",
+    "regression baseline",
+    "quality gate",
+  ],
+  edgeCases: [
+    "edge cases",
+    "failure modes",
+    "risks",
+    "exceptions",
+    "fallbacks",
+    "known limitations",
+    "recovery",
+    "failure handling",
+  ],
   verificationSteps: [
     "verification steps",
     "verification",
@@ -714,6 +839,7 @@ function combineMapped(...values: readonly MappedValue[]): MappedValue {
       ? {
           mapping: {
             source: [...new Set(mappings.map((item) => item.source))].join("; "),
+            sourceIds: [...new Set(mappings.flatMap((item) => item.sourceIds ?? []))],
             confidence: mappings.every((item) => item.confidence === "high") ? "high" : "medium",
             method: mappings[0].method,
           } satisfies ConceptSourceMapping,
@@ -769,7 +895,7 @@ function openingSummary(document: ParsedDocument): MappedValue {
     document.opening ||
       document.sections
         .slice(0, 2)
-        .map((section) => section.body)
+        .map((section) => blocksText(section.blocks))
         .join(" "),
   );
   return value
@@ -860,7 +986,7 @@ function evidenceCorpus(document: ParsedDocument, mapped: readonly MappedValue[]
           Math.round((index * (document.sections.length - 1)) / (MAX_REPRESENTATIVE_SECTIONS - 1)),
         ).map((index) => document.sections[index]);
   const structuralEvidence = representativeSections.map(
-    (section) => `${section.heading}: ${section.body.slice(0, MAX_SECTION_EVIDENCE)}`,
+    (section) => `${section.heading}: ${blocksText(section.blocks).slice(0, MAX_SECTION_EVIDENCE)}`,
   );
   const unstructured = document.lines.join(" ");
   const sample = (position: number): string => {
@@ -888,41 +1014,56 @@ function positiveSignalCorpus(evidence: string): string {
   );
 }
 
-function additionalSourceMaterial(
+function extractedTextLength(value: string): number {
+  return oneLine(
+    value
+      .replaceAll("[[TC]]", " | ")
+      .replaceAll("[[BR]]", " ")
+      .replace(/\[\[(?:H[1-6]|P|LI|CODE|TR|IMAGE|OL|UL|\/?LIST|\/?TABLE)\]\]/g, " "),
+  ).length;
+}
+
+function sourceDocument(
   document: ParsedDocument,
-  mappings: Partial<Record<ConceptPaperField, ConceptSourceMapping>>,
-): { sections: ConceptAdditionalSourceSection[]; omitted: number } {
-  const mappedHeadings = new Set(
-    Object.values(mappings)
-      .flatMap((mapping) => mapping.source.split(/;\s*/))
-      .map(normal),
-  );
-  const boilerplate = /^(?:table of contents|contents|document control|revision history|version history|change log)$/i;
-  const candidates = document.sections.filter(
-    (section) =>
-      section.body.length >= 40 &&
-      !mappedHeadings.has(normal(section.heading)) &&
-      !boilerplate.test(headingKey(section.heading)),
-  );
-  const sections: ConceptAdditionalSourceSection[] = [];
-  let usedCharacters = 0;
-  let omitted = 0;
-  for (const section of candidates) {
-    const content = truncate(section.body, MAX_ADDITIONAL_SECTION_CHARACTERS);
-    const size = section.heading.length + content.length;
-    if (sections.length >= MAX_ADDITIONAL_SECTIONS || usedCharacters + size > MAX_ADDITIONAL_TOTAL_CHARACTERS) {
-      omitted += 1;
-      continue;
-    }
-    sections.push({
-      heading: truncate(section.heading, 180),
-      content,
+  extractedCharacters: number,
+  evidenceCharacters: number,
+  sourceIndexTruncated: boolean,
+  fileType: "pdf" | "docx",
+): ConceptSourceDocument {
+  const blocks = [...document.openingBlocks, ...document.sections.flatMap((section) => section.blocks)];
+  const retainedTextCharacters = extractedTextLength(sourceText(document));
+  const count = (kind: ConceptSourceBlock["kind"]): number => blocks.filter((block) => block.kind === kind).length;
+  const imagePlaceholderCount = count("image");
+  return {
+    openingBlocks: document.openingBlocks,
+    sections: document.sections.map((section) => ({
+      id: section.id,
+      heading: section.heading,
       sourceLevel: section.level,
-      truncated: oneLine(section.body).length > content.length,
-    });
-    usedCharacters += size;
-  }
-  return { sections, omitted };
+      blocks: section.blocks,
+    })),
+    coverage: {
+      extractedTextCharacters: extractedCharacters,
+      retainedTextCharacters,
+      retainedTextPercent: extractedCharacters
+        ? Math.min(100, Number(((retainedTextCharacters / extractedCharacters) * 100).toFixed(1)))
+        : 0,
+      wordCount: sourceText(document).match(/\S+/g)?.length ?? 0,
+      headingCount: document.sections.length,
+      blockCount: blocks.length,
+      paragraphCount: count("paragraph"),
+      listItemCount: count("list-item"),
+      codeBlockCount: count("code"),
+      tableRowCount: count("table-row"),
+      imagePlaceholderCount,
+      evidenceCharacters,
+      evidencePercent: retainedTextCharacters
+        ? Math.min(100, Number(((evidenceCharacters / retainedTextCharacters) * 100).toFixed(1)))
+        : 0,
+      sourceIndexTruncated,
+      visualReviewRequired: fileType === "pdf" || imagePlaceholderCount > 0,
+    },
+  };
 }
 
 function negatedPreferenceCount(corpus: string, subject: string): number {
@@ -1078,13 +1219,15 @@ export function analyseConceptPaper(
     dataControl: dataControlConfidence,
     openPreferred: openConfidence,
   };
-  const additional = additionalSourceMaterial(document, sourceMappings);
   const reviewRequired = reviewList(fieldResults, inferenceConfidence);
-  if (additional.omitted) {
-    reviewRequired.push(
-      `${additional.omitted} useful source ${additional.omitted === 1 ? "section was" : "sections were"} omitted after the bounded additional-material limit was reached.`,
-    );
-  }
+  const sourceIndexTruncated = fullyCleaned.length > indexed.length;
+  const retainedSource = sourceDocument(
+    document,
+    extractedTextLength(fullyCleaned),
+    evidence.length,
+    sourceIndexTruncated,
+    metadata.fileType,
+  );
 
   return {
     fileName: metadata.fileName,
@@ -1092,7 +1235,8 @@ export function analyseConceptPaper(
     extractedCharacters: fullyCleaned.length,
     indexedCharacters: indexed.length,
     analysedCharacters: evidence.length,
-    analysisTruncated: fullyCleaned.length > indexed.length,
+    analysisTruncated: sourceIndexTruncated,
+    evidenceIsSampled: retainedSource.coverage.evidencePercent < 99.9,
     ...(metadata.pageCount ? { pageCount: metadata.pageCount } : {}),
     importedAt: new Date().toISOString(),
     documentKind: kind.kind,
@@ -1110,11 +1254,12 @@ export function analyseConceptPaper(
     verificationSteps: fieldResults.verificationSteps.value,
     existingArchitecture: architecture.value,
     existingModelGuidance: modelGuidance.value,
-    additionalSourceMaterial: additional.sections,
-    additionalSourceSectionsOmitted: additional.omitted,
-    sourceOutline: document.sections.slice(0, 160).map((section) => section.heading),
+    additionalSourceMaterial: [],
+    additionalSourceSectionsOmitted: 0,
+    sourceDocument: retainedSource,
+    sourceOutline: document.sections.map((section) => section.heading),
     sourceMappings,
-    analysisStrategy: "structure-first-v1",
+    analysisStrategy: "structure-first-v2",
     inferenceConfidence,
     reviewRequired,
     suggestedArchetype: archetype.value.id,
@@ -1127,20 +1272,17 @@ export function analyseConceptPaper(
     openPreferred,
     notes: [
       `The document structure was indexed, then ${evidence.length.toLocaleString()} characters of relevant and representative evidence were selected for suggestions.`,
+      `${retainedSource.coverage.retainedTextPercent.toFixed(1)}% of the indexed text structure was retained for the complete source appendix.`,
       `Recognised as ${kind.kind.replaceAll("-", " ")} with ${kind.confidence} confidence.`,
       "Named sections are preferred. Plain-text matches are marked low confidence, and missing fields are left for review.",
-      ...(additional.sections.length
-        ? [
-            `${additional.sections.length.toLocaleString()} useful named sections that did not map to standard fields were retained as additional source material.`,
-          ]
-        : []),
+      "Mapping is additive: every retained source block remains in document order even when a section also fills a standard specification field.",
       ...(architecture.value
         ? ["An existing team or application architecture was preserved separately from advisor candidates."]
         : []),
-      ...(fullyCleaned.length > indexed.length
+      ...(sourceIndexTruncated
         ? [`The source exceeded the indexing limit; ${indexed.length.toLocaleString()} characters were indexed.`]
         : []),
-      "The uploaded file is processed for this import and is not retained by the advisor.",
+      "The uploaded bytes are processed transiently; the extracted source structure is saved with the plan and the original file is stored separately when account storage succeeds.",
       ...(metadata.fileType === "pdf"
         ? ["Only the PDF text layer is read; images and handwriting are not interpreted."]
         : []),

@@ -44,6 +44,91 @@ function outcomeLabel(value: unknown): string {
   return "Not tested";
 }
 
+function sourceCell(value: unknown): string {
+  return text(value, "").replace(/\r?\n/g, "<br>").replaceAll("|", "\\|");
+}
+
+function renderSourceBlocks(value: unknown): string {
+  const blocks = records(value);
+  const output: string[] = [];
+  for (let index = 0; index < blocks.length; index += 1) {
+    const block = blocks[index];
+    const kind = text(block.kind, "paragraph");
+    if (kind === "table-row") {
+      const rows: string[][] = [];
+      while (index < blocks.length && text(blocks[index].kind, "") === "table-row") {
+        rows.push(strings(blocks[index].cells).map(sourceCell));
+        index += 1;
+      }
+      index -= 1;
+      const columns = Math.max(1, ...rows.map((row) => row.length));
+      const normalized = rows.map((row) => [...row, ...Array(Math.max(0, columns - row.length)).fill("")]);
+      if (normalized.length) {
+        output.push(
+          [
+            `| ${normalized[0].join(" | ")} |`,
+            `| ${Array.from({ length: columns }, () => "---").join(" | ")} |`,
+            ...normalized.slice(1).map((row) => `| ${row.join(" | ")} |`),
+          ].join("\n"),
+        );
+      }
+      continue;
+    }
+    const content = text(block.text, "");
+    if (!content) continue;
+    if (kind === "list-item") {
+      const rawLevel = Number(block.level);
+      const level = Number.isFinite(rawLevel) ? Math.max(0, Math.min(6, rawLevel)) : 0;
+      output.push(`${"  ".repeat(level)}${block.ordered === true ? "1." : "-"} ${content}`);
+    } else if (kind === "code") {
+      output.push(`~~~text\n${content}\n~~~`);
+    } else if (kind === "image") {
+      output.push(`> **Source image or diagram:** ${content}. Review the original file for visual content.`);
+    } else {
+      output.push(content);
+    }
+  }
+  return output.join("\n\n");
+}
+
+function renderSourceAppendix(concept: AnyRecord): string {
+  const source = record(concept.sourceDocument);
+  const opening = renderSourceBlocks(source.openingBlocks);
+  const sections = records(source.sections);
+  if (!opening && !sections.length) return "";
+  const coverage = record(source.coverage);
+  const sourceContent = [
+    opening,
+    ...sections.map((section) => {
+      const originalLevel = Number(section.sourceLevel);
+      const level = Number.isFinite(originalLevel) ? Math.min(6, Math.max(3, originalLevel + 2)) : 4;
+      const id = oneLine(section.id, "source-section").replace(/[^a-z0-9-]/gi, "-");
+      return `<a id="${id}"></a>\n\n${"#".repeat(level)} ${text(section.heading, "Untitled source section")}\n\n${renderSourceBlocks(section.blocks)}`;
+    }),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  const visualWarning =
+    coverage.visualReviewRequired === true
+      ? "\n> **Visual review required:** Images, diagrams, scanned material or page layout may contain information that text extraction cannot reproduce. Keep the original file as the authority for those elements.\n"
+      : "";
+  const indexWarning =
+    coverage.sourceIndexTruncated === true
+      ? "\n> **Incomplete source index:** The document exceeded the import ceiling. Re-export a shorter document or split it before treating this appendix as complete.\n"
+      : "";
+  return `## 12. Imported source document — complete extracted text
+
+> This appendix preserves the uploaded document's extracted text in its original order. Mapping a section into the specification above does not remove it here. Coverage is measured against extractable text, not visual fidelity.
+
+- **Extracted text retained:** ${oneLine(coverage.retainedTextPercent, "not recorded")}% (${oneLine(coverage.retainedTextCharacters, "not recorded")} of ${oneLine(coverage.extractedTextCharacters, "not recorded")} normalized characters)
+- **Source structure:** ${oneLine(coverage.headingCount, "0")} headings · ${oneLine(coverage.paragraphCount, "0")} paragraphs · ${oneLine(coverage.listItemCount, "0")} list items · ${oneLine(coverage.codeBlockCount, "0")} code blocks · ${oneLine(coverage.tableRowCount, "0")} table rows
+- **Recommendation evidence:** ${oneLine(coverage.evidenceCharacters, "not recorded")} characters (${oneLine(coverage.evidencePercent, "not recorded")}% of retained text). This bounded subset influenced Skills and team suggestions; it did not limit this appendix.
+${visualWarning}${indexWarning}
+### Source content
+
+${sourceContent}`;
+}
+
 /**
  * Create a useful first draft without pretending that catalogue facts answer
  * application-design questions. Known plan data is filled in; decisions only
@@ -77,6 +162,9 @@ export function generateBlueprintSpecification(payload: AnyRecord): string {
     typeof concept.additionalSourceSectionsOmitted === "number" ? concept.additionalSourceSectionsOmitted : 0;
   const selectedEvidence =
     typeof concept.analysedCharacters === "number" ? concept.analysedCharacters.toLocaleString() : "not recorded";
+  const sourceDocument = record(concept.sourceDocument);
+  const sourceCoverage = record(sourceDocument.coverage);
+  const sourceAppendix = renderSourceAppendix(concept);
 
   const sourceMapLabels: readonly [string, string][] = [
     ["applicationType", "Application name"],
@@ -96,13 +184,18 @@ export function generateBlueprintSpecification(payload: AnyRecord): string {
   const sourceMapRows = sourceMapLabels
     .map(([field, label]) => ({ label, mapping: record(sourceMappings[field]) }))
     .filter(({ mapping }) => typeof mapping.source === "string" && mapping.source.trim())
-    .map(
-      ({ label, mapping }) =>
-        `| ${oneLine(label)} | ${oneLine(mapping.source)} | ${oneLine(mapping.confidence, "review")} |`,
-    )
+    .map(({ label, mapping }) => {
+      const sourceIds = strings(mapping.sourceIds);
+      const source = oneLine(mapping.source);
+      const linkedSource = sourceIds[0]
+        ? `[${source}](#${oneLine(sourceIds[0]).replace(/[^a-z0-9-]/gi, "-")})`
+        : source;
+      return `| ${oneLine(label)} | ${linkedSource} | ${oneLine(mapping.confidence, "review")} |`;
+    })
     .join("\n");
-  const additionalSourceMarkdown = additionalSourceSections.length
-    ? `### Additional material from the uploaded document
+  const additionalSourceMarkdown =
+    !sourceAppendix && additionalSourceSections.length
+      ? `### Additional material from the uploaded document
 
 These named source sections did not map directly into the standard specification fields. They are retained for review rather than discarded or silently forced into an unrelated field.
 
@@ -123,7 +216,7 @@ ${
     : ""
 }
 `
-    : "";
+      : "";
 
   const existingArchitecture = conceptValue("existingArchitecture", "");
   const existingModelGuidance = conceptValue("existingModelGuidance", "");
@@ -226,7 +319,13 @@ ${existingModelGuidance ? `### Model guidance already stated in the document\n\n
 > **Plan:** ${oneLine(payload.name)}  
 > **Created:** ${oneLine(created)}  
 ${conceptFile ? `> **Imported document:** ${oneLine(conceptFile)} · imported ${oneLine(concept.importedAt, "date not recorded")}  \n` : ""}> **Specification approach:** This draft follows the specification-engineering structure described in [KDnuggets](${SPECIFICATION_GUIDE_URL}): objective, context, inputs, output format, constraints, evaluation criteria, edge cases, and verification steps.
-${conceptFile ? `> **Suggested document type:** ${documentKind} · ${oneLine(inferenceConfidence.documentKind, "unrated")} confidence  \n> **Import method:** Structure-first mapping · ${selectedEvidence} characters of selected evidence · ${reviewRequired.length} review items  \n` : ""}
+${
+  conceptFile
+    ? sourceAppendix
+      ? `> **Suggested document type:** ${documentKind} · ${oneLine(inferenceConfidence.documentKind, "unrated")} confidence  \n> **Import method:** Structure-first mapping 1.2 · ${oneLine(sourceCoverage.retainedTextPercent, "not recorded")}% of extracted text retained · ${selectedEvidence} characters used for suggestions · ${reviewRequired.length} review items  \n`
+      : `> **Suggested document type:** ${documentKind} · ${oneLine(inferenceConfidence.documentKind, "unrated")} confidence  \n> **Import method:** Legacy structure-first mapping · ${selectedEvidence} characters analysed · ${reviewRequired.length} review items  \n`
+    : ""
+}
 
 ## 1. Objective
 
@@ -413,8 +512,9 @@ ${trialLines}
 - **Catalogue:** ${oneLine(payload.catalogVersion)}
 - **Scoring:** ${oneLine(payload.scoringVersion)}
 - **Application categories:** ${oneLine(payload.taxonomyVersion)}
-- **Draft specification format:** 1.1
+- **Draft specification format:** 1.2
 - **Last edited:** ${oneLine(payload.lastEditedAt, created)}
+${sourceAppendix ? `\n${sourceAppendix}\n` : ""}
 `;
 }
 

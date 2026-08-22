@@ -154,10 +154,10 @@ function renderDetail(plan: SavedPlanDetail): void {
     </div>
     <div class="saved-detail-roster">${roster}</div>
     <label class="saved-edit-field"><span>Plan name</span><input id="saved-plan-name" maxlength="160" value="${esc(plan.name)}"></label>
-    <label class="saved-edit-field"><span>Draft application specification</span><small>Known application and team facts are filled in. Complete every [Fill in: …] field, then save or export the Markdown file.</small><textarea id="saved-plan-markdown" rows="28" spellcheck="true">${esc(plan.specificationMarkdown)}</textarea></label>
+    <label class="saved-edit-field"><span>Draft application specification</span><small>Known application and team facts are filled in. Complete every [Fill in: …] field. Plans created from an upload finish with a complete extracted-source appendix; keep the original file as the authority for visual material.</small><textarea id="saved-plan-markdown" rows="28" spellcheck="true">${esc(plan.specificationMarkdown)}</textarea></label>
     <div class="saved-detail-actions">
       <button class="save" type="button" id="update-saved-plan" data-plan-id="${esc(plan.id)}">Save edits</button>
-      <button type="button" data-detail-export="${esc(plan.id)}">Export draft specification (.md)</button>
+      <button type="button" data-detail-export="${esc(plan.id)}">Export complete plan (.md)</button>
     </div>`,
   );
 }

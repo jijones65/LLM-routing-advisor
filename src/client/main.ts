@@ -202,12 +202,12 @@ function renderConceptPaper(): void {
   const mapped = Object.keys(importedConcept.sourceMappings ?? {}).length;
   const kind = importedConcept.documentKind.replaceAll("-", " ");
   const review = importedConcept.reviewRequired?.length ?? 0;
-  const additional = importedConcept.additionalSourceMaterial?.length ?? 0;
+  const coverage = importedConcept.sourceDocument?.coverage;
   const stored = importedConcept.storedFile;
   result.hidden = false;
   result.innerHTML = `<strong>${esc(importedConcept.fileName)} imported</strong>
     <span>${esc(kind)} suggested · ${esc(importedConcept.suggestedNeeds.length)} Skills suggested · ${filled} specification areas started</span>
-    <small>Structure-first mapping selected ${esc(importedConcept.analysedCharacters.toLocaleString())} characters of evidence · ${esc(mapped)} source mappings · ${esc(additional)} additional source sections kept · ${esc(review)} items need review${importedConcept.existingArchitecture ? " · existing architecture preserved" : ""}. ${stored ? "The original file is stored privately in your account." : "The original file could not be retained."}</small>
+    <small>${coverage ? `${esc(coverage.retainedTextPercent)}% of extracted text retained · ${esc(coverage.headingCount)} headings · ${esc(coverage.paragraphCount)} paragraphs · ${esc(coverage.listItemCount)} list items · ${esc(coverage.codeBlockCount)} code blocks · ${esc(coverage.tableRowCount)} table rows. ` : ""}A bounded ${esc(importedConcept.analysedCharacters.toLocaleString())}-character evidence set informed suggestions · ${esc(mapped)} source mappings · ${esc(review)} items need review${importedConcept.existingArchitecture ? " · existing architecture preserved" : ""}. ${coverage?.visualReviewRequired ? "Visual content still needs review in the original file. " : ""}${stored ? "The original file is stored privately in your account." : "The original file could not be retained."}</small>
     <button type="button" id="clear-concept-paper">Do not include these document details when saving</button>`;
 }
 
@@ -373,7 +373,7 @@ byId<HTMLButtonElement>("import-concept-paper").addEventListener("click", async 
   }
   button.disabled = true;
   button.textContent = "Reading the document…";
-  status.textContent = "Indexing the structure and selecting relevant evidence…";
+  status.textContent = "Preserving the document structure and selecting evidence for suggestions…";
   try {
     const form = new FormData();
     form.append("file", file);
@@ -392,7 +392,7 @@ byId<HTMLButtonElement>("import-concept-paper").addEventListener("click", async 
     applyConceptPaper(analysis);
     status.textContent = storageWarning
       ? `Plan brief created. ${storageWarning}`
-      : "Plan brief created and the original file was stored in your account — review the application name and Skills below.";
+      : "Plan brief created, the complete extracted text was retained and the original file was stored in your account — review the application name and Skills below.";
     status.classList.toggle("error", Boolean(storageWarning));
     toast("Project document imported — review the suggested brief");
   } catch (error) {

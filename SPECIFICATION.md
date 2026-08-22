@@ -1,7 +1,7 @@
 # LLM Application Routing Advisor — Product and Implementation Specification
 
-**Specification version:** 2.4
-**Current implementation baseline:** 20 August 2026 · catalogue `2026.08.19-1` · scoring `2026.08.19-1` · taxonomy `2026.08.19-3`
+**Specification version:** 2.5
+**Current implementation baseline:** 22 August 2026 · catalogue `2026.08.19-1` · scoring `2026.08.19-1` · taxonomy `2026.08.19-3`
 **Status:** Living specification for refinement, maintenance, and future rebuilds
 
 ## 1. Purpose
@@ -105,17 +105,22 @@ Project-document import requirements:
 - Send the file to the protected parser only for the current import; the Worker does not retain those request bytes.
 - After a successful analysis, upload the original file to the private `advisor-files` Supabase Storage bucket under `<user-id>/<uuid>-<safe-original-name>`. Retaining the original is separate from placing extracted evidence in a plan.
 - For PDFs, read the selectable text layer. If little text is present, explain that a scanned paper needs OCR rather than inventing a plan.
-- Preserve DOCX heading levels and index document structure before interpreting content. Index up to 500,000 extracted characters, then select no more than 50,000 characters of relevant and representative evidence; do not treat every word in a long upload as equally relevant.
+- Preserve DOCX heading levels, paragraphs, lists, code blocks and table rows before interpreting content. Image placeholders and a visual-review warning must identify content whose meaning still depends on the original file.
+- Index up to 500,000 extracted characters, then select no more than 50,000 characters of relevant and representative evidence for Skills and team suggestions; do not treat every word in a long upload as equally relevant.
 - Use document-neutral section concepts such as objective, users, inputs, outputs, constraints, evaluation, risks and verification. Do not add phrases from one example document as special-case mapping rules.
 - Suggest whether the source resembles a concept paper, application brief, requirements document or implementation specification and show the confidence. An unfamiliar or unrelated document may remain a low-confidence application brief.
 - Infer a starting application type, Skills, business goal, industry, knowledge area, risk and operating preferences only from the selected evidence. These remain editable suggestions; uncertain categories must not overwrite the user's current choices, and negated statements must not be treated as positive evidence.
-- Extract bounded text for objective, context, users, inputs, outputs, constraints, out-of-scope work, evaluation criteria, edge cases and verification steps.
+- Extract bounded text for objective, context, users, inputs, outputs, constraints, out-of-scope work, evaluation criteria, edge cases and verification steps. Bounded field values are a concise mapping layer, not the source-retention policy.
 - Record the source heading or opening label and a high, medium or low mapping-confidence label for every populated draft area. Leave an area blank when a structured document has no sufficiently clear section rather than substituting an unrelated phrase match.
 - Return a review list covering missing fields, weak mappings and unsupported category suggestions. The UI must show how much bounded evidence was selected and how many items require review.
-- Preserve useful named source sections that do not map to a standard field under **Additional material from the uploaded document** in the saved Markdown. Keep each original heading, record whether its content is a bounded excerpt, and show when the overall retention limit omits further sections. Do not force unmatched content into an unrelated standard field or create document-specific mapping rules from an example.
+- Make mapping additive. Every parsed source block must remain in document order regardless of whether it maps to a standard specification field. Do not force unmatched content into an unrelated field or create document-specific rules from one example.
+- Include an **Imported source document — complete extracted text** appendix in generated Markdown. Reproduce the source outline, paragraphs, lists, code and tables; link mapped specification fields back to source-section anchors; and never apply a per-section character cap.
+- Show separate retention and inference coverage: extracted-versus-retained text, heading and block counts, and the bounded evidence characters and percentage that influenced suggestions. `analysisTruncated` refers only to the source-index ceiling; sampled evidence must be reported separately.
+- If an import exceeds the source-index ceiling, mark the appendix incomplete explicitly. Never silently report a complete import. Preserve the original account file so the user can reprocess a split or shorter version.
 - Detect and preserve an existing application-team architecture and model-per-role guidance. Advisor candidates must be labelled as a comparison or refinement layer, not as a silent replacement for a team already specified by the source.
-- When the team is saved, retain the filename, extraction metadata, bounded inferred fields and private storage pointer in the plan payload. Do not copy the complete source document into D1 or the generated Markdown.
+- When the team is saved, retain the filename, extraction metadata, bounded inferred fields, typed source blocks, coverage audit and private storage pointer in the plan payload. The plan's Markdown contains the full extracted text; the original PDF or DOCX remains authoritative for images, diagrams, layout and extraction errors.
 - Prefill the matching Markdown specification fields, include a source-mapping table, and leave unsupported decisions as explicit `[Fill in: …]` items.
+- A round-trip regression fixture must assert exact heading preservation, at least 95% normalized source-word retention, preserved paragraphs/lists/code/table rows, and an explicit marker for any unavoidable truncation.
 - Provide a downloadable Markdown concept-paper template based on the eight-part structure in the referenced specification-engineering article: objective, context, inputs, output format, constraints, evaluation criteria, edge cases and verification steps.
 
 ### 4.2 Model Explorer

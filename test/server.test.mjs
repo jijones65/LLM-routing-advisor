@@ -521,7 +521,7 @@ test("saving a plan validates the payload", async () => {
     stored.specificationMarkdown,
     /Suggested document type:\*\* implementation specification · high confidence/,
   );
-  assert.match(stored.specificationMarkdown, /Structure-first mapping · 12,000 characters of selected evidence/);
+  assert.match(stored.specificationMarkdown, /Legacy structure-first mapping · 12,000 characters analysed/);
   assert.match(stored.specificationMarkdown, /Import review checklist/);
   assert.match(stored.specificationMarkdown, /Outputs should be confirmed/);
   assert.match(stored.specificationMarkdown, /Additional material from the uploaded document/);

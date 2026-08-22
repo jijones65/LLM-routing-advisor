@@ -10,6 +10,14 @@ import type { Model } from "../../shared/types.js";
  */
 const CHANGES: readonly { state: string; title: string; scope: string; date: string; detail: string }[] = [
   {
+    state: "Refined",
+    title: "Project-document imports now retain the complete extracted source",
+    scope: "Uploads · saved plans · Markdown export",
+    date: "22 Aug 2026",
+    detail:
+      "Import format 1.2 keeps headings, paragraphs, lists, code and table rows in document order and appends them to the exported plan. Mapping is additive, so a source section is never removed merely because it also fills a standard specification field. A coverage audit separates full-source retention from the bounded evidence subset used for suggestions and flags visual content that still needs the original file.",
+  },
+  {
     state: "Added",
     title: "A signed-out landing page and private account workspace",
     scope: "Accounts · navigation · onboarding",
@@ -23,7 +31,7 @@ const CHANGES: readonly { state: string; title: string; scope: string; date: str
     scope: "Project files · privacy · storage",
     date: "20 Aug 2026",
     detail:
-      "After a PDF or DOCX is analysed, the original is stored in a private Supabase Storage bucket under the signed-in user's ID. Storage policies restrict listing, reading and deletion to that account. The complete file is not copied into the saved Markdown or D1, and deleting it does not remove the extracted plan brief.",
+      "After a PDF or DOCX is analysed, the original is stored in a private Supabase Storage bucket under the signed-in user's ID. Storage policies restrict listing, reading and deletion to that account. Its complete extracted text is retained in the saved Markdown source appendix, while the original file remains the authority for images, diagrams and page layout. Deleting the original does not remove the extracted plan brief.",
   },
   {
     state: "Refined",
@@ -45,9 +53,9 @@ const CHANGES: readonly { state: string; title: string; scope: string; date: str
     state: "Refined",
     title: "Project-document import is now generic and structure-first",
     scope: "Application design · plans · specifications",
-    date: "19 Aug 2026",
+    date: "22 Aug 2026",
     detail:
-      "Upload any readable project document as PDF or DOCX. The importer indexes headings, selects a bounded evidence set, maps generic specification concepts and reports confidence and review items. Useful named sections that do not fit a standard field are retained under their original headings in the saved Markdown instead of being discarded or forced into the wrong field. It does not treat any example document's wording as special. Unsupported categories do not overwrite current choices, negated statements are not counted as positive evidence, and existing team or model architecture stays separate from advisor candidates. The parser treats the request bytes transiently; account storage can retain the original separately.",
+      "Upload any readable project document as PDF or DOCX. Import format 1.2 preserves the complete extracted text as ordered headings, paragraphs, lists, code blocks and table rows, then selects a bounded evidence set for Skills and team suggestions. Mapping is additive: a section remains in the exported source appendix even when it fills a standard specification field. The coverage audit reports retained text, source structure, evidence sampling and visual-review limits. It does not treat any example document's wording as special. Unsupported categories do not overwrite current choices, negated statements are not counted as positive evidence, and existing team or model architecture stays separate from advisor candidates. The request bytes remain transient; account storage retains the original separately.",
   },
   {
     state: "Added",

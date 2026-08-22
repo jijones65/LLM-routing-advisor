@@ -125,7 +125,7 @@ export const BODY_MARKUP = `<section class="landing-page" id="landing-page">
 <div class="concept-import-head">
 <div>
 <span class="label" id="concept-import-title">Start with a project document</span>
-<p>Upload any readable project document as PDF or DOCX. The advisor indexes its structure, selects relevant evidence and proposes a reviewable brief. Useful sections that do not fit a standard field are kept under their original headings in the saved plan; weak guesses are flagged instead of treated as facts.</p>
+<p>Upload any readable project document as PDF or DOCX. The advisor preserves the complete extracted text and its structure, then uses a smaller evidence set to suggest Skills and a reviewable brief. Every mapped and unmapped section remains in document order in the exported plan; weak guesses are flagged instead of treated as facts.</p>
 </div>
 <span class="concept-private" id="concept-storage-state">Stored in your account</span>
 </div>
@@ -957,7 +957,7 @@ export const BODY_MARKUP = `<section class="landing-page" id="landing-page">
 </div>
 <section class="account-privacy">
 <strong>Storage and privacy</strong>
-<p>Files are kept in a private Supabase Storage bucket under your account ID. The Advisor reads a bounded evidence set to create the brief; it does not place the complete source document inside the saved Markdown. You can download or permanently delete the original file here.</p>
+<p>Files are kept in a private Supabase Storage bucket under your account ID. The Advisor places the complete extracted text in the saved Markdown source appendix and uses a bounded evidence set only for suggestions. Images, diagrams and scanned material still require review in the original file. You can download or permanently delete that original here.</p>
 </section>
 </section>
 </main>

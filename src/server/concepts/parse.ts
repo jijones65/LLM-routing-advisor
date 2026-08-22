@@ -31,16 +31,50 @@ function decodeHtml(value: string): string {
   });
 }
 
-/** Keep Word heading levels so long specifications can be mapped by section. */
+function attribute(tag: string, name: string): string {
+  const match = new RegExp(`${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, "i").exec(tag);
+  return decodeHtml(match?.[1] ?? match?.[2] ?? "");
+}
+
+/**
+ * Preserve Word's useful block structure in a small marker language.
+ *
+ * The analyser consumes these markers, while field inference can still reduce
+ * a selected block to one line when a genuinely compact value is needed.
+ */
 export function structuredTextFromDocxHtml(html: string): string {
+  const linked = html.replace(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi, (match, attributes: string, label: string) => {
+    const href = attribute(attributes, "href");
+    const text = label.replace(/<[^>]+>/g, "").trim();
+    return href && text ? `[${text}](${href})` : text || match;
+  });
+  const rows = linked.replace(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi, (_match, row: string) => {
+    const cells = [...row.matchAll(/<(?:td|th)\b[^>]*>([\s\S]*?)<\/(?:td|th)>/gi)].map((cell) =>
+      cell[1]
+        .replace(/<br\s*\/?>/gi, "[[BR]]")
+        .replace(/<\/(?:p|li)>/gi, " ")
+        .replace(/<[^>]+>/g, "")
+        .trim(),
+    );
+    return cells.length ? `\n[[TR]]${cells.join("[[TC]]")}\n` : "";
+  });
   return decodeHtml(
-    html
+    rows
+      .replace(/<img\b[^>]*>/gi, (tag) => `\n[[IMAGE]]${attribute(tag, "alt") || "Embedded image"}\n`)
       .replace(/<h([1-6])\b[^>]*>/gi, "\n[[H$1]]")
       .replace(/<\/h[1-6]>/gi, "\n")
-      .replace(/<li\b[^>]*>/gi, "\n- ")
-      .replace(/<\/(?:p|li|tr|ul|ol|table)>/gi, "\n")
-      .replace(/<\/(?:td|th)>/gi, " | ")
-      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<pre\b[^>]*>/gi, "\n[[CODE]]")
+      .replace(/<\/pre>/gi, "\n")
+      .replace(/<p\b[^>]*>/gi, "\n[[P]]")
+      .replace(/<\/p>/gi, "\n")
+      .replace(/<ol\b[^>]*>/gi, "\n[[OL]]\n")
+      .replace(/<ul\b[^>]*>/gi, "\n[[UL]]\n")
+      .replace(/<\/(?:ol|ul)>/gi, "\n[[/LIST]]\n")
+      .replace(/<li\b[^>]*>/gi, "\n[[LI]]")
+      .replace(/<\/li>/gi, "\n")
+      .replace(/<table\b[^>]*>/gi, "\n[[TABLE]]\n")
+      .replace(/<\/table>/gi, "\n[[/TABLE]]\n")
+      .replace(/<br\s*\/?>/gi, "[[BR]]")
       .replace(/<[^>]+>/g, ""),
   )
     .replace(/\u00a0/g, " ")
@@ -77,7 +111,20 @@ export async function readConceptPaper(file: File): Promise<ConceptPaperAnalysis
       extracted = result.text;
       pageCount = result.totalPages;
     } else {
-      const result = await mammoth.convertToHtml({ arrayBuffer: buffer });
+      const convertToHtml = mammoth.convertToHtml as unknown as (
+        input: { arrayBuffer: ArrayBuffer },
+        options: { styleMap: string[] },
+      ) => Promise<{ value: string }>;
+      const result = await convertToHtml(
+        { arrayBuffer: buffer },
+        {
+          styleMap: [
+            "p[style-name='Source Code'] => pre:fresh",
+            "p[style-name='Code'] => pre:fresh",
+            "p[style-name='Code Block'] => pre:fresh",
+          ],
+        },
+      );
       extracted = structuredTextFromDocxHtml(result.value);
     }
   } catch {
