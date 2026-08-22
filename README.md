@@ -23,8 +23,8 @@ Live site: [llm-application-routing-advisor.jeff-jones-7064.chatgpt.site](https:
 - **Visible close-call tie-breakers** — raw-score gaps below one point keep their raw order while measured evidence, application specialisation and then ecosystem reach provide an explicit candidate choice
 - **User choice inside a three-point band** — every eligible job offers the same dropdown in both the six headline team cards and the detailed job cards; an override is labelled, saved and never presented as a scoring win
 - **Provider-concentration warning** — when one provider leads most headline plans, the interface explains that this is a pattern in the current inputs rather than measured proof of general superiority
-- **Complete-team validation** — structural checks plus recordable trials for hand-offs, conflicts, provider failure, cost, latency and peak load
-- **Durable Saved plans** — reopen a brief, compare up to three teams, edit the plan name and draft specification, export it as Markdown, or delete it after confirmation
+- **Complete-team validation** — structural checks plus a saved Markdown test protocol for macOS, Windows 11, Ubuntu Linux or a cloud GPU server; upload completed evidence to assess quality, total cost, P95 speed, safety, routing, provider failure and peak load
+- **Durable Saved plans** — reopen a brief, compare up to three teams and their validation evidence, edit the plan name and draft specification, export Markdown, or delete the plan after confirmation
 - **Passwordless email accounts** — Supabase sends the one-time sign-in link, while D1 keeps each user's saved plans separate; the Advisor stores no passwords, shows delivery and rate-limit states clearly, and reserves Google sign-in for a later release
 - **Fill-in application specifications** — every save creates a draft covering objective, context, inputs, output contract, constraints, evaluation, edge cases and verification
 - **Six independent model lists** cross-referenced, with overlap between them reported and kept separate from provider confirmation

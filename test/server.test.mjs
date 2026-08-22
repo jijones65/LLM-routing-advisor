@@ -126,7 +126,9 @@ test("GET / renders a complete page", async () => {
     assert.match(html, new RegExp(framework), `the Skills guide is missing ${framework}`);
   }
   assert.equal((html.match(/class="about-card"/g) ?? []).length, 7);
-  assert.equal((html.match(/class="tab(?: active)?" data-tab=/g) ?? []).length, 8);
+  assert.equal((html.match(/class="tab(?: active)?" data-tab=/g) ?? []).length, 7);
+  assert.doesNotMatch(html, /class="tab" data-tab="account"/);
+  assert.match(html, /class="account-user-buttons"/);
   for (const label of [
     "Recommendation ranking",
     "Source-evidence layer",
@@ -535,6 +537,10 @@ test("saving a plan validates the payload", async () => {
   assert.match(stored.specificationMarkdown, /do not silently replace the source document's stated team/i);
   assert.equal((stored.specificationMarkdown.match(/\*\*Specification approach:\*\*/g) ?? []).length, 1);
   assert.match(stored.specificationMarkdown, /\[Fill in:/);
+  assert.equal(stored.validation.status, "protocol-ready");
+  assert.equal(stored.validation.environment, "not-selected");
+  assert.match(stored.validation.protocolMarkdown, /Team Validation Protocol/);
+  assert.match(stored.validation.protocolMarkdown, /Choose macOS, Windows 11, Ubuntu Linux or a cloud GPU server/);
 
   const detail = await (await worker.fetch(request(`/api/blueprints/${id}`), { DB: db })).json();
   assert.equal(detail.blueprint.name, "Balanced team");
@@ -545,6 +551,41 @@ test("saving a plan validates the payload", async () => {
   assert.match(markdown.headers.get("content-type"), /text\/markdown/);
   assert.match(markdown.headers.get("content-disposition"), /supplier-comparison-for-a-school-draft-specification\.md/);
   assert.match(await markdown.text(), /## 8\. Edge cases and failure handling/);
+
+  const configured = await worker.fetch(
+    request(`/api/blueprints/${id}/validation-protocol`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ environment: "macos" }),
+    }),
+    { DB: db },
+  );
+  assert.equal(configured.status, 200);
+  assert.equal((await configured.json()).blueprint.payload.validation.environment, "macos");
+  const protocolResponse = await worker.fetch(request(`/api/blueprints/${id}/validation.md`), { DB: db });
+  assert.equal(protocolResponse.status, 200);
+  assert.match(protocolResponse.headers.get("content-disposition"), /validation-protocol\.md/);
+  const completedProtocol = (await protocolResponse.text())
+    .replace("| Shared test set ID | |", "| Shared test set ID | supplier-set-v1 |")
+    .replace("| Tester or team | |", "| Tester or team | Procurement evaluation group |")
+    .replace("| Completed UTC | |", "| Completed UTC | 2026-08-22T03:00:00Z |")
+    .replace(
+      "| representative-task | not-run |  |  |  |  |  |  |  |  |  | |",
+      "| representative-task | pass | 10 | 9 | 89 | 1.20 | 700 | 1100 | 0 | 0 | 1 | One correction |",
+    );
+  const resultsForm = new FormData();
+  resultsForm.append("file", new File([completedProtocol], "supplier-plan-results.md", { type: "text/markdown" }));
+  const resultsResponse = await worker.fetch(
+    request(`/api/blueprints/${id}/validation-results`, { method: "POST", body: resultsForm }),
+    { DB: db },
+  );
+  assert.equal(resultsResponse.status, 200);
+  const evaluated = await resultsResponse.json();
+  assert.equal(evaluated.evaluation.status, "evidence-recorded");
+  assert.equal(evaluated.evaluation.qualityScore, 89);
+  assert.equal(evaluated.evaluation.totalCostUsd, 1.2);
+  assert.match(evaluated.blueprint.specificationMarkdown, /## Team validation evidence/);
+  assert.match(evaluated.blueprint.specificationMarkdown, /supplier-set-v1/);
 
   const patch = await worker.fetch(
     request(`/api/blueprints/${id}`, {

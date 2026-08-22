@@ -17,6 +17,21 @@ interface SavedPlanDetail extends SavedPlan {
   readonly specificationMarkdown: string;
 }
 
+const ENVIRONMENT_NAMES: Readonly<Record<string, string>> = {
+  "not-selected": "Choose an environment",
+  macos: "macOS",
+  windows11: "Windows 11",
+  ubuntu: "Ubuntu Linux",
+  "cloud-gpu": "Cloud GPU server",
+};
+
+const VALIDATION_STATUS: Readonly<Record<string, string>> = {
+  "protocol-ready": "Test protocol ready",
+  "in-progress": "Validation evidence in progress",
+  "evidence-recorded": "Validation evidence recorded",
+  "review-required": "Validation review required",
+};
+
 let boot: Bootstrap;
 let onReopen: (plan: SavedPlan) => void;
 let plans: SavedPlan[] = [];
@@ -47,13 +62,33 @@ function strategyName(plan: SavedPlan): string {
   return boot.strategies[id]?.name ?? String(id);
 }
 
+function validation(plan: SavedPlan): AnyRecord {
+  return record(plan.payload.validation);
+}
+
+function validationEvaluation(plan: SavedPlan): AnyRecord {
+  return record(validation(plan).currentEvaluation);
+}
+
 function trialStatus(plan: SavedPlan): string {
+  const validationState = validation(plan);
+  const validationLabel = VALIDATION_STATUS[String(validationState.status ?? "")];
+  if (validationLabel) return validationLabel;
   const trials = records(record(plan.payload.teamEvaluation).trials);
   const outcomes = trials.map((trial) => trial.outcome);
   if (outcomes.includes("fail")) return "A recorded trial failed";
   if (outcomes.length > 0 && outcomes.every((outcome) => outcome === "pass")) return "All recorded trials passed";
   const recorded = outcomes.filter((outcome) => outcome && outcome !== "not-tested").length;
-  return recorded ? `${recorded}/${outcomes.length} trials recorded` : "Not yet trial-tested";
+  return recorded ? `${recorded}/${outcomes.length} trials recorded` : "Test protocol ready";
+}
+
+function numberValue(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function comparisonMetric(plan: SavedPlan, field: string, suffix = ""): string {
+  const value = numberValue(validationEvaluation(plan)[field]);
+  return value === null ? "Not recorded" : `${Math.round(value * 100) / 100}${suffix}`;
 }
 
 function team(plan: SavedPlan): AnyRecord[] {
@@ -107,7 +142,7 @@ function renderComparison(): void {
   if (selected.length < 2) {
     setHtml(
       "saved-plan-compare",
-      `<div class="saved-compare-empty"><strong>Compare saved plans</strong><span>Select two or three plans to compare their application, plan style, team, trials and version stamps.</span></div>`,
+      `<div class="saved-compare-empty"><strong>Compare saved plans</strong><span>Select two or three plans to compare their team, validation evidence, quality, cost, speed and version stamps.</span></div>`,
     );
     return;
   }
@@ -130,13 +165,88 @@ function renderComparison(): void {
             )
             .join(""),
         )}
-        ${row("Trial state", (plan) => esc(trialStatus(plan)))}
+        ${row("Evidence state", (plan) => esc(trialStatus(plan)))}
+        ${row("Shared test set", (plan) => esc(validationEvaluation(plan).sharedTestSetId ?? "Not recorded"))}
+        ${row("Environment", (plan) => esc(ENVIRONMENT_NAMES[String(validation(plan).environment ?? "")] ?? "Not selected"))}
+        ${row("Completion", (plan) => esc(comparisonMetric(plan, "completionPercent", "%")))}
+        ${row("Observed pass rate", (plan) => esc(comparisonMetric(plan, "successRate", "%")))}
+        ${row("Weighted quality", (plan) => esc(comparisonMetric(plan, "qualityScore", "/100")))}
+        ${row("Recorded total cost", (plan) => {
+          const value = numberValue(validationEvaluation(plan).totalCostUsd);
+          return value === null ? "Not recorded" : `$${value.toFixed(4)} USD`;
+        })}
+        ${row("Slowest P95", (plan) => esc(comparisonMetric(plan, "p95Ms", " ms")))}
+        ${row("Safety failures", (plan) => esc(comparisonMetric(plan, "safetyFailures")))}
+        ${row("Routing failures", (plan) => esc(comparisonMetric(plan, "routingFailures")))}
         ${row("Catalogue", (plan) => esc(plan.payload.catalogVersion))}
         ${row("Scoring", (plan) => esc(plan.payload.scoringVersion))}
         ${row("Categories", (plan) => esc(plan.payload.taxonomyVersion))}
       </tbody>
     </table></div>`,
   );
+}
+
+function displayMetric(value: unknown, suffix = "", decimals = 1): string {
+  const parsed = numberValue(value);
+  return parsed === null ? "—" : `${parsed.toFixed(decimals).replace(/\.0$/, "")}${suffix}`;
+}
+
+function renderValidationWorkspace(plan: SavedPlanDetail): string {
+  const state = validation(plan);
+  const evaluation = validationEvaluation(plan);
+  const environment = String(state.environment ?? "not-selected");
+  const status = VALIDATION_STATUS[String(state.status ?? "protocol-ready")] ?? "Test protocol ready";
+  const recommendations = Array.isArray(evaluation.recommendations)
+    ? evaluation.recommendations.filter((value): value is string => typeof value === "string")
+    : [];
+  const options = Object.entries(ENVIRONMENT_NAMES)
+    .filter(([value]) => value !== "not-selected")
+    .map(
+      ([value, label]) =>
+        `<option value="${esc(value)}" ${environment === value ? "selected" : ""}>${esc(label)}</option>`,
+    )
+    .join("");
+  const metrics = Object.keys(evaluation).length
+    ? `<div class="validation-metrics">
+        <article><span>Completion</span><strong>${displayMetric(evaluation.completionPercent, "%", 0)}</strong><small>${esc(evaluation.completedTrials)} of ${esc(evaluation.expectedTrials)} trials</small></article>
+        <article><span>Observed pass rate</span><strong>${displayMetric(evaluation.successRate, "%")}</strong><small>Across cases with counts</small></article>
+        <article><span>Weighted quality</span><strong>${displayMetric(evaluation.qualityScore, "/100")}</strong><small>Your application rubric</small></article>
+        <article><span>Total cost</span><strong>${numberValue(evaluation.totalCostUsd) === null ? "—" : `$${numberValue(evaluation.totalCostUsd)?.toFixed(4)}`}</strong><small>Recorded USD</small></article>
+        <article><span>Slowest P95</span><strong>${displayMetric(evaluation.p95Ms, " ms", 0)}</strong><small>Complete-team latency</small></article>
+        <article><span>Safety / routing</span><strong>${displayMetric(evaluation.safetyFailures, "", 0)} / ${displayMetric(evaluation.routingFailures, "", 0)}</strong><small>Recorded failures</small></article>
+      </div>
+      <div class="validation-evidence-meta">
+        <span><b>Shared test set</b>${esc(evaluation.sharedTestSetId || "Not recorded")}</span>
+        <span><b>Environment</b>${esc(ENVIRONMENT_NAMES[String(evaluation.environment ?? environment)] ?? "Not selected")}</span>
+        <span><b>Last evaluated</b>${esc(when(typeof evaluation.evaluatedAt === "string" ? evaluation.evaluatedAt : null, "Not recorded"))}</span>
+      </div>
+      <div class="validation-recommendations"><strong>Proposed refinements</strong><ul>${recommendations.map((item) => `<li>${esc(item)}</li>`).join("")}</ul><small>Review these suggestions and reopen the plan to change a model or route. An upload never changes the team automatically.</small></div>`
+    : `<div class="validation-ready"><strong>The test design is ready; observed evidence has not been added yet.</strong><p>Choose where you will run the team, download the protocol and complete the same trials for each candidate plan. This is a prepared validation workflow, not an unfinished catalogue entry.</p></div>`;
+
+  return `<section class="validation-workspace" aria-labelledby="validation-workspace-title">
+    <div class="validation-head">
+      <div><span>Controlled team testing</span><h3 id="validation-workspace-title">${esc(status)}</h3></div>
+      <em>${esc(ENVIRONMENT_NAMES[environment] ?? "Environment not selected")}</em>
+    </div>
+    <p>Compare quality, total cost, P95 speed, safety, routing and recovery using the same frozen examples. Keep raw outputs and logs in the approved test environment; the completed Markdown summary stays with this saved plan.</p>
+    <ol class="validation-steps">
+      <li><b>1</b><span><strong>Choose the run environment</strong><small>The guide adapts to local or cloud compute.</small></span></li>
+      <li><b>2</b><span><strong>Download and run the protocol</strong><small>Use the same test set and rubric for every team.</small></span></li>
+      <li><b>3</b><span><strong>Upload the completed .md</strong><small>The advisor evaluates evidence and proposes refinements.</small></span></li>
+    </ol>
+    <div class="validation-controls">
+      <label><span>Compute environment</span><select id="validation-environment"><option value="">Choose…</option>${options}</select></label>
+      <button type="button" id="save-validation-protocol" data-plan-id="${esc(plan.id)}">Save environment</button>
+      <button type="button" id="download-validation-protocol" data-plan-id="${esc(plan.id)}" ${environment === "not-selected" ? "disabled" : ""}>Download test protocol (.md)</button>
+    </div>
+    <div class="validation-upload">
+      <label><span>Completed test results (.md)</span><input type="file" id="validation-results-file" accept=".md,text/markdown,text/plain"></label>
+      <button class="save" type="button" id="upload-validation-results" data-plan-id="${esc(plan.id)}">Upload and evaluate results</button>
+      <small>The upload must be the protocol for this plan. Metadata, plan ownership and numeric ranges are checked before anything is saved.</small>
+    </div>
+    ${state.latestResultsFileName ? `<p class="validation-last-file"><b>Latest results:</b> ${esc(state.latestResultsFileName)} · ${esc(when(typeof evaluation.evaluatedAt === "string" ? evaluation.evaluatedAt : null, "date unavailable"))}</p>` : ""}
+    ${metrics}
+  </section>`;
 }
 
 function renderDetail(plan: SavedPlanDetail): void {
@@ -153,6 +263,7 @@ function renderDetail(plan: SavedPlanDetail): void {
       <button type="button" data-detail-reopen="${esc(plan.id)}">Reopen in Application design</button>
     </div>
     <div class="saved-detail-roster">${roster}</div>
+    ${renderValidationWorkspace(plan)}
     <label class="saved-edit-field"><span>Plan name</span><input id="saved-plan-name" maxlength="160" value="${esc(plan.name)}"></label>
     <label class="saved-edit-field"><span>Draft application specification</span><small>Known application and team facts are filled in. Complete every [Fill in: …] field. Plans created from an upload finish with a complete extracted-source appendix; keep the original file as the authority for visual material.</small><textarea id="saved-plan-markdown" rows="28" spellcheck="true">${esc(plan.specificationMarkdown)}</textarea></label>
     <div class="saved-detail-actions">
@@ -160,6 +271,13 @@ function renderDetail(plan: SavedPlanDetail): void {
       <button type="button" data-detail-export="${esc(plan.id)}">Export complete plan (.md)</button>
     </div>`,
   );
+}
+
+function replacePlan(plan: SavedPlanDetail): void {
+  const index = plans.findIndex((item) => item.id === plan.id);
+  if (index >= 0) plans[index] = plan;
+  renderList();
+  renderDetail(plan);
 }
 
 async function loadDetail(id: string): Promise<void> {
@@ -309,6 +427,79 @@ export function initSavedPlans(context: Bootstrap, reopen: (plan: SavedPlan) => 
       );
       return;
     }
+    const configure = target.closest<HTMLButtonElement>("#save-validation-protocol");
+    if (configure?.dataset.planId) {
+      const environment = byId<HTMLSelectElement>("validation-environment").value;
+      if (!environment) {
+        toast("Choose a compute environment first");
+        return;
+      }
+      configure.disabled = true;
+      try {
+        const response = await authorizedFetch(
+          `/api/blueprints/${encodeURIComponent(configure.dataset.planId)}/validation-protocol`,
+          {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ environment }),
+          },
+        );
+        const data = (await response.json()) as { blueprint?: SavedPlanDetail; error?: string };
+        if (!response.ok || !data.blueprint) throw new Error(data.error ?? "The test protocol could not be saved");
+        replacePlan(data.blueprint);
+        toast("Test environment saved — protocol ready to download");
+      } catch (error) {
+        toast(error instanceof Error ? error.message : "The test protocol could not be saved");
+      } finally {
+        configure.disabled = false;
+      }
+      return;
+    }
+    const downloadValidation = target.closest<HTMLButtonElement>("#download-validation-protocol");
+    if (downloadValidation?.dataset.planId) {
+      downloadValidation.disabled = true;
+      try {
+        await downloadProtected(
+          `/api/blueprints/${encodeURIComponent(downloadValidation.dataset.planId)}/validation.md`,
+          "team-validation-protocol.md",
+        );
+      } catch (error) {
+        toast(error instanceof Error ? error.message : "The test protocol could not be downloaded");
+      } finally {
+        downloadValidation.disabled = false;
+      }
+      return;
+    }
+    const uploadValidation = target.closest<HTMLButtonElement>("#upload-validation-results");
+    if (uploadValidation?.dataset.planId) {
+      const file = byId<HTMLInputElement>("validation-results-file").files?.[0];
+      if (!file) {
+        toast("Choose the completed validation-results .md file first");
+        return;
+      }
+      if (!file.name.toLowerCase().endsWith(".md")) {
+        toast("Validation results must be a Markdown (.md) file");
+        return;
+      }
+      uploadValidation.disabled = true;
+      try {
+        const form = new FormData();
+        form.append("file", file);
+        const response = await authorizedFetch(
+          `/api/blueprints/${encodeURIComponent(uploadValidation.dataset.planId)}/validation-results`,
+          { method: "POST", body: form },
+        );
+        const data = (await response.json()) as { blueprint?: SavedPlanDetail; error?: string };
+        if (!response.ok || !data.blueprint) throw new Error(data.error ?? "The results could not be evaluated");
+        replacePlan(data.blueprint);
+        toast("Results evaluated and saved with this plan");
+      } catch (error) {
+        toast(error instanceof Error ? error.message : "The results could not be evaluated");
+      } finally {
+        uploadValidation.disabled = false;
+      }
+      return;
+    }
     const save = target.closest<HTMLButtonElement>("#update-saved-plan");
     if (!save?.dataset.planId) return;
     save.disabled = true;
@@ -323,10 +514,7 @@ export function initSavedPlans(context: Bootstrap, reopen: (plan: SavedPlan) => 
       });
       const data = (await response.json()) as { blueprint?: SavedPlanDetail; error?: string };
       if (!response.ok || !data.blueprint) throw new Error(data.error ?? "The edits could not be saved");
-      const index = plans.findIndex((plan) => plan.id === data.blueprint?.id);
-      if (index >= 0) plans[index] = data.blueprint;
-      renderList();
-      renderDetail(data.blueprint);
+      replacePlan(data.blueprint);
       toast("Saved plan and draft updated");
     } catch (error) {
       toast(error instanceof Error ? error.message : "The edits could not be saved");

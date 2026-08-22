@@ -198,7 +198,7 @@ function outcomeSummary(brief: BriefInput, styleId: string, trials: readonly Tea
   if (outcomes.some((outcome) => outcome === "fail")) return "Trial found a failure";
   if (outcomes.length > 0 && outcomes.every((outcome) => outcome === "pass")) return "All recorded trials passed";
   const recorded = outcomes.filter(Boolean).length;
-  return recorded > 0 ? `${recorded}/${trials.length} trials recorded` : "Not trial-tested";
+  return recorded > 0 ? `${recorded}/${trials.length} trials recorded` : "Test protocol ready";
 }
 
 function teamEvaluationPanel(brief: BriefInput, plan: Plan): string {
@@ -211,12 +211,12 @@ function teamEvaluationPanel(brief: BriefInput, plan: Plan): string {
   const failed = recorded.filter((outcome) => outcome === "fail").length;
   const passed = recorded.filter((outcome) => outcome === "pass").length;
   const status = failed
-    ? "Needs revision"
+    ? "Review required"
     : passed === evaluation.trials.length
-      ? "All recorded trials passed"
+      ? "Validation evidence recorded"
       : recorded.length
-        ? "Partly tested"
-        : "Not yet validated";
+        ? "Evidence collection in progress"
+        : "Ready for controlled testing";
 
   const checks = evaluation.checks
     .map(
@@ -250,8 +250,8 @@ function teamEvaluationPanel(brief: BriefInput, plan: Plan): string {
     .join("");
 
   return `<div class="team-evaluation-head">
-      <div><span>Team validation · ${esc(plan.strategy.name)}</span><h3>${esc(status)}</h3></div>
-      <p>Catalogue checks can assess the roster’s structure. Only the same real tasks run through the complete teams can show which team works best.</p>
+      <div><span>Team evidence · ${esc(plan.strategy.name)}</span><h3>${esc(status)}</h3></div>
+      <p>The structural review is available now. Save the plan to download a controlled test protocol, choose its compute environment and compare complete teams on the same real work.</p>
     </div>
     <details open>
       <summary>Structural team checks</summary>
@@ -259,7 +259,7 @@ function teamEvaluationPanel(brief: BriefInput, plan: Plan): string {
     </details>
     <details>
       <summary>Run and record the same five trials for every plan style</summary>
-      <p class="trial-note">The advisor does not call model APIs. Run these tests in the intended environment, then record the observed result here. Saved plans keep the results.</p>
+      <p class="trial-note">These quick results can be recorded here. For a defensible comparison, save the plan and use its Markdown protocol to capture quality, cost, speed, safety, routing and failure evidence in macOS, Windows 11, Ubuntu Linux or a cloud GPU environment.</p>
       <div class="team-trial-grid">${trials}</div>
     </details>`;
 }

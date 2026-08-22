@@ -17,9 +17,17 @@ import {
   saveBlueprint,
   upsertApplicationUser,
   updateBlueprint,
+  updateBlueprintValidationProtocol,
+  applyBlueprintValidationResults,
   type BlueprintPayload,
 } from "../db/repo.js";
 import { generateBlueprintSpecification, specificationFilename } from "../blueprints/specification.js";
+import {
+  createValidationState,
+  isValidationEnvironment,
+  ValidationDocumentError,
+  type ValidationState,
+} from "../blueprints/validation.js";
 import { ConceptPaperError, readConceptPaper } from "../concepts/parse.js";
 import { CONCEPT_PAPER_TEMPLATE } from "../concepts/template.js";
 import { authenticateRequest, type AuthEnv, type AuthenticatedUser } from "../auth.js";
@@ -248,4 +256,83 @@ export async function blueprintRoute(
   return json({
     blueprint: updated ? { ...updated, specificationMarkdown: updated.payload.specificationMarkdown as string } : null,
   });
+}
+
+/** Configure, download or evaluate the test protocol attached to one saved plan. */
+export async function blueprintValidationRoute(
+  request: Request,
+  db: D1Database | undefined,
+  id: string,
+  action: "validation-protocol" | "validation.md" | "validation-results",
+  env: AuthEnv = {},
+): Promise<Response> {
+  if (!db) return json({ error: "Team validation needs persistent storage, which is unavailable here." }, 503);
+  if (!id || id.length > 100) return json({ error: "The saved plan id is invalid." }, 400);
+  const user = await accountUser(request, db, env);
+  let existing = await getBlueprint(db, id, user.id);
+  if (!existing) return json({ error: "Saved plan not found." }, 404);
+
+  if (action === "validation.md") {
+    if (request.method !== "GET") return new Response("Method not allowed", { status: 405 });
+    if (!existing.payload.validation || typeof existing.payload.validation !== "object") {
+      existing = await updateBlueprintValidationProtocol(db, id, "not-selected", user.id);
+    }
+    const validation = (existing?.payload.validation ??
+      createValidationState(existing?.payload ?? {}, id)) as ValidationState;
+    const fileName = `${String(existing?.name ?? "team-plan")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80)}-validation-protocol.md`;
+    return new Response(validation.protocolMarkdown, {
+      headers: {
+        "content-type": "text/markdown; charset=utf-8",
+        "content-disposition": `attachment; filename="${fileName}"`,
+        ...NO_STORE,
+      },
+    });
+  }
+
+  if (action === "validation-protocol") {
+    if (request.method !== "PATCH") return new Response("Method not allowed", { status: 405 });
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: "The request body was not valid JSON." }, 400);
+    }
+    const environment = (body as Record<string, unknown>)?.environment;
+    if (!isValidationEnvironment(environment) || environment === "not-selected") {
+      return json({ error: "Choose macOS, Windows 11, Ubuntu Linux or a cloud GPU server." }, 400);
+    }
+    const updated = await updateBlueprintValidationProtocol(db, id, environment, user.id);
+    return json({
+      blueprint: updated
+        ? { ...updated, specificationMarkdown: updated.payload.specificationMarkdown as string }
+        : null,
+      markdownUrl: `/api/blueprints/${encodeURIComponent(id)}/validation.md`,
+    });
+  }
+
+  if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
+  if (!(request.headers.get("content-type") ?? "").toLowerCase().includes("multipart/form-data")) {
+    return json({ error: "Upload the completed Markdown results file as form data." }, 415);
+  }
+  try {
+    const form = await request.formData();
+    const file = form.get("file");
+    if (!(file instanceof File)) return json({ error: "Choose a completed validation-results Markdown file." }, 400);
+    if (!file.name.toLowerCase().endsWith(".md")) return json({ error: "Validation results must be a .md file." }, 415);
+    if (file.size > 300_000) return json({ error: "The validation results file is larger than 300 KB." }, 413);
+    const updated = await applyBlueprintValidationResults(db, id, file.name, await file.text(), user.id);
+    return json({
+      blueprint: updated
+        ? { ...updated, specificationMarkdown: updated.payload.specificationMarkdown as string }
+        : null,
+      evaluation: (updated?.payload.validation as ValidationState)?.currentEvaluation,
+    });
+  } catch (error) {
+    if (error instanceof ValidationDocumentError) return json({ error: error.message }, error.status);
+    return json({ error: "The validation results could not be evaluated." }, 400);
+  }
 }

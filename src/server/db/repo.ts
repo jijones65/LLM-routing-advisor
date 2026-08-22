@@ -16,6 +16,15 @@ import {
 import { loadSnapshots } from "../registry/refresh.js";
 import { ensureSchema, fingerprint, type D1Database } from "./index.js";
 import { generateBlueprintSpecification } from "../blueprints/specification.js";
+import {
+  addValidationAppendix,
+  createValidationState,
+  evaluateValidationResults,
+  generateValidationProtocol,
+  parseValidationResults,
+  type ValidationEnvironment,
+  type ValidationState,
+} from "../blueprints/validation.js";
 import type { AuthenticatedUser } from "../auth.js";
 
 const MATCHER = new CatalogMatcher(CATALOG);
@@ -556,15 +565,20 @@ export async function saveBlueprint(
   await ensureSchema(db);
   const id = crypto.randomUUID();
   const savedAt = typeof payload.savedAt === "string" ? payload.savedAt : new Date().toISOString();
-  const completePayload: BlueprintPayload = {
+  const specificationMarkdown =
+    typeof payload.specificationMarkdown === "string"
+      ? payload.specificationMarkdown
+      : generateBlueprintSpecification({ ...payload, savedAt, lastEditedAt: savedAt });
+  const basePayload: BlueprintPayload = {
     ...payload,
     savedAt,
     lastEditedAt: savedAt,
-    specificationVersion: "1.2",
-    specificationMarkdown:
-      typeof payload.specificationMarkdown === "string"
-        ? payload.specificationMarkdown
-        : generateBlueprintSpecification({ ...payload, savedAt, lastEditedAt: savedAt }),
+    specificationVersion: "1.3",
+    specificationMarkdown,
+  };
+  const completePayload: BlueprintPayload = {
+    ...basePayload,
+    validation: createValidationState(basePayload as Record<string, unknown>, id, savedAt),
   };
   await db
     .prepare(
@@ -600,7 +614,7 @@ export async function updateBlueprint(
     ...existing.payload,
     name: change.name.trim().slice(0, 160),
     specificationMarkdown: change.specificationMarkdown,
-    specificationVersion: "1.2",
+    specificationVersion: "1.3",
     lastEditedAt,
   };
   await db
@@ -614,6 +628,120 @@ export async function updateBlueprint(
     .bind(payload.name, JSON.stringify(payload), id, id, userId)
     .run();
   return getBlueprint(db, id, userId);
+}
+
+async function replaceBlueprintPayload(
+  db: D1Database,
+  existing: SavedBlueprint,
+  payload: BlueprintPayload,
+  userId: string,
+): Promise<SavedBlueprint | null> {
+  await db
+    .prepare(
+      `UPDATE application_blueprints
+       SET name = ?, payload_json = ?
+       WHERE id = ? AND EXISTS (
+         SELECT 1 FROM application_blueprint_owners o WHERE o.blueprint_id = ? AND o.user_id = ?
+       )`,
+    )
+    .bind(existing.name, JSON.stringify(payload), existing.id, existing.id, userId)
+    .run();
+  return getBlueprint(db, existing.id, userId);
+}
+
+/** Select a reproducible test environment and save a fresh protocol with the plan. */
+export async function updateBlueprintValidationProtocol(
+  db: D1Database,
+  id: string,
+  environment: ValidationEnvironment,
+  userId = "legacy-private-owner",
+): Promise<SavedBlueprint | null> {
+  const existing = await getBlueprint(db, id, userId);
+  if (!existing) return null;
+  const generatedAt = new Date().toISOString();
+  const previous =
+    existing.payload.validation && typeof existing.payload.validation === "object"
+      ? (existing.payload.validation as ValidationState)
+      : createValidationState(existing.payload as Record<string, unknown>, id, generatedAt);
+  const environmentChanged = previous.environment !== environment;
+  const validation: ValidationState = {
+    ...(environmentChanged && previous.currentEvaluation ? { resultHistory: previous.resultHistory } : previous),
+    protocolVersion: "1.0",
+    status: environmentChanged ? "protocol-ready" : (previous.currentEvaluation?.status ?? "protocol-ready"),
+    environment,
+    protocolMarkdown: generateValidationProtocol(
+      existing.payload as Record<string, unknown>,
+      id,
+      environment,
+      generatedAt,
+    ),
+    generatedAt,
+  };
+  return replaceBlueprintPayload(db, existing, { ...existing.payload, validation, lastEditedAt: generatedAt }, userId);
+}
+
+/** Parse uploaded evidence, store it with the plan and propose refinements without silently changing the team. */
+export async function applyBlueprintValidationResults(
+  db: D1Database,
+  id: string,
+  fileName: string,
+  markdown: string,
+  userId = "legacy-private-owner",
+): Promise<SavedBlueprint | null> {
+  const existing = await getBlueprint(db, id, userId);
+  if (!existing) return null;
+  const parsed = parseValidationResults(markdown, id);
+  const evaluation = evaluateValidationResults(parsed, existing.payload as Record<string, unknown>);
+  const importedAt = evaluation.evaluatedAt;
+  const prior =
+    existing.payload.validation && typeof existing.payload.validation === "object"
+      ? (existing.payload.validation as ValidationState)
+      : createValidationState(existing.payload as Record<string, unknown>, id, importedAt);
+  const history = Array.isArray(prior.resultHistory) ? [...prior.resultHistory] : [];
+  history.unshift({
+    fileName: fileName.slice(0, 180),
+    importedAt,
+    status: evaluation.status,
+    completionPercent: evaluation.completionPercent,
+    qualityScore: evaluation.qualityScore,
+    totalCostUsd: evaluation.totalCostUsd,
+    p95Ms: evaluation.p95Ms,
+    sharedTestSetId: evaluation.sharedTestSetId,
+  });
+  const teamEvaluation =
+    existing.payload.teamEvaluation && typeof existing.payload.teamEvaluation === "object"
+      ? (existing.payload.teamEvaluation as Record<string, unknown>)
+      : {};
+  const resultByTrial = new Map(evaluation.rows.map((row) => [row.trialId, row.outcome]));
+  const currentTrials = Array.isArray(teamEvaluation.trials)
+    ? teamEvaluation.trials.map((value) => {
+        const trial = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+        const outcome = typeof trial.id === "string" ? resultByTrial.get(trial.id) : undefined;
+        return outcome && outcome !== "not-run" ? { ...trial, outcome } : trial;
+      })
+    : [];
+  const currentSpecification =
+    typeof existing.payload.specificationMarkdown === "string"
+      ? existing.payload.specificationMarkdown
+      : generateBlueprintSpecification(existing.payload as Record<string, unknown>);
+  const validation: ValidationState = {
+    ...prior,
+    status: evaluation.status,
+    environment: parsed.environment,
+    currentEvaluation: evaluation,
+    latestResultsFileName: fileName.slice(0, 180),
+    latestResultsMarkdown: markdown,
+    resultHistory: history.slice(0, 10),
+  };
+  const payload: BlueprintPayload = {
+    ...existing.payload,
+    teamEvaluation: { ...teamEvaluation, trials: currentTrials },
+    validation,
+    specificationMarkdown: addValidationAppendix(currentSpecification, evaluation, fileName),
+    specificationVersion: "1.3",
+    lastEditedAt: importedAt,
+  };
+  return replaceBlueprintPayload(db, existing, payload, userId);
 }
 
 /** Permanently delete one saved plan. */

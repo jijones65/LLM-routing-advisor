@@ -10,6 +10,14 @@ import type { Model } from "../../shared/types.js";
  */
 const CHANGES: readonly { state: string; title: string; scope: string; date: string; detail: string }[] = [
   {
+    state: "Added",
+    title: "Saved plans now carry a controlled team-validation workflow",
+    scope: "Saved plans · test evidence · recommendations",
+    date: "22 Aug 2026",
+    detail:
+      "Choose macOS, Windows 11, Ubuntu Linux or a cloud GPU server and download a plan-specific Markdown protocol. It keeps the test set, rubric, versions and complete-team measures consistent across candidate teams. Uploading the completed file records and evaluates quality, cost, P95 speed, safety, routing, recovery and human corrections, then proposes refinements without silently changing the team.",
+  },
+  {
     state: "Refined",
     title: "Project-document imports now retain the complete extracted source",
     scope: "Uploads · saved plans · Markdown export",

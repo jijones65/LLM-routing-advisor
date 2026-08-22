@@ -4,6 +4,7 @@ import {
   accountRoute,
   auditRoute,
   blueprintRoute,
+  blueprintValidationRoute,
   blueprintsRoute,
   candidatesRoute,
   catalogRoute,
@@ -73,6 +74,24 @@ export default {
 
     if (url.pathname.startsWith("/api/blueprints/")) {
       const parts = url.pathname.split("/").filter(Boolean);
+      const validationAction = parts[3];
+      if (
+        parts.length === 4 &&
+        (validationAction === "validation-protocol" ||
+          validationAction === "validation.md" ||
+          validationAction === "validation-results")
+      ) {
+        try {
+          return await blueprintValidationRoute(request, env.DB, decodeURIComponent(parts[2]), validationAction, env);
+        } catch (error) {
+          const authResponse = authenticationResponse(error);
+          if (authResponse) return authResponse;
+          return new Response(JSON.stringify({ error: String(error) }), {
+            status: 500,
+            headers: { "content-type": "application/json", "cache-control": "no-store" },
+          });
+        }
+      }
       if (parts.length === 3 || (parts.length === 4 && parts[3] === "markdown")) {
         try {
           return await blueprintRoute(request, env.DB, decodeURIComponent(parts[2]), parts[3] === "markdown", env);

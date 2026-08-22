@@ -338,11 +338,11 @@ a:focus-visible {
   top: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto minmax(180px, 1fr);
-  gap: 24px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 18px;
   align-items: center;
-  min-height: 70px;
-  padding: 0 30px;
+  min-height: 78px;
+  padding: 10px 24px;
   color: #fff;
   background: rgba(16, 35, 50, 0.97);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -375,10 +375,14 @@ a:focus-visible {
 }
 .tabs {
   display: flex;
+  min-width: 0;
+  justify-self: center;
   gap: 4px;
+  overflow-x: auto;
   padding: 4px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.07);
+  scrollbar-width: thin;
 }
 .tab {
   padding: 9px 14px;
@@ -388,6 +392,7 @@ a:focus-visible {
   color: rgba(255, 255, 255, 0.65);
   font-size: 12px;
   font-weight: 750;
+  white-space: nowrap;
 }
 .tab.active,
 .tab:hover {
@@ -410,12 +415,20 @@ a:focus-visible {
   background: var(--lime);
   box-shadow: 0 0 0 5px rgba(201, 223, 105, 0.12);
 }
-.topbar-actions,
-.account-user {
+.topbar-actions {
   display: flex;
   gap: 10px;
   align-items: center;
   justify-content: flex-end;
+}
+.account-user {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+}
+.account-user-buttons {
+  display: flex;
+  gap: 7px;
 }
 .account-button,
 .account-user button {
@@ -434,11 +447,12 @@ a:focus-visible {
   background: rgba(201, 223, 105, 0.12);
 }
 .account-user span {
-  max-width: 180px;
+  max-width: 220px;
   overflow: hidden;
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 10px;
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 9px;
   font-weight: 700;
+  text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1979,6 +1993,223 @@ p {
   gap: 9px;
   margin-top: 13px;
 }
+.validation-workspace {
+  margin: 18px 0;
+  padding: 18px;
+  border: 1px solid #b8d6d3;
+  border-radius: 13px;
+  background: linear-gradient(145deg, #f4faf9, #fbfcf7);
+}
+.validation-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+.validation-head span {
+  color: #47737c;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.validation-head h3 {
+  margin: 4px 0 0;
+  color: var(--navy);
+  font-size: 19px;
+}
+.validation-head em {
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #e5f2f0;
+  color: #315c72;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 850;
+}
+.validation-workspace > p {
+  max-width: 780px;
+  margin: 8px 0 14px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.55;
+}
+.validation-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+.validation-steps li {
+  display: grid;
+  grid-template-columns: 25px 1fr;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(104, 169, 169, 0.22);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.76);
+}
+.validation-steps li > b {
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--navy);
+  color: var(--lime);
+  font-size: 9px;
+}
+.validation-steps span {
+  display: grid;
+  gap: 2px;
+}
+.validation-steps strong {
+  color: var(--navy);
+  font-size: 9px;
+}
+.validation-steps small {
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.35;
+}
+.validation-controls,
+.validation-upload {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  padding: 11px;
+  border-top: 1px solid rgba(104, 169, 169, 0.2);
+}
+.validation-controls label,
+.validation-upload label {
+  display: grid;
+  flex: 1;
+  gap: 4px;
+}
+.validation-controls label span,
+.validation-upload label span {
+  color: var(--navy);
+  font-size: 8px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+.validation-controls select,
+.validation-upload input {
+  min-height: 34px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 9px;
+}
+.validation-controls button,
+.validation-upload button {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid #8db7b2;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--navy);
+  font-size: 8px;
+  font-weight: 850;
+}
+.validation-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.validation-upload {
+  flex-wrap: wrap;
+}
+.validation-upload small {
+  width: 100%;
+  color: var(--muted);
+  font-size: 8px;
+}
+.validation-ready {
+  margin-top: 12px;
+  padding: 13px;
+  border-left: 3px solid var(--lime2);
+  border-radius: 8px;
+  background: #fff;
+}
+.validation-ready strong {
+  color: var(--navy);
+  font-size: 10px;
+}
+.validation-ready p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 9px;
+}
+.validation-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 12px;
+}
+.validation-metrics article {
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  border-radius: 9px;
+  background: #fff;
+}
+.validation-metrics span,
+.validation-evidence-meta b {
+  color: var(--muted);
+  font-size: 7px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+.validation-metrics strong {
+  color: var(--navy);
+  font-size: 16px;
+}
+.validation-metrics small {
+  color: var(--muted);
+  font-size: 7px;
+}
+.validation-evidence-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 8px;
+}
+.validation-evidence-meta span {
+  display: grid;
+  gap: 2px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: #eef4f2;
+  color: var(--navy);
+  font-size: 8px;
+}
+.validation-recommendations {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid #dfd8c7;
+  border-radius: 9px;
+  background: #fffdf8;
+}
+.validation-recommendations > strong {
+  color: var(--navy);
+  font-size: 10px;
+}
+.validation-recommendations ul {
+  margin: 7px 0;
+  padding-left: 17px;
+  color: var(--ink);
+  font-size: 9px;
+  line-height: 1.5;
+}
+.validation-recommendations small,
+.validation-last-file {
+  color: var(--muted);
+  font-size: 8px;
+}
 .saved-empty,
 .saved-detail-loading {
   padding: 24px;
@@ -2508,9 +2739,16 @@ p {
   .saved-toolbar,
   .saved-compare-empty,
   .saved-detail-head,
-  .saved-detail-actions {
+  .saved-detail-actions,
+  .validation-head,
+  .validation-controls,
+  .validation-upload {
     align-items: stretch;
     flex-direction: column;
+  }
+  .validation-steps,
+  .validation-metrics {
+    grid-template-columns: 1fr;
   }
   .saved-plan-detail {
     padding: 16px;

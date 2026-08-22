@@ -1,6 +1,6 @@
 # LLM Application Routing Advisor — Product and Implementation Specification
 
-**Specification version:** 2.5
+**Specification version:** 2.6
 **Current implementation baseline:** 22 August 2026 · catalogue `2026.08.19-1` · scoring `2026.08.19-1` · taxonomy `2026.08.19-3`
 **Status:** Living specification for refinement, maintenance, and future rebuilds
 
@@ -818,6 +818,9 @@ HTTP interfaces:
 - `PATCH /api/blueprints/:id` — edit an owned plan name and draft specification without changing the saved team facts
 - `DELETE /api/blueprints/:id` — permanently delete one owned saved plan
 - `GET /api/blueprints/:id/markdown` — download an owned draft as a Markdown file
+- `PATCH /api/blueprints/:id/validation-protocol` — choose a supported compute environment and regenerate the owned plan's test protocol
+- `GET /api/blueprints/:id/validation.md` — download the current owned validation protocol as Markdown
+- `POST /api/blueprints/:id/validation-results` — validate, evaluate and retain a completed owned results file
 - `POST /api/concept-paper` — transiently analyse a PDF or DOCX for a signed-in user without retaining the source file
 - `GET /api/concept-paper-template` — download the public Markdown starter template
 
@@ -857,6 +860,8 @@ Saved plans include:
 - Close-call, tie-break, or policy-choice decision guidance
 - Structural team checks
 - Real-task trial instructions and recorded outcomes
+- Saved test-protocol version, selected compute environment and generated Markdown
+- Latest uploaded results Markdown, interpreted metrics, evidence state and proposed refinements
 - Catalogue version
 - Scoring version
 - Taxonomy version
@@ -891,6 +896,9 @@ The Saved plans tab must allow a user to:
 - Reopen the saved brief and recorded trial outcomes in Application design
 - Select two or three plans for a side-by-side comparison
 - Compare application type, plan style, team membership, trial state and version stamps
+- Choose macOS, Windows 11, Ubuntu Linux or a cloud GPU server and save an environment-specific test protocol
+- Download the plan-specific protocol, complete it outside the Advisor and upload the resulting `.md`
+- Compare shared test set, evidence completeness, pass rate, quality, total cost, P95 speed, safety failures and routing failures
 - Edit and persist the plan name and Markdown draft
 - Export the current draft as a `.md` file
 - Delete a saved plan only after confirming its name and that the action is permanent
@@ -919,6 +927,7 @@ Interface requirements:
 - An About tab that explains Application design, Saved plans, Model explorer, Live registry, Coverage check, and Update centre in plain language
 - A signed-out landing page with no visible access to the dashboard tabs until a session is restored
 - An Account link and page showing email identity, free tier, saved-plan count, project-file usage, file download, file deletion and sign-out
+- One Account button in the signed-in header; the signed-in email appears below the Account and Sign out buttons rather than occupying a second main-navigation tab
 - A clear statement of what each tab can help with and what it cannot prove
 - A five-step workflow from describing an application to testing, recording, and revisiting a model-team plan
 - Definitions that distinguish candidates from proven winners, source confirmation from performance testing, and user-recorded trials from tests run by the application
@@ -989,11 +998,20 @@ Interface requirements:
 ### Team validation
 
 - Structural checks cover requirement coverage, assigned-job fit, job-quality targets, quality-and-cost routing, complementarity, duplication, checker independence, routing complexity and fallback independence.
-- Coordination quality and end-to-end operation always require a real trial until an outcome is recorded.
+- Coordination quality and end-to-end operation always require a real trial until evidence is recorded.
 - The same five trial definitions are available for every plan style.
 - The load trial measures successful rubric-meeting tasks per total dollar and elapsed minute, including tools, retries, fallbacks and human corrections.
-- Recording Pass, Needs work or Fail updates the selected team's validation state.
-- Saved plans retain the recorded trial outcomes without claiming the advisor ran the models.
+- A new saved plan is labelled **Test protocol ready**, not **Not yet validated**. This means the structural review and controlled-test design exist; it does not claim observed performance.
+- The saved protocol supports macOS, Windows 11, Ubuntu Linux and cloud GPU servers. It records OS/runtime, hardware, pinned model and tool versions, routing configuration and secrets-handling guidance appropriate to that environment.
+- Fair comparisons use a shared frozen test-set ID, the same inputs, output rubric and success thresholds, and disclose every prompt, tool, route, retry and fallback difference.
+- The Markdown results table records per-trial outcome, attempted and passed cases, 0–100 quality, complete-team USD cost, median and P95 latency, safety failures, routing failures, human corrections and notes.
+- Upload validation is data parsing, not prompt execution: the plan ID and protocol version must match, numeric ranges are checked, unknown trials are rejected and a file larger than 300 KB is refused.
+- Interpreted results remain separate from model fit, source confidence, ecosystem visibility and catalogue performance readings.
+- Evidence states are **Test protocol ready**, **Validation evidence in progress**, **Validation evidence recorded** and **Validation review required**.
+- Safety or routing failures and failed trials force review guidance. Incomplete, untraceable or non-shared test sets are reported as weak or non-comparable evidence.
+- Recommendations identify what to retest, which route or checker to inspect and when to compare a close alternative. They never silently replace a model, route or saved plan.
+- The latest interpreted result is appended to the exported application specification, while the completed source `.md` remains stored inside the owned saved-plan payload.
+- Saved plans retain recorded evidence without claiming the advisor called the models or ran the tests.
 
 ### Saved plans and specifications
 
@@ -1012,6 +1030,7 @@ Interface requirements:
 - Unknown application decisions remain explicit fill-in fields rather than generated claims.
 - Reopening restores the saved brief and recorded trial outcomes to Application design.
 - Two or three plans can be compared side by side.
+- Plan comparison includes validation state, shared test set, compute environment, completion, pass rate, weighted quality, complete-team cost, P95 latency, safety failures and routing failures.
 - Editing persists the new name and Markdown content without replacing the saved team facts.
 - Export returns the latest edited Markdown with a safe `.md` filename.
 - Deletion requires an explicit interface confirmation that names the plan and says the action is permanent.
@@ -1101,7 +1120,7 @@ A rebuild is complete only when:
 - Each recommendation separates fit, source confidence, ecosystem visibility, and measured performance.
 - Each team member has a skill-by-skill rationale that distinguishes provider-stated capability, missing coverage and recorded performance tests.
 - Near-equal numerical results keep their raw order and show the explicit measured-evidence, application-specialisation and ecosystem-reach tie-break sequence.
-- Proposed teams expose structural cautions and cannot become validated until the complete roster is trialled.
+- Proposed teams expose structural cautions and become evidence-recorded only after a traceable complete-roster protocol is uploaded; failures remain review-required.
 - Public visibility is never described as users, reliability, market share, or proof of quality.
 - Plan cards show complete teams.
 - Broad-model and specialist-team hypotheses can be compared on the same evaluation set.
@@ -1112,5 +1131,6 @@ A rebuild is complete only when:
 - Private PDF and DOCX uploads are stored under the authenticated user's Supabase folder and can be listed, downloaded and deleted only by that user.
 - Server-side ownership checks prevent one valid account from reading or changing another account's plan.
 - Saved plans can be reopened, compared, edited, exported and deliberately deleted without losing the context of plans that remain.
+- A saved plan can generate an environment-specific validation `.md`, reject another plan's results, evaluate a valid upload and retain both its metrics and proposed refinements without changing the team automatically.
 - Tests cover the ranking rules and known failure cases.
 - The build, migrations, deployment, live site, and GitHub source all correspond to the same release.

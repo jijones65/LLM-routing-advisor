@@ -100,7 +100,6 @@ export const BODY_MARKUP = `<section class="landing-page" id="landing-page">
 <button class="tab" data-tab="audit-layer">Coverage check</button>
 <button class="tab" data-tab="updates">Update centre</button>
 <button class="tab" data-tab="about">About</button>
-<button class="tab" data-tab="account">Account</button>
 </nav>
 <div class="topbar-actions">
 <div class="live" id="live-state">
@@ -108,9 +107,11 @@ export const BODY_MARKUP = `<section class="landing-page" id="landing-page">
 </i>Checks for updates · 60s</div>
 <button class="account-button" type="button" id="account-button">Sign in</button>
 <div class="account-user" id="account-user" hidden>
-<span id="account-email"></span>
+<div class="account-user-buttons">
 <button type="button" id="account-page-button">Account</button>
 <button type="button" id="account-sign-out">Sign out</button>
+</div>
+<span id="account-email"></span>
 </div>
 </div>
 </header>
@@ -331,8 +332,8 @@ export const BODY_MARKUP = `<section class="landing-page" id="landing-page">
 <div class="page-head saved-page-head">
 <div>
 <div class="eyebrow">Saved team plans and draft specifications</div>
-<h1>Reopen, compare, edit, export or delete your plans.</h1>
-<p class="lede">Every saved team includes the application brief, model choices, evidence readings, trial results and an editable Markdown specification. The draft fills in known facts and leaves decisions for you to complete.</p>
+<h1>Develop the plan, test the team, keep the evidence.</h1>
+<p class="lede">Every saved team includes its brief, model choices, evidence readings and editable specification. Choose a compute environment, download the saved Markdown test protocol, then upload completed results to compare quality, cost, speed, safety and failure handling.</p>
 </div>
 <div class="registry-stat">
 <strong id="saved-plan-count">0</strong>
@@ -801,8 +802,8 @@ export const BODY_MARKUP = `<section class="landing-page" id="landing-page">
 <span class="about-number">02</span>
 <div>
 <h2>Saved plans</h2>
-<p>Sign in with a secure, one-time email link. Then reopen or compare your saved teams, edit the plan name and draft application specification, export the specification as a Markdown file, or permanently delete a plan you no longer need. Each account sees only its own plans.</p>
-<small><strong>It cannot do:</strong> complete the fill-in decisions or prove that the saved team works. The draft keeps the advisor's facts separate from choices and trial results you must supply.</small>
+<p>Reopen or compare saved teams, edit and export the application specification, or delete a plan. Each plan also stores a controlled-test protocol for macOS, Windows 11, Ubuntu Linux or a cloud GPU server. Upload its completed Markdown results to evaluate quality, complete-team cost, speed, safety, routing and failure handling.</p>
+<small><strong>It cannot do:</strong> run the models or silently decide for you. It checks and interprets user-supplied evidence, proposes refinements and keeps application-specific results separate from catalogue scores.</small>
 </div>
 </article>
 <article class="about-card">
@@ -868,7 +869,7 @@ export const BODY_MARKUP = `<section class="landing-page" id="landing-page">
 <i aria-hidden="true">→</i>
 <article><b>6</b><strong>Check the whole team</strong><small>Coverage, overlap, provider concentration, hand-offs, routing and failures</small></article>
 <i aria-hidden="true">→</i>
-<article><b>7</b><strong>Trial before deciding</strong><small>Use the same real examples to compare quality, cost, speed, safety and reliability</small></article>
+<article><b>7</b><strong>Run and retain the evidence</strong><small>Download the saved protocol, use the same real examples, then upload results to compare quality, cost, speed, safety and reliability</small></article>
 </div>
 <div class="decision-table-wrap">
 <table class="decision-table">
@@ -920,7 +921,7 @@ export const BODY_MARKUP = `<section class="landing-page" id="landing-page">
 <article><strong>Candidate does not mean proven winner.</strong><span>It is a model or team worth testing next.</span></article>
 <article><strong>Source confirmed does not mean performance tested.</strong><span>It means the official provider page supported the recorded facts when checked.</span></article>
 <article><strong>A close call means less than one point.</strong><span>The raw order is kept. Measured evidence, application specialisation and then ecosystem reach provide visible tie-breakers; if they are also level, the result stays unresolved.</span></article>
-<article><strong>Trials are recorded by the user.</strong><span>The advisor does not call model APIs or run the application tests for you.</span></article>
+<article><strong>Validation evidence is supplied by the user.</strong><span>The advisor provides the protocol and evaluates a completed results file. It does not call model APIs or claim that it ran the tests.</span></article>
 <article><strong>Useful-work efficiency is not token throughput.</strong><span>It means successful tasks meeting the output rubric per total dollar and elapsed minute, including tools, retries, fallbacks and corrections.</span></article>
 </div>
 </section>
